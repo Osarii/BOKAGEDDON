@@ -27,7 +27,7 @@ export interface ProfessorMessage {
 }
 
 const LOCAL_STORAGE_KEY_NAME = "bonkageddon_gemini_api_key";
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.6-flash";
 
 /**
  * Resolves the active Gemini API key from:
