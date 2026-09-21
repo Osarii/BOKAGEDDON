@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+
+<defs>
+  <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#080B12" flood-opacity=".45"/>
+  </filter>
+  <linearGradient id="gOrange" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0" stop-color="#FFB020"/>
+    <stop offset="1" stop-color="#FF6B35"/>
+  </linearGradient>
+  <linearGradient id="gCyan" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0" stop-color="#77E9FF"/>
+    <stop offset="1" stop-color="#23D5FF"/>
+  </linearGradient>
+  <linearGradient id="gXP" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0" stop-color="#D6FF9E"/>
+    <stop offset="1" stop-color="#A8FF60"/>
+  </linearGradient>
+</defs>
+<g filter="url(#shadow)"><polygon points="128,34 205,105 176,210 80,210 51,105" fill="#23D5FF" stroke="#F4F7FB" stroke-width="7"/><circle cx="128" cy="126" r="41" fill="#080B12"/><circle cx="128" cy="126" r="18" fill="#FF3B5C"/><path d="M128 34 L128 76 M51 105 L92 119 M205 105 L164 119" stroke="#F4F7FB" stroke-width="11" stroke-linecap="round"/></g>
+</svg>

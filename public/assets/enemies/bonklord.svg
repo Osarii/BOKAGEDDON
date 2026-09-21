@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+
+<defs>
+  <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#080B12" flood-opacity=".45"/>
+  </filter>
+  <linearGradient id="gOrange" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0" stop-color="#FFB020"/>
+    <stop offset="1" stop-color="#FF6B35"/>
+  </linearGradient>
+  <linearGradient id="gCyan" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0" stop-color="#77E9FF"/>
+    <stop offset="1" stop-color="#23D5FF"/>
+  </linearGradient>
+  <linearGradient id="gXP" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0" stop-color="#D6FF9E"/>
+    <stop offset="1" stop-color="#A8FF60"/>
+  </linearGradient>
+</defs>
+<g filter="url(#shadow)"><polygon points="128,18 204,56 226,134 194,211 128,240 62,211 30,134 52,56" fill="#080B12" stroke="#FFB020" stroke-width="10"/><path d="M68 90 L84 37 L111 78 L128 31 L145 78 L172 37 L188 90" fill="#FFB020"/><circle cx="128" cy="138" r="57" fill="#FF3B5C"/><path d="M90 127 L115 138 L92 150 M166 127 L141 138 L164 150" fill="#080B12"/><path d="M102 171 L128 158 L154 171" fill="none" stroke="#080B12" stroke-width="10" stroke-linecap="round"/></g>
+</svg>

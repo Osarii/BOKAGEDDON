@@ -1,0 +1,100 @@
+{
+  "characters": [
+    {
+      "id": "bonk",
+      "name": "BONK",
+      "role": "Balanced Bruiser",
+      "health": 110,
+      "speed": 5,
+      "damage": 28,
+      "attackCooldown": 0.9,
+      "weapon": "hammer",
+      "description": "Heavy hitter with steady balance and crushing blows.",
+      "color": "#FF6B35"
+    },
+    {
+      "id": "byte",
+      "name": "BYTE",
+      "role": "Fast Ranged Specialist",
+      "health": 80,
+      "speed": 6.5,
+      "damage": 18,
+      "attackCooldown": 0.55,
+      "weapon": "energy-orb",
+      "description": "Swift technomancer firing rapid energy orbs.",
+      "color": "#23D5FF"
+    },
+    {
+      "id": "tank",
+      "name": "TANK",
+      "role": "Slow Armored Juggernaut",
+      "health": 160,
+      "speed": 4,
+      "damage": 32,
+      "attackCooldown": 1.1,
+      "weapon": "axe",
+      "description": "Armored powerhouse built to withstand endless punishment.",
+      "color": "#FF3B5C"
+    }
+  ],
+  "upgrades": [
+    {
+      "id": "damage",
+      "name": "Damage Boost",
+      "description": "+20% attack damage to all weapons",
+      "type": "offense",
+      "icon": "/assets/upgrades/damage.svg"
+    },
+    {
+      "id": "haste",
+      "name": "Haste",
+      "description": "Reduces attack cooldown by 15%",
+      "type": "utility",
+      "icon": "/assets/upgrades/haste.svg"
+    },
+    {
+      "id": "speed",
+      "name": "Speed Surge",
+      "description": "Increases movement speed by 15%",
+      "type": "mobility",
+      "icon": "/assets/upgrades/speed.svg"
+    },
+    {
+      "id": "vitality",
+      "name": "Vitality",
+      "description": "Increases maximum health by +30 HP",
+      "type": "defense",
+      "icon": "/assets/upgrades/vitality.svg"
+    },
+    {
+      "id": "armor",
+      "name": "Reinforced Armor",
+      "description": "Reduces incoming damage by 15%",
+      "type": "defense",
+      "icon": "/assets/upgrades/armor.svg"
+    },
+    {
+      "id": "magnet",
+      "name": "XP Magnet",
+      "description": "Increases XP gem pickup radius by 40%",
+      "type": "utility",
+      "icon": "/assets/upgrades/magnet.svg"
+    },
+    {
+      "id": "critical",
+      "name": "Critical Strike",
+      "description": "Grants a 20% chance to deal double damage",
+      "type": "offense",
+      "icon": "/assets/upgrades/critical.svg"
+    },
+    {
+      "id": "multishot",
+      "name": "Multishot",
+      "description": "Fires +1 additional projectile per attack cycle",
+      "type": "offense",
+      "icon": "/assets/upgrades/multishot.svg"
+    }
+  ],
+  "scores": [],
+  "$schema": "./node_modules/json-server/schema.json"
+}
