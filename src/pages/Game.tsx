@@ -8,6 +8,7 @@ import { VictoryOverlay } from "../components/game/VictoryOverlay";
 import { useGameStore } from "../store/gameStore";
 import { getCharacter } from "../services/api";
 import { LoadingState } from "../components/ui/LoadingState";
+import { ErrorState } from "../components/ui/ErrorState";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { createGameRuntime, type GameRuntime } from "../game/runtime";
 import type { Character, CharacterId } from "../types/game";
@@ -27,11 +28,15 @@ export const Game: React.FC = () => {
   // Cached character stats for instant replay without re-fetching
   const cachedCharacterRef = useRef<Character | null>(null);
 
-  const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
   const initializeCharacterRun = useGameStore((s) => s.initializeCharacterRun);
 
   const isValid = Boolean(characterId && VALID_CHARACTER_IDS.includes(characterId as CharacterId));
-  const [isLoading, setIsLoading] = useState<boolean>(() => isValid && selectedCharacterId !== characterId);
+  const [loadedCharacterId, setLoadedCharacterId] = useState<CharacterId | null>(null);
+  const [loadError, setLoadError] = useState<{ characterId: string; message: string } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const currentLoadError =
+    loadError && loadError.characterId === characterId ? loadError.message : null;
+  const isLoading = isValid && !currentLoadError && loadedCharacterId !== characterId;
 
   useEffect(() => {
     if (!isValid || !characterId) return;
@@ -41,19 +46,26 @@ export const Game: React.FC = () => {
     getCharacter(characterId, controller.signal)
       .then((char) => {
         cachedCharacterRef.current = char;
-        if (selectedCharacterId !== characterId) {
-          initializeCharacterRun(char);
-        }
-        setIsLoading(false);
+        runtimeRef.current.reset();
+        hasSavedScoreRef.current = false;
+        hasSentWebhookRef.current = false;
+        initializeCharacterRun(char);
+        setLoadError(null);
+        setLoadedCharacterId(char.id);
       })
-      .catch(() => {
-        setIsLoading(false);
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Could not load this survivor from JSON Server.";
+        setLoadError({ characterId, message });
       });
 
     return () => {
       controller.abort();
     };
-  }, [isValid, characterId, selectedCharacterId, initializeCharacterRun]);
+  }, [isValid, characterId, retryCount, initializeCharacterRun]);
 
   // Clean full run reset handler
   const handlePlayAgain = () => {
@@ -100,6 +112,25 @@ export const Game: React.FC = () => {
     return (
       <main className="container" style={{ padding: "6rem 1.5rem" }}>
         <LoadingState message={`Preparing arena for ${characterId?.toUpperCase()}...`} />
+      </main>
+    );
+  }
+
+  if (currentLoadError) {
+    return (
+      <main className="container" style={{ padding: "6rem 1.5rem", textAlign: "center" }}>
+        <ErrorState
+          title="Could Not Load Survivor"
+          message={currentLoadError}
+          onRetry={() => {
+            setLoadError(null);
+            setRetryCount((count) => count + 1);
+          }}
+        />
+        <Link to="/characters" className="btn btn-outline" style={{ marginTop: "1.5rem" }}>
+          <ArrowLeft size={16} />
+          Return to Character Select
+        </Link>
       </main>
     );
   }
