@@ -1,0 +1,320 @@
+{
+  "name": "BONKAGEDDON Run Completion",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bonkageddon/run-completed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "9d4f7d22-9d73-4a2e-bab5-d8c69ff0a101",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        0
+      ],
+      "webhookId": "bonkageddon-run-completed"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst score = Number(body.score ?? 0);\nconst kills = Number(body.kills ?? 0);\nconst level = Number(body.level ?? 1);\nconst timeSurvivedSeconds = Number(body.timeSurvivedSeconds ?? 0);\nconst outcome = body.outcome === 'victory' ? 'victory' : 'gameover';\nconst classification = outcome === 'victory' || score >= 50000 || kills >= 500\n  ? 'LEGENDARY'\n  : score >= 10000 || level >= 10 || kills >= 100\n    ? 'HIGH_SCORE'\n    : 'NORMAL_RUN';\n\nreturn [{\n  json: {\n    event: 'bonkageddon.run.completed',\n    valid: Boolean(body.playerName && body.characterId && Number.isFinite(score)),\n    receivedAt: new Date().toISOString(),\n    run: {\n      playerName: String(body.playerName || 'Survivor').slice(0, 20),\n      characterId: String(body.characterId || 'bonk'),\n      outcome,\n      score,\n      kills,\n      level,\n      timeSurvivedSeconds,\n      date: body.date || new Date().toISOString(),\n      classification\n    }\n  }\n}];"
+      },
+      "id": "08f21c7a-cc83-4fd7-aaef-8ccfb7dbe4c8",
+      "name": "Validate and Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const run = $json.run;\nconst minutes = Math.floor(run.timeSurvivedSeconds / 60);\nconst seconds = String(run.timeSurvivedSeconds % 60).padStart(2, '0');\nconst messages = {\n  LEGENDARY: `${run.playerName} became BONKAGEDDON legend with ${run.score} points.`,\n  HIGH_SCORE: `${run.playerName} posted a high-score run: ${run.score} points.`,\n  NORMAL_RUN: `${run.playerName} finished a ${run.outcome} run.`\n};\n\nreturn [{\n  json: {\n    ...$json,\n    analysis: {\n      summary: messages[run.classification],\n      survivalTime: `${minutes}:${seconds}`,\n      leaderboardCandidate: run.classification !== 'NORMAL_RUN',\n      nextAction: run.classification === 'LEGENDARY'\n        ? 'celebrate_legendary'\n        : run.classification === 'HIGH_SCORE'\n          ? 'log_high_score'\n          : 'log_standard_run'\n    }\n  }\n}];"
+      },
+      "id": "eae7d48a-0ff3-4ebb-94ce-82793a7a9094",
+      "name": "Run Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.run.classification }}",
+                    "rightValue": "LEGENDARY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "LEGENDARY"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.run.classification }}",
+                    "rightValue": "HIGH_SCORE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "HIGH_SCORE"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "NORMAL_RUN"
+        }
+      },
+      "id": "0da046d7-a4de-48db-94fb-7df262178bb6",
+      "name": "Classify Run",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -60,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "legendary-action",
+              "name": "action",
+              "type": "string",
+              "value": "feature_on_class_board"
+            },
+            {
+              "id": "legendary-badge",
+              "name": "badge",
+              "type": "string",
+              "value": "BONK LEGEND"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "93da688e-a949-4a58-80df-c6d240d6cf4a",
+      "name": "Legendary Action",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "high-action",
+              "name": "action",
+              "type": "string",
+              "value": "mark_high_score_candidate"
+            },
+            {
+              "id": "high-badge",
+              "name": "badge",
+              "type": "string",
+              "value": "HIGH SCORE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2b707b58-5a53-4ce9-a425-4e02a4c6f99c",
+      "name": "High Score Action",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "normal-action",
+              "name": "action",
+              "type": "string",
+              "value": "archive_standard_run"
+            },
+            {
+              "id": "normal-badge",
+              "name": "badge",
+              "type": "string",
+              "value": "RUN LOGGED"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "915e9698-29cf-4db5-951e-e9dc29bd078d",
+      "name": "Normal Run Action",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  ok: true,\n  classification: $json.run.classification,\n  action: $json.action,\n  badge: $json.badge,\n  summary: $json.analysis.summary,\n  receivedAt: $json.receivedAt\n} }}",
+        "options": {}
+      },
+      "id": "1c612482-c586-438d-ab66-70028b4906d7",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        460,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate and Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Normalize": {
+      "main": [
+        [
+          {
+            "node": "Run Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Analysis": {
+      "main": [
+        [
+          {
+            "node": "Classify Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Run": {
+      "main": [
+        [
+          {
+            "node": "Legendary Action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "High Score Action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normal Run Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Legendary Action": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Score Action": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normal Run Action": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8ef6f7a4-a0f4-4dcf-a1fe-0b2f929e1d5a",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "bonkageddon-run-workflow",
+  "tags": []
+}

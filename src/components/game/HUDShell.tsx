@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useGameStore } from "../../store/gameStore";
 import { ASSETS } from "../../config/assets";
 import { UPGRADE_DETAILS } from "../../game/config";
+import { AudioControl } from "./AudioControl";
 import type { UpgradeId } from "../../types/game";
 import { Heart, Skull, Trophy, Sparkles, ChevronLeft, Clock, Flame } from "lucide-react";
 
@@ -161,6 +162,8 @@ export const HUDShell: React.FC = () => {
             <Skull size={16} />
             <span>{kills}</span>
           </div>
+
+          <AudioControl />
         </div>
       </div>
 

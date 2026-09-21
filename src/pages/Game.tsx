@@ -22,6 +22,7 @@ export const Game: React.FC = () => {
 
   // Per-run score save guard to ensure POST /scores occurs at most once
   const hasSavedScoreRef = useRef<boolean>(false);
+  const hasSentWebhookRef = useRef<boolean>(false);
 
   // Cached character stats for instant replay without re-fetching
   const cachedCharacterRef = useRef<Character | null>(null);
@@ -61,6 +62,7 @@ export const Game: React.FC = () => {
 
     // 2. Reset score save guard for new run
     hasSavedScoreRef.current = false;
+    hasSentWebhookRef.current = false;
 
     // 3. Reset store and reinitialize character
     if (cachedCharacterRef.current) {
@@ -117,12 +119,14 @@ export const Game: React.FC = () => {
       <GameOverOverlay
         onPlayAgain={handlePlayAgain}
         hasSavedScoreRef={hasSavedScoreRef}
+        hasSentWebhookRef={hasSentWebhookRef}
       />
 
       {/* Victory Overlay */}
       <VictoryOverlay
         onPlayAgain={handlePlayAgain}
         hasSavedScoreRef={hasSavedScoreRef}
+        hasSentWebhookRef={hasSentWebhookRef}
       />
     </div>
   );

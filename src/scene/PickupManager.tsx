@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import type { GameRuntime } from "../game/runtime";
 import { GAME_CONFIG } from "../game/config";
 import { useGameStore } from "../store/gameStore";
+import { gameAudio } from "../audio/gameAudio";
 
 interface PickupManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -65,7 +66,9 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
 
       // Collected by player
       if (dist < 0.7) {
+        const previousLevel = useGameStore.getState().level;
         useGameStore.getState().addXp(gem.xpValue);
+        gameAudio.play(useGameStore.getState().level > previousLevel ? "levelUp" : "xpPickup");
         runtime.pickups.splice(i, 1);
       }
     }
