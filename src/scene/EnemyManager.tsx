@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { GameRuntime, EnemyEntity } from "../game/runtime";
 import {
   ENEMY_CONFIGS,
@@ -11,11 +12,38 @@ import {
 import { getEnemyCap } from "../game/progression";
 import { getSpawnInterval, getSpawnBatch } from "../game/spawnRules";
 import { useGameStore } from "../store/gameStore";
+import { ASSETS } from "../config/assets";
 import type { EnemyType } from "../types/game";
 
 interface EnemyManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
 }
+
+interface DeathRing {
+  x: number;
+  y: number;
+  z: number;
+  color: THREE.Color;
+  currentRadius: number;
+  maxRadius: number;
+  life: number;
+  maxLife: number;
+}
+
+const MAX_DEATH_RINGS = 32;
+
+// Shared SVG Textures loaded once at module scope
+const textureLoader = new THREE.TextureLoader();
+const enemyTextures = {
+  slime: textureLoader.load(ASSETS.enemies.slime),
+  runner: textureLoader.load(ASSETS.enemies.runner),
+  brute: textureLoader.load(ASSETS.enemies.brute),
+  shooter: textureLoader.load(ASSETS.enemies.shooter),
+  bonklord: textureLoader.load(ASSETS.enemies.bonklord),
+};
+Object.values(enemyTextures).forEach((tex) => {
+  tex.colorSpace = THREE.SRGBColorSpace;
+});
 
 // Temporary transformation matrices and vectors reused every frame
 const tempMatrix = new THREE.Matrix4();
@@ -23,59 +51,167 @@ const tempPosition = new THREE.Vector3();
 const tempRotation = new THREE.Euler();
 const tempScale = new THREE.Vector3();
 const tempQuaternion = new THREE.Quaternion();
+const decalMatrix = new THREE.Matrix4();
+const decalPosition = new THREE.Vector3();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
 
+// Base and flash colors for InstancedMesh.setColorAt
+const flashColor = new THREE.Color("#ffffff");
+const baseColors: Record<EnemyType, THREE.Color> = {
+  slime: new THREE.Color("#c084fc"),
+  runner: new THREE.Color("#ff6b35"),
+  brute: new THREE.Color("#ef4444"),
+  shooter: new THREE.Color("#22d3ee"),
+  bonklord: new THREE.Color("#e11d48"),
+};
+
+// Safe geometry merger normalizing indexed and non-indexed buffers
+function safeMerge(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const normalized = geometries.map((g) => (g.index ? g.toNonIndexed() : g));
+  return mergeGeometries(normalized);
+}
+
 export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
-  // InstancedMesh references for the 4 standard archetypes
+  // InstancedMesh references for the 4 standard archetypes (Body + Face Decals)
   const slimeMeshRef = useRef<THREE.InstancedMesh>(null);
   const runnerMeshRef = useRef<THREE.InstancedMesh>(null);
   const bruteMeshRef = useRef<THREE.InstancedMesh>(null);
   const shooterMeshRef = useRef<THREE.InstancedMesh>(null);
 
+  const slimeDecalRef = useRef<THREE.InstancedMesh>(null);
+  const runnerDecalRef = useRef<THREE.InstancedMesh>(null);
+  const bruteDecalRef = useRef<THREE.InstancedMesh>(null);
+  const shooterDecalRef = useRef<THREE.InstancedMesh>(null);
+
+  // InstancedMesh for death dissipation rings
+  const deathMeshRef = useRef<THREE.InstancedMesh>(null);
+  const deathRingsRef = useRef<DeathRing[]>([]);
+
   // Dedicated mesh ref for the unique Bonklord boss
   const bossGroupRef = useRef<THREE.Group>(null);
+  const bossAuraRef = useRef<THREE.Mesh>(null);
 
-  // Shared reusable geometries and materials
+  // Shared reusable 3D geometries with distinct silhouettes
   const geometries = useMemo(() => {
+    // 1. Slime: Bouncy dome body with dual crown nubs
+    const sBody = new THREE.SphereGeometry(0.55, 16, 12).scale(1.0, 0.85, 1.0).translate(0, 0.45, 0);
+    const sNubL = new THREE.SphereGeometry(0.14, 8, 6).translate(-0.28, 0.88, 0);
+    const sNubR = new THREE.SphereGeometry(0.14, 8, 6).translate(0.28, 0.88, 0);
+    const slimeGeo = safeMerge([sBody, sNubL, sNubR]);
+
+    // 2. Runner: Supersonic stealth dart with swept wings and top fin
+    const rNose = new THREE.ConeGeometry(0.35, 1.25, 4).rotateX(Math.PI / 2).translate(0, 0.45, 0.1);
+    const rWingL = new THREE.BoxGeometry(0.75, 0.07, 0.45).rotateY(-0.35).translate(-0.48, 0.42, -0.2);
+    const rWingR = new THREE.BoxGeometry(0.75, 0.07, 0.45).rotateY(0.35).translate(0.48, 0.42, -0.2);
+    const rFin = new THREE.BoxGeometry(0.06, 0.35, 0.35).translate(0, 0.65, -0.25);
+    const runnerGeo = safeMerge([rNose, rWingL, rWingR, rFin]);
+
+    // 3. Brute: Heavy armored tank chassis with dual shoulder horns and visor brow
+    const bTorso = new THREE.BoxGeometry(1.45, 1.35, 1.15).translate(0, 0.75, 0);
+    const bHornL = new THREE.ConeGeometry(0.24, 0.75, 5).rotateZ(-0.4).translate(-0.7, 1.65, 0);
+    const bHornR = new THREE.ConeGeometry(0.24, 0.75, 5).rotateZ(0.4).translate(0.7, 1.65, 0);
+    const bBrow = new THREE.BoxGeometry(1.15, 0.3, 0.25).translate(0, 1.05, 0.6);
+    const bruteGeo = safeMerge([bTorso, bHornL, bHornR, bBrow]);
+
+    // 4. Shooter: Floating arcane diamond core with barrel and 4 stabilizer spires
+    const shCore = new THREE.OctahedronGeometry(0.55);
+    const shBarrel = new THREE.CylinderGeometry(0.12, 0.16, 0.45, 8).rotateX(Math.PI / 2).translate(0, 0, 0.4);
+    const shSpireTop = new THREE.ConeGeometry(0.15, 0.5, 4).translate(0, 0.65, 0);
+    const shSpireBot = new THREE.ConeGeometry(0.15, 0.5, 4).rotateX(Math.PI).translate(0, -0.65, 0);
+    const shSpireL = new THREE.ConeGeometry(0.14, 0.45, 4).rotateZ(Math.PI / 2).translate(-0.65, 0, 0);
+    const shSpireR = new THREE.ConeGeometry(0.14, 0.45, 4).rotateZ(-Math.PI / 2).translate(0.65, 0, 0);
+    const shooterGeo = safeMerge([shCore, shBarrel, shSpireTop, shSpireBot, shSpireL, shSpireR]);
+
+    // Decal quads for official SVG facial identities
+    const decals = {
+      slime: new THREE.PlaneGeometry(0.7, 0.7),
+      runner: new THREE.PlaneGeometry(0.75, 0.75),
+      brute: new THREE.PlaneGeometry(1.1, 1.1),
+      shooter: new THREE.PlaneGeometry(0.85, 0.85),
+    };
+
+    const deathRing = new THREE.RingGeometry(0.7, 0.95, 32).rotateX(-Math.PI / 2);
+
     return {
-      slime: new THREE.SphereGeometry(ENEMY_CONFIGS.slime.radius, 12, 10),
-      runner: new THREE.ConeGeometry(ENEMY_CONFIGS.runner.radius, ENEMY_CONFIGS.runner.height, 6),
-      brute: new THREE.BoxGeometry(
-        ENEMY_CONFIGS.brute.radius * 1.6,
-        ENEMY_CONFIGS.brute.height,
-        ENEMY_CONFIGS.brute.radius * 1.6
-      ),
-      shooter: new THREE.OctahedronGeometry(ENEMY_CONFIGS.shooter.radius),
+      slime: slimeGeo,
+      runner: runnerGeo,
+      brute: bruteGeo,
+      shooter: shooterGeo,
+      decals,
+      deathRing,
     };
   }, []);
 
+  // Shared materials supporting per-instance colors and rich emissives
   const materials = useMemo(() => {
     return {
       slime: new THREE.MeshStandardMaterial({
-        color: ENEMY_CONFIGS.slime.color,
+        color: "#ffffff",
+        emissive: "#7c3aed",
+        emissiveIntensity: 0.45,
         roughness: 0.3,
-        metalness: 0.1,
+        metalness: 0.15,
       }),
       runner: new THREE.MeshStandardMaterial({
-        color: ENEMY_CONFIGS.runner.color,
-        roughness: 0.4,
-        metalness: 0.3,
+        color: "#ffffff",
+        emissive: "#ea580c",
+        emissiveIntensity: 0.55,
+        roughness: 0.35,
+        metalness: 0.35,
       }),
       brute: new THREE.MeshStandardMaterial({
-        color: ENEMY_CONFIGS.brute.color,
-        roughness: 0.6,
-        metalness: 0.5,
+        color: "#ffffff",
+        emissive: "#991b1b",
+        emissiveIntensity: 0.45,
+        roughness: 0.5,
+        metalness: 0.45,
       }),
       shooter: new THREE.MeshStandardMaterial({
-        color: ENEMY_CONFIGS.shooter.color,
+        color: "#ffffff",
         emissive: "#0891b2",
-        emissiveIntensity: 0.5,
-        roughness: 0.2,
+        emissiveIntensity: 0.8,
+        roughness: 0.25,
+        metalness: 0.3,
+      }),
+      // Decal materials mapped with official SVG assets
+      decalSlime: new THREE.MeshBasicMaterial({
+        map: enemyTextures.slime,
+        transparent: true,
+        alphaTest: 0.1,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      decalRunner: new THREE.MeshBasicMaterial({
+        map: enemyTextures.runner,
+        transparent: true,
+        alphaTest: 0.1,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      decalBrute: new THREE.MeshBasicMaterial({
+        map: enemyTextures.brute,
+        transparent: true,
+        alphaTest: 0.1,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      decalShooter: new THREE.MeshBasicMaterial({
+        map: enemyTextures.shooter,
+        transparent: true,
+        alphaTest: 0.1,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      deathRing: new THREE.MeshBasicMaterial({
+        color: "#ffffff",
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
       }),
     };
   }, []);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
 
@@ -85,6 +221,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     const level = useGameStore.getState().level;
     const enemyCap = getEnemyCap(level);
     const spawnIntervalSec = getSpawnInterval(level) / 1000;
+    const time = state.clock.elapsedTime;
 
     // Player contact damage cooldown
     if (runtime.playerInvulnerableTimer > 0) {
@@ -104,7 +241,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     if (isBossDue && runtime.enemies.length <= effectiveCap) {
       // Spawn the Bonklord
       const angle = Math.random() * Math.PI * 2;
-      const spawnDist = ARENA_BOUNDARY_LIMIT - 1.0;
+      const spawnDist = ARENA_BOUNDARY_LIMIT - 1.5;
       const bossConfig = ENEMY_CONFIGS.bonklord;
 
       const bossEntity: EnemyEntity = {
@@ -134,7 +271,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       useGameStore.getState().updateBossHealth(bossConfig.health, bossConfig.health);
     }
 
-    // Normal horde spawning
+    // Dynamic camera-relative perimeter spawning
+    const playerPos = runtime.playerPosition;
+
     if (runtime.spawnTimer >= spawnIntervalSec) {
       runtime.spawnTimer = 0;
       const availableSlots = Math.max(0, effectiveCap - runtime.enemies.length);
@@ -163,19 +302,29 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           }
 
           const config = ENEMY_CONFIGS[type];
-          // Spawn around the arena perimeter
+
+          // Spawn near camera perimeter (11.5 - 13.5 units from player), clamped inside arena
           const angle = Math.random() * Math.PI * 2;
-          const spawnDist = ARENA_BOUNDARY_LIMIT - 0.5;
+          const spawnDist = 11.5 + Math.random() * 2.0;
+          let spawnX = playerPos.x + Math.cos(angle) * spawnDist;
+          let spawnZ = playerPos.z + Math.sin(angle) * spawnDist;
+
+          const distFromCenter = Math.hypot(spawnX, spawnZ);
+          if (distFromCenter > ARENA_BOUNDARY_LIMIT - 0.8) {
+            const clampRatio = (ARENA_BOUNDARY_LIMIT - 0.8) / distFromCenter;
+            spawnX *= clampRatio;
+            spawnZ *= clampRatio;
+          }
 
           const enemy: EnemyEntity = {
             id: runtime.nextEntityId++,
             type,
-            x: Math.cos(angle) * spawnDist,
+            x: spawnX,
             y: config.height / 2,
-            z: Math.sin(angle) * spawnDist,
+            z: spawnZ,
             vx: 0,
             vz: 0,
-            health: config.health + (level - 1) * 3, // gradual level scaling
+            health: config.health + (level - 1) * 3,
             maxHealth: config.health + (level - 1) * 3,
             speed: config.speed,
             damage: config.damage,
@@ -196,7 +345,6 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     // =========================================================================
     // 2. AI Update & Movement Loop
     // =========================================================================
-    const playerPos = runtime.playerPosition;
     const playerRadius = 0.5;
 
     for (let i = runtime.enemies.length - 1; i >= 0; i--) {
@@ -218,6 +366,20 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           xpValue: enemy.xpValue,
           radius: 0.4,
         });
+
+        // Trigger lightweight death dissipation ring
+        if (deathRingsRef.current.length < MAX_DEATH_RINGS) {
+          deathRingsRef.current.push({
+            x: enemy.x,
+            y: 0.05,
+            z: enemy.z,
+            color: baseColors[enemy.type],
+            currentRadius: enemy.radius * 0.7,
+            maxRadius: enemy.radius * 2.6,
+            life: 0.32,
+            maxLife: 0.32,
+          });
+        }
 
         // Award kill & score in Zustand store
         useGameStore.getState().addKill(enemy.scoreValue);
@@ -332,7 +494,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     }
 
     // =========================================================================
-    // 3. Render Batching into InstancedMeshes
+    // 3. Render Batching into InstancedMeshes (Body + Decals + Hit Flash)
     // =========================================================================
     let slimeCount = 0;
     let runnerCount = 0;
@@ -342,6 +504,11 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
     for (let i = 0; i < runtime.enemies.length; i++) {
       const e = runtime.enemies[i];
+      if (e.type === "bonklord") {
+        bossEntity = e;
+        continue;
+      }
+
       const meshRef =
         e.type === "slime"
           ? slimeMeshRef
@@ -349,16 +516,18 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           ? runnerMeshRef
           : e.type === "brute"
           ? bruteMeshRef
-          : e.type === "shooter"
-          ? shooterMeshRef
-          : null;
+          : shooterMeshRef;
 
-      if (e.type === "bonklord") {
-        bossEntity = e;
-        continue;
-      }
+      const decalRef =
+        e.type === "slime"
+          ? slimeDecalRef
+          : e.type === "runner"
+          ? runnerDecalRef
+          : e.type === "brute"
+          ? bruteDecalRef
+          : shooterDecalRef;
 
-      if (!meshRef || !meshRef.current) continue;
+      if (!meshRef.current || !decalRef.current) continue;
 
       let index = 0;
       if (e.type === "slime") index = slimeCount++;
@@ -368,57 +537,160 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
       if (index >= HARD_ENEMY_CAP) continue;
 
-      tempPosition.set(e.x, e.y, e.z);
-
-      // Rotate towards player
+      // Rotation towards player
       const angle = Math.atan2(playerPos.x - e.x, playerPos.z - e.z);
-      tempRotation.set(0, angle, 0);
-      tempQuaternion.setFromEuler(tempRotation);
+      const sinA = Math.sin(angle);
+      const cosA = Math.cos(angle);
 
-      // Hit flash squash effect
-      const flashScale = e.hitFlashTimer > 0 ? 1.25 : 1.0;
-      tempScale.set(flashScale, flashScale, flashScale);
+      // Archetype-specific movement animation & squash
+      const isFlashing = e.hitFlashTimer > 0;
+      const flashScale = isFlashing ? 1.3 : 1.0;
 
-      tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+      if (e.type === "slime") {
+        // Bouncy squash & stretch
+        const bounce = Math.sin(time * 8 + e.id);
+        tempPosition.set(e.x, 0.05, e.z);
+        tempRotation.set(0, angle, 0);
+        tempQuaternion.setFromEuler(tempRotation);
+        tempScale.set(
+          (1 - 0.1 * bounce) * flashScale,
+          (1 + 0.16 * bounce) * flashScale,
+          (1 - 0.1 * bounce) * flashScale
+        );
+        tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+        // Decal on front face of slime
+        decalPosition.set(e.x + sinA * 0.45, 0.5 + bounce * 0.05, e.z + cosA * 0.45);
+        decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
+      } else if (e.type === "runner") {
+        // High-speed jet banking tilt
+        const bank = Math.sin(time * 12 + e.id) * 0.15;
+        tempPosition.set(e.x, 0.15, e.z);
+        tempRotation.set(0, angle, bank);
+        tempQuaternion.setFromEuler(tempRotation);
+        tempScale.set(flashScale, flashScale, flashScale);
+        tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+        // Decal on dorsal surface of runner drone
+        decalPosition.set(e.x, 0.65, e.z);
+        decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
+      } else if (e.type === "brute") {
+        // Heavy lumbering stomp sway
+        const sway = Math.sin(time * 5 + e.id) * 0.08;
+        tempPosition.set(e.x, 0.05, e.z);
+        tempRotation.set(0, angle, sway);
+        tempQuaternion.setFromEuler(tempRotation);
+        tempScale.set(flashScale, flashScale, flashScale);
+        tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+        // Decal on front armored chest plate
+        decalPosition.set(e.x + sinA * 0.62, 0.8, e.z + cosA * 0.62);
+        decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
+      } else {
+        // Shooter: Floating bob with subtle hovering spin
+        const bob = Math.sin(time * 3.5 + e.id) * 0.15;
+        tempPosition.set(e.x, 1.15 + bob, e.z);
+        tempRotation.set(0, angle, 0);
+        tempQuaternion.setFromEuler(tempRotation);
+        tempScale.set(flashScale, flashScale, flashScale);
+        tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+        // Decal on front face of shooter
+        decalPosition.set(e.x + sinA * 0.45, 1.15 + bob, e.z + cosA * 0.45);
+        decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
+      }
+
       meshRef.current.setMatrixAt(index, tempMatrix);
+      decalRef.current.setMatrixAt(index, decalMatrix);
+
+      // Per-instance Hit Flash Color
+      const activeColor = isFlashing ? flashColor : baseColors[e.type];
+      meshRef.current.setColorAt(index, activeColor);
+      decalRef.current.setColorAt(index, flashColor);
     }
 
-    // Hide remaining unused instance slots
-    if (slimeMeshRef.current) {
-      for (let i = slimeCount; i < HARD_ENEMY_CAP; i++) {
-        slimeMeshRef.current.setMatrixAt(i, hiddenMatrix);
+    // Hide remaining unused slots and update instance buffers
+    const updateBatch = (
+      mesh: THREE.InstancedMesh | null,
+      decal: THREE.InstancedMesh | null,
+      count: number
+    ) => {
+      if (mesh) {
+        for (let i = count; i < HARD_ENEMY_CAP; i++) {
+          mesh.setMatrixAt(i, hiddenMatrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       }
-      slimeMeshRef.current.instanceMatrix.needsUpdate = true;
-    }
-
-    if (runnerMeshRef.current) {
-      for (let i = runnerCount; i < HARD_ENEMY_CAP; i++) {
-        runnerMeshRef.current.setMatrixAt(i, hiddenMatrix);
+      if (decal) {
+        for (let i = count; i < HARD_ENEMY_CAP; i++) {
+          decal.setMatrixAt(i, hiddenMatrix);
+        }
+        decal.instanceMatrix.needsUpdate = true;
+        if (decal.instanceColor) decal.instanceColor.needsUpdate = true;
       }
-      runnerMeshRef.current.instanceMatrix.needsUpdate = true;
-    }
+    };
 
-    if (bruteMeshRef.current) {
-      for (let i = bruteCount; i < HARD_ENEMY_CAP; i++) {
-        bruteMeshRef.current.setMatrixAt(i, hiddenMatrix);
+    updateBatch(slimeMeshRef.current, slimeDecalRef.current, slimeCount);
+    updateBatch(runnerMeshRef.current, runnerDecalRef.current, runnerCount);
+    updateBatch(bruteMeshRef.current, bruteDecalRef.current, bruteCount);
+    updateBatch(shooterMeshRef.current, shooterDecalRef.current, shooterCount);
+
+    // =========================================================================
+    // 4. Update Death Dissipation Rings
+    // =========================================================================
+    const deathRings = deathRingsRef.current;
+    let activeRingCount = 0;
+
+    for (let d = deathRings.length - 1; d >= 0; d--) {
+      const ring = deathRings[d];
+      ring.life -= delta;
+
+      if (ring.life <= 0) {
+        deathRings.splice(d, 1);
+        continue;
       }
-      bruteMeshRef.current.instanceMatrix.needsUpdate = true;
+
+      if (activeRingCount >= MAX_DEATH_RINGS || !deathMeshRef.current) continue;
+
+      const progress = 1 - ring.life / ring.maxLife;
+      const r = ring.currentRadius + (ring.maxRadius - ring.currentRadius) * progress;
+
+      tempPosition.set(ring.x, ring.y, ring.z);
+      tempRotation.set(0, 0, 0);
+      tempQuaternion.setFromEuler(tempRotation);
+      tempScale.set(r, 1, r);
+      tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+      deathMeshRef.current.setMatrixAt(activeRingCount, tempMatrix);
+      deathMeshRef.current.setColorAt(activeRingCount, ring.color);
+      activeRingCount++;
     }
 
-    if (shooterMeshRef.current) {
-      for (let i = shooterCount; i < HARD_ENEMY_CAP; i++) {
-        shooterMeshRef.current.setMatrixAt(i, hiddenMatrix);
+    if (deathMeshRef.current) {
+      for (let i = activeRingCount; i < MAX_DEATH_RINGS; i++) {
+        deathMeshRef.current.setMatrixAt(i, hiddenMatrix);
       }
-      shooterMeshRef.current.instanceMatrix.needsUpdate = true;
+      deathMeshRef.current.instanceMatrix.needsUpdate = true;
+      if (deathMeshRef.current.instanceColor) deathMeshRef.current.instanceColor.needsUpdate = true;
     }
 
-    // Update Boss visual representation
+    // =========================================================================
+    // 5. Update Bonklord Boss 3D Group
+    // =========================================================================
     if (bossGroupRef.current) {
       if (bossEntity) {
         bossGroupRef.current.visible = true;
         bossGroupRef.current.position.set(bossEntity.x, 0, bossEntity.z);
         const bossAngle = Math.atan2(playerPos.x - bossEntity.x, playerPos.z - bossEntity.z);
         bossGroupRef.current.rotation.y = bossAngle;
+
+        // Animate fiery ground aura
+        if (bossAuraRef.current) {
+          bossAuraRef.current.rotation.z += delta * 1.5;
+          const pulse = 1.0 + Math.sin(time * 6) * 0.12;
+          bossAuraRef.current.scale.set(pulse, pulse, pulse);
+        }
       } else {
         bossGroupRef.current.visible = false;
       }
@@ -427,7 +699,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
   return (
     <group>
-      {/* 4 Archetype Instanced Meshes */}
+      {/* 4 Archetype Volumetric 3D Instanced Meshes */}
       <instancedMesh
         ref={slimeMeshRef}
         args={[geometries.slime, materials.slime, HARD_ENEMY_CAP]}
@@ -453,41 +725,129 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         receiveShadow
       />
 
-      {/* Procedural 3D Boss Bonklord */}
+      {/* 4 Archetype Official SVG Face Decal Instanced Meshes */}
+      <instancedMesh
+        ref={slimeDecalRef}
+        args={[geometries.decals.slime, materials.decalSlime, HARD_ENEMY_CAP]}
+      />
+      <instancedMesh
+        ref={runnerDecalRef}
+        args={[geometries.decals.runner, materials.decalRunner, HARD_ENEMY_CAP]}
+      />
+      <instancedMesh
+        ref={bruteDecalRef}
+        args={[geometries.decals.brute, materials.decalBrute, HARD_ENEMY_CAP]}
+      />
+      <instancedMesh
+        ref={shooterDecalRef}
+        args={[geometries.decals.shooter, materials.decalShooter, HARD_ENEMY_CAP]}
+      />
+
+      {/* Lightweight Death Dissipation Ring InstancedMesh */}
+      <instancedMesh
+        ref={deathMeshRef}
+        args={[geometries.deathRing, materials.deathRing, MAX_DEATH_RINGS]}
+      />
+
+      {/* ===================================================================== */}
+      {/* THE BONKLORD — Level 10 Royal Titan Boss */}
+      {/* ===================================================================== */}
       <group ref={bossGroupRef} visible={false}>
-        {/* Massive Body Capsule */}
-        <mesh castShadow position={[0, 1.6, 0]}>
-          <capsuleGeometry args={[1.2, 1.2, 8, 16]} />
-          <meshStandardMaterial color="#991b1b" roughness={0.4} metalness={0.6} />
+        {/* Pulsating Fiery Boss Ground Aura */}
+        <mesh ref={bossAuraRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+          <ringGeometry args={[2.0, 2.45, 48]} />
+          <meshBasicMaterial color="#e11d48" transparent opacity={0.65} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
+          <ringGeometry args={[1.5, 1.75, 36]} />
+          <meshBasicMaterial color="#fbbf24" transparent opacity={0.5} side={THREE.DoubleSide} />
         </mesh>
 
-        {/* Glowing Lava Core */}
-        <mesh position={[0, 1.7, 0.9]}>
-          <boxGeometry args={[0.8, 0.5, 0.4]} />
-          <meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={1.8} />
+        {/* Massive Obsidian Body Armor */}
+        <mesh castShadow position={[0, 1.8, 0]}>
+          <capsuleGeometry args={[1.3, 1.5, 8, 16]} />
+          <meshStandardMaterial color="#09090b" roughness={0.3} metalness={0.7} />
         </mesh>
 
-        {/* Left Horn / Spikes */}
-        <mesh position={[-0.9, 2.5, 0]} rotation={[0, 0, 0.5]}>
-          <coneGeometry args={[0.3, 1.2, 6]} />
-          <meshStandardMaterial color="#1f2937" metalness={0.8} />
+        {/* Heavy Golden Shoulder Pauldrons */}
+        <mesh castShadow position={[-1.5, 2.4, 0]} rotation={[0, 0, 0.4]}>
+          <boxGeometry args={[0.8, 0.6, 1.1]} />
+          <meshStandardMaterial color="#f59e0b" roughness={0.25} metalness={0.9} />
+        </mesh>
+        <mesh castShadow position={[1.5, 2.4, 0]} rotation={[0, 0, -0.4]}>
+          <boxGeometry args={[0.8, 0.6, 1.1]} />
+          <meshStandardMaterial color="#f59e0b" roughness={0.25} metalness={0.9} />
         </mesh>
 
-        {/* Right Horn */}
-        <mesh position={[0.9, 2.5, 0]} rotation={[0, 0, -0.5]}>
-          <coneGeometry args={[0.3, 1.2, 6]} />
-          <meshStandardMaterial color="#1f2937" metalness={0.8} />
-        </mesh>
-
-        {/* Massive Boss Hammer Weapon */}
-        <group position={[1.6, 1.2, 0.5]} rotation={[0.4, 0, -0.3]}>
-          <mesh position={[0, 0, 0]}>
-            <cylinderGeometry args={[0.1, 0.1, 2.5, 8]} />
-            <meshStandardMaterial color="#374151" metalness={0.7} />
+        {/* 5-Spire Royal Golden Crown */}
+        <group position={[0, 3.6, 0]}>
+          {/* Central Tall Spire */}
+          <mesh position={[0, 0.4, 0]}>
+            <coneGeometry args={[0.3, 0.9, 6]} />
+            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
           </mesh>
-          <mesh position={[0, 1.1, 0]}>
-            <boxGeometry args={[1.0, 0.8, 0.8]} />
-            <meshStandardMaterial color="#e11d48" emissive="#991b1b" emissiveIntensity={0.5} />
+          {/* 4 Perimeter Spires */}
+          <mesh position={[-0.45, 0.25, 0]}>
+            <coneGeometry args={[0.2, 0.6, 5]} />
+            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
+          </mesh>
+          <mesh position={[0.45, 0.25, 0]}>
+            <coneGeometry args={[0.2, 0.6, 5]} />
+            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
+          </mesh>
+          <mesh position={[0, 0.25, -0.45]}>
+            <coneGeometry args={[0.2, 0.6, 5]} />
+            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
+          </mesh>
+          <mesh position={[0, 0.25, 0.45]}>
+            <coneGeometry args={[0.2, 0.6, 5]} />
+            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
+          </mesh>
+        </group>
+
+        {/* Glowing Lava Skull Face & Official SVG Emblem */}
+        <mesh position={[0, 2.2, 1.1]}>
+          <planeGeometry args={[1.5, 1.5]} />
+          <meshBasicMaterial
+            map={enemyTextures.bonklord}
+            transparent
+            alphaTest={0.1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Menacing Horns */}
+        <mesh position={[-0.95, 3.1, 0.2]} rotation={[0, 0, 0.5]}>
+          <coneGeometry args={[0.3, 1.3, 6]} />
+          <meshStandardMaterial color="#1f2937" metalness={0.85} roughness={0.3} />
+        </mesh>
+        <mesh position={[0.95, 3.1, 0.2]} rotation={[0, 0, -0.5]}>
+          <coneGeometry args={[0.3, 1.3, 6]} />
+          <meshStandardMaterial color="#1f2937" metalness={0.85} roughness={0.3} />
+        </mesh>
+
+        {/* Massive Legendary Bonk Warhammer */}
+        <group position={[1.9, 1.6, 0.5]} rotation={[0.4, 0, -0.2]}>
+          {/* Titanium Shaft */}
+          <mesh position={[0, 0, 0]}>
+            <cylinderGeometry args={[0.12, 0.12, 3.2, 8]} />
+            <meshStandardMaterial color="#334155" metalness={0.8} />
+          </mesh>
+          {/* Double Hammer Head */}
+          <mesh position={[0, 1.4, 0]}>
+            <boxGeometry args={[1.3, 1.1, 1.1]} />
+            <meshStandardMaterial
+              color="#e11d48"
+              emissive="#be123c"
+              emissiveIntensity={0.6}
+              metalness={0.6}
+              roughness={0.3}
+            />
+          </mesh>
+          {/* Front Hammer Spike */}
+          <mesh position={[0, 1.4, 0.7]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.25, 0.6, 6]} />
+            <meshStandardMaterial color="#fbbf24" metalness={0.9} />
           </mesh>
         </group>
       </group>
