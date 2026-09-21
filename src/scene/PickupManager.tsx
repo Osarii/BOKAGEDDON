@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { GameRuntime } from "../game/runtime";
@@ -21,19 +21,33 @@ const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
 export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
   const pickupMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  // Emerald gem geometry & material
-  const gemGeometry = useMemo(() => new THREE.OctahedronGeometry(0.24), []);
+  // Emerald gem geometry & material with computed bounds
+  const gemGeometry = useMemo(() => {
+    const geo = new THREE.OctahedronGeometry(0.26);
+    geo.computeBoundingSphere();
+    geo.computeBoundingBox();
+    geo.computeVertexNormals();
+    return geo;
+  }, []);
+
   const gemMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#a8ff60",
+        color: "#4ade80",
         emissive: "#22c55e",
-        emissiveIntensity: 1.4,
-        roughness: 0.1,
-        metalness: 0.2,
+        emissiveIntensity: 1.0,
+        roughness: 0.15,
+        metalness: 0.25,
       }),
     []
   );
+
+  // Initialize instance count to 0 at mount
+  useEffect(() => {
+    if (pickupMeshRef.current) {
+      pickupMeshRef.current.count = 0;
+    }
+  }, []);
 
   useFrame((state, delta) => {
     const runtime = runtimeRef.current;
@@ -78,14 +92,16 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     // =========================================================================
     if (pickupMeshRef.current) {
       const count = Math.min(runtime.pickups.length, MAX_PICKUPS);
+      pickupMeshRef.current.count = count;
+
       for (let i = 0; i < count; i++) {
         const gem = runtime.pickups[i];
         // Bobbing & rotating effect
-        const bob = Math.sin(time * 4 + i) * 0.08;
-        tempPosition.set(gem.x, gem.y + bob, gem.z);
-        tempRotation.set(0, time * 3 + i, 0);
+        const bob = Math.sin(time * 5 + i * 0.5) * 0.08;
+        tempPosition.set(gem.x, 0.35 + bob, gem.z);
+        tempRotation.set(0.3, time * 3.5 + i, 0);
         tempQuaternion.setFromEuler(tempRotation);
-        tempScale.set(1, 1.2, 1);
+        tempScale.set(1, 1.3, 1);
 
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
         pickupMeshRef.current.setMatrixAt(i, tempMatrix);
@@ -102,6 +118,7 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     <instancedMesh
       ref={pickupMeshRef}
       args={[gemGeometry, gemMaterial, MAX_PICKUPS]}
+      frustumCulled={false}
       castShadow
     />
   );

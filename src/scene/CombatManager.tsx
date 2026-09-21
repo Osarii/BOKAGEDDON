@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { GameRuntime } from "../game/runtime";
@@ -20,36 +20,84 @@ const tempRotation = new THREE.Euler();
 const tempQuaternion = new THREE.Quaternion();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
 
+// Pre-defined palette colors for instanced rendering
+const defaultProjColor = new THREE.Color("#23d5ff");
+const critProjColor = new THREE.Color("#a8ff60");
+const enemyProjColor = new THREE.Color("#06b6d4");
+const defaultShockColor = new THREE.Color("#ffb020");
+const critShockColor = new THREE.Color("#ff3b5c");
+const bossShockColor = new THREE.Color("#e11d48");
+
 export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
   const projectileMeshRef = useRef<THREE.InstancedMesh>(null);
   const shockwaveMeshRef = useRef<THREE.InstancedMesh>(null);
   const axesGroupRef = useRef<THREE.Group>(null);
 
-  // Instanced projectile geometry and material
-  const projGeometry = useMemo(() => new THREE.SphereGeometry(0.24, 8, 8), []);
+  // Instanced projectile geometry and material with computed bounds
+  const projGeometry = useMemo(() => {
+    const geo = new THREE.SphereGeometry(0.26, 12, 10);
+    geo.computeBoundingSphere();
+    geo.computeBoundingBox();
+    geo.computeVertexNormals();
+    return geo;
+  }, []);
+
   const projMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#23d5ff",
+        color: "#ffffff",
         emissive: "#23d5ff",
-        emissiveIntensity: 1.5,
+        emissiveIntensity: 0.8,
         roughness: 0.2,
       }),
     []
   );
 
-  // Instanced shockwave geometry and material
-  const shockGeometry = useMemo(() => new THREE.RingGeometry(0.85, 1.0, 32), []);
+  // Instanced shockwave geometry and material with computed bounds
+  const shockGeometry = useMemo(() => {
+    const geo = new THREE.RingGeometry(0.85, 1.0, 32);
+    geo.computeBoundingSphere();
+    geo.computeBoundingBox();
+    return geo;
+  }, []);
+
   const shockMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#ffb020",
+        color: "#ffffff",
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.75,
         side: THREE.DoubleSide,
       }),
     []
   );
+
+  // Initialize instance counts to 0 and pre-allocate instanceColor buffers
+  useEffect(() => {
+    if (projectileMeshRef.current) {
+      projectileMeshRef.current.count = 0;
+      const colors = new Float32Array(MAX_PROJECTILES * 3);
+      for (let i = 0; i < MAX_PROJECTILES; i++) {
+        colors[i * 3] = defaultProjColor.r;
+        colors[i * 3 + 1] = defaultProjColor.g;
+        colors[i * 3 + 2] = defaultProjColor.b;
+      }
+      projectileMeshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+      projectileMeshRef.current.instanceColor.needsUpdate = true;
+    }
+
+    if (shockwaveMeshRef.current) {
+      shockwaveMeshRef.current.count = 0;
+      const colors = new Float32Array(MAX_SHOCKWAVES * 3);
+      for (let i = 0; i < MAX_SHOCKWAVES; i++) {
+        colors[i * 3] = defaultShockColor.r;
+        colors[i * 3 + 1] = defaultShockColor.g;
+        colors[i * 3 + 2] = defaultShockColor.b;
+      }
+      shockwaveMeshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+      shockwaveMeshRef.current.instanceColor.needsUpdate = true;
+    }
+  }, []);
 
   useFrame((_, delta) => {
     const runtime = runtimeRef.current;
@@ -279,6 +327,8 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
 
     if (shockwaveMeshRef.current) {
       const count = Math.min(runtime.shockwaves.length, MAX_SHOCKWAVES);
+      shockwaveMeshRef.current.count = count;
+
       for (let i = 0; i < count; i++) {
         const sw = runtime.shockwaves[i];
         tempPosition.set(sw.x, 0.04, sw.z);
@@ -288,12 +338,23 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         tempScale.set(scale, scale, 1);
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
         shockwaveMeshRef.current.setMatrixAt(i, tempMatrix);
+
+        if (sw.color === "#e11d48") {
+          shockwaveMeshRef.current.setColorAt(i, bossShockColor);
+        } else if (sw.color === "#ff3b5c") {
+          shockwaveMeshRef.current.setColorAt(i, critShockColor);
+        } else {
+          shockwaveMeshRef.current.setColorAt(i, defaultShockColor);
+        }
       }
 
       for (let i = count; i < MAX_SHOCKWAVES; i++) {
         shockwaveMeshRef.current.setMatrixAt(i, hiddenMatrix);
       }
       shockwaveMeshRef.current.instanceMatrix.needsUpdate = true;
+      if (shockwaveMeshRef.current.instanceColor) {
+        shockwaveMeshRef.current.instanceColor.needsUpdate = true;
+      }
     }
 
     // =========================================================================
@@ -301,6 +362,8 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     // =========================================================================
     if (projectileMeshRef.current) {
       const count = Math.min(runtime.projectiles.length, MAX_PROJECTILES);
+      projectileMeshRef.current.count = count;
+
       for (let i = 0; i < count; i++) {
         const proj = runtime.projectiles[i];
         tempPosition.set(proj.x, proj.y, proj.z);
@@ -309,12 +372,23 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         tempMatrix.makeTranslation(proj.x, proj.y, proj.z);
         tempMatrix.scale(tempScale);
         projectileMeshRef.current.setMatrixAt(i, tempMatrix);
+
+        if (proj.isEnemy) {
+          projectileMeshRef.current.setColorAt(i, enemyProjColor);
+        } else if (proj.color === "#a8ff60") {
+          projectileMeshRef.current.setColorAt(i, critProjColor);
+        } else {
+          projectileMeshRef.current.setColorAt(i, defaultProjColor);
+        }
       }
 
       for (let i = count; i < MAX_PROJECTILES; i++) {
         projectileMeshRef.current.setMatrixAt(i, hiddenMatrix);
       }
       projectileMeshRef.current.instanceMatrix.needsUpdate = true;
+      if (projectileMeshRef.current.instanceColor) {
+        projectileMeshRef.current.instanceColor.needsUpdate = true;
+      }
     }
   });
 
@@ -328,12 +402,14 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
       <instancedMesh
         ref={projectileMeshRef}
         args={[projGeometry, projMaterial, MAX_PROJECTILES]}
+        frustumCulled={false}
       />
 
       {/* Shockwaves Instanced Mesh */}
       <instancedMesh
         ref={shockwaveMeshRef}
         args={[shockGeometry, shockMaterial, MAX_SHOCKWAVES]}
+        frustumCulled={false}
       />
 
       {/* Visual Orbital Axes for TANK */}
