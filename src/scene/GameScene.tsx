@@ -54,7 +54,7 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
         }}
       >
         <color attach="background" args={["#080b12"]} />
-        <fog attach="fog" args={["#080b12", 18, 42]} />
+        <fog attach="fog" args={["#080b12", 26, 56]} />
 
         <Lighting />
 

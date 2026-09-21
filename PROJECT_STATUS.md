@@ -40,11 +40,23 @@ Phase 1 — Player Movement + Camera Follow
   - Implemented full clean run restart with `handlePlayAgain`.
   - `npm run build` and `npm run lint` pass with 0 errors and 0 warnings.
 
+- **Workstream Agent A — 3D Visual Quality & Enemy Identity**:
+  - Diagnosed and resolved enemy invisibility root causes: distant perimeter spawning and heavy camera fog obscuring incoming enemies.
+  - Rebuilt all 4 normal enemy archetypes (`slime`, `runner`, `brute`, `shooter`) with rich, silhouette-differentiated multi-part 3D geometries merged cleanly using `three/examples/jsm/utils/BufferGeometryUtils.js`.
+  - Loaded official enemy SVG assets (`public/assets/enemies/`) as shared `THREE.Texture` instances and projected them as front-facing/dorsal decal quads via secondary `InstancedMesh`.
+  - Implemented per-instance hit feedback using `InstancedMesh.setColorAt`: damaged enemies flash incandescent white (`#ffffff`) with a dynamic 1.3x scale pop.
+  - Added lightweight enemy death dissipation rings via `InstancedMesh` with expanding radius and fading opacity.
+  - Rebuilt **BONKLORD** boss model: 3.5-unit obsidian titan with 5-spire golden crown (`#fbbf24`), glowing lava skull chest (`bonklord.svg`), golden pauldrons, spiked legendary warhammer, and pulsating fiery ground aura ring.
+  - Upgraded lighting in `Lighting.tsx` with a secondary cool-toned rim/fill light (`#38bdf8`) highlighting 3D entity silhouettes against the dark arena.
+  - Expanded camera fog in `GameScene.tsx` from `[18, 42]` to `[26, 56]`, eliminating darkness clipping in the combat arena.
+  - Refined perimeter spawning in `EnemyManager.tsx` to camera-relative 11.5–13.5 units from player, ensuring enemies appear on screen within 1–2 seconds.
+  - `npm run build` and `npm run lint` pass with 0 errors and 0 warnings.
+
 ## Current
-- Phase 2 Playable Core complete, tested, and verified.
+- Agent A 3D Visual Quality and Enemy Readability workstream complete and verified.
 
 ## Next
-- Phase 3 — n8n Webhook Integration + Audio / Polish + Academic Rubric Audit
+- Workstream Agent B (Codex) — Audio, n8n Webhook Integration, and Final Academic Rubric Audit.
 
 ## Known Issues
 - Antigravity browser sandbox Playwright binary download returns 404 from upstream CDN; local Vite dev server and JSON Server fully verified via CLI and curl.
