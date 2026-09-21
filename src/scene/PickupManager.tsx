@@ -158,6 +158,8 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     // =========================================================================
     // 1. Pickup Collection & Vacuum Loop
     // =========================================================================
+    let collectedXp = 0;
+
     for (let i = runtime.pickups.length - 1; i >= 0; i--) {
       const pickup = runtime.pickups[i];
       const dx = playerPos.x - pickup.x;
@@ -172,11 +174,9 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
           pickup.z += (dz / (dist || 1)) * pullSpeed * delta;
         }
 
-        // Collected by player
+        // Collected by player — accumulate for single batched dispatch
         if (dist < 0.7) {
-          const previousLevel = useGameStore.getState().level;
-          useGameStore.getState().addXp(pickup.value);
-          gameAudio.play(useGameStore.getState().level > previousLevel ? "levelUp" : "xpPickup");
+          collectedXp += pickup.value;
           runtime.pickups.splice(i, 1);
         }
       } else {
@@ -202,6 +202,13 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
           }
         }
       }
+    }
+
+    // Single batched XP store dispatch and audio trigger per frame
+    if (collectedXp > 0) {
+      const previousLevel = useGameStore.getState().level;
+      useGameStore.getState().addXp(collectedXp);
+      gameAudio.play(useGameStore.getState().level > previousLevel ? "levelUp" : "xpPickup");
     }
 
     // =========================================================================

@@ -42,7 +42,7 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
     <div className="game-canvas-wrapper">
       <Canvas
         shadows
-        dpr={[1, 1.5]}
+        dpr={[1, 1.25]}
         camera={{
           position: [0, 16.5, 14.5],
           fov: 48,

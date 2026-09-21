@@ -110,7 +110,7 @@ export async function askProfessorAI(
   const model = getActiveGeminiModel();
 
   // 1. Search and rank project chunks relevant to the question
-  const { formattedContext, chunks } = searchProjectContext(question, {
+  const { formattedContext, chunks } = await searchProjectContext(question, {
     maxChunks: 7,
     maxChars: 12000,
   });

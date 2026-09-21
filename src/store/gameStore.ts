@@ -36,6 +36,7 @@ interface GameState {
   takeDamage: (amount: number) => void;
   addScore: (amount: number) => void;
   addKill: (scoreBonus?: number) => void;
+  addKills: (count: number, scoreBonus?: number) => void;
   addXp: (amount: number) => void;
   applyUpgrade: (upgradeId: UpgradeId) => void;
   setTimeSurvived: (seconds: number) => void;
@@ -152,6 +153,12 @@ export const useGameStore = create<GameState>((set) => ({
   addKill: (scoreBonus = 0) =>
     set((state) => ({
       kills: state.kills + 1,
+      score: state.score + scoreBonus,
+    })),
+
+  addKills: (count: number, scoreBonus = 0) =>
+    set((state) => ({
+      kills: state.kills + count,
       score: state.score + scoreBonus,
     })),
 

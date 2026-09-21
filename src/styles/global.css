@@ -2,8 +2,6 @@
    BONKAGEDDON Global Design System — Neon Arcade Premium Theme
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600;700;800&display=swap');
-
 :root {
   /* Dark arcade palette */
   --bg-dark: #050810;
@@ -59,7 +57,7 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Animated neon grid background */
+/* Static neon grid background (zero layout/raster repaint overhead) */
 body::before {
   content: '';
   position: fixed;
@@ -69,7 +67,6 @@ body::before {
     linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px);
   background-size: 60px 60px;
-  animation: grid-drift 30s linear infinite;
   pointer-events: none;
 }
 
@@ -90,11 +87,6 @@ body::after {
     transparent 60%
   );
   pointer-events: none;
-}
-
-@keyframes grid-drift {
-  0% { background-position: 0 0; }
-  100% { background-position: 60px 60px; }
 }
 
 #root {
@@ -513,12 +505,6 @@ a {
   background: linear-gradient(90deg, var(--accent-energy), var(--accent-xp));
   box-shadow: 0 0 14px var(--accent-energy);
   transition: width 0.3s ease;
-  animation: xp-pulse 2s ease-in-out infinite alternate;
-}
-
-@keyframes xp-pulse {
-  from { filter: brightness(1); }
-  to   { filter: brightness(1.35) saturate(1.2); }
 }
 
 /* ==========================================================================

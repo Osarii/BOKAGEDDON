@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, RapierRigidBody } from "@react-three/rapier";
+import { RigidBody, RapierRigidBody, CapsuleCollider } from "@react-three/rapier";
 import { useGameStore } from "../store/gameStore";
 import { CHARACTER_BASE_SPEEDS, ARENA_BOUNDARY_LIMIT } from "../game/config";
 import type { GameRuntime } from "../game/runtime";
@@ -9,6 +9,8 @@ import type { GameRuntime } from "../game/runtime";
 interface PlayerPlaceholderProps {
   runtimeRef: React.RefObject<GameRuntime>;
 }
+
+const defaultBlackColor = new THREE.Color("#000000");
 
 export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   runtimeRef,
@@ -289,7 +291,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
           mat.emissive.set("#ef4444");
           mat.emissiveIntensity = 0.9;
         } else {
-          mat.emissive.copy(mat.userData.baseEmissive || new THREE.Color("#000000"));
+          mat.emissive.copy(mat.userData.baseEmissive || defaultBlackColor);
           mat.emissiveIntensity = mat.userData.baseIntensity || 0;
         }
       }
@@ -308,11 +310,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   return (
     <RigidBody
       ref={bodyRef}
-      colliders="hull"
+      colliders={false}
       position={[0, 1.2, 0]}
       enabledRotations={[false, false, false]}
       linearDamping={2}
     >
+      <CapsuleCollider args={[0.5, 0.38]} position={[0, 0, 0]} />
       <group ref={meshGroupRef}>
         <group ref={modelAnchorRef}>
           {/* ================================================================= */}

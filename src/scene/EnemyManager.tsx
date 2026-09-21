@@ -110,6 +110,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
   // Dedicated mesh ref for the unique Bonklord boss
   const bossGroupRef = useRef<THREE.Group>(null);
   const bossAuraRef = useRef<THREE.Mesh>(null);
+  const lastBossHpRef = useRef<number>(-1);
 
   // Shared reusable 3D geometries with distinct silhouettes
   const geometries = useMemo(() => {
@@ -454,6 +455,8 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     // 2. AI Update & Movement Loop
     // =========================================================================
     const playerRadius = 0.5;
+    let frameKills = 0;
+    let frameScore = 0;
 
     for (let i = runtime.enemies.length - 1; i >= 0; i--) {
       const enemy = runtime.enemies[i];
@@ -490,8 +493,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           });
         }
 
-        // Award kill & score in Zustand store
-        useGameStore.getState().addKill(enemy.scoreValue);
+        // Record kill & score for batched store dispatch
+        frameKills++;
+        frameScore += enemy.scoreValue;
 
         if (enemy.type === "bonklord") {
           runtime.bossDefeated = true;
@@ -649,8 +653,11 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           }
         }
 
-        // Keep boss health synced with HUD
-        useGameStore.getState().updateBossHealth(enemy.health, enemy.maxHealth);
+        // Keep boss health synced with HUD only on meaningful change
+        if (lastBossHpRef.current !== enemy.health) {
+          lastBossHpRef.current = enemy.health;
+          useGameStore.getState().updateBossHealth(enemy.health, enemy.maxHealth);
+        }
       } else {
         // Standard chase
         if (distToPlayer > 0.1) {
@@ -675,6 +682,11 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           gameAudio.play("playerDamage");
         }
       }
+    }
+
+    // Batch all enemy kills and score gains in a single Zustand action per frame
+    if (frameKills > 0) {
+      useGameStore.getState().addKills(frameKills, frameScore);
     }
 
     // =========================================================================

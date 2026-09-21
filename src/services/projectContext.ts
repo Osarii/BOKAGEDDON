@@ -27,7 +27,7 @@ export interface ProjectContextResponse {
   citedFiles: Array<{ filePath: string; startLine: number; endLine: number }>;
 }
 
-// Ingest textual project files as raw strings at bundle/dev time via Vite
+// Ingest textual project files on-demand (eager: false) to prevent bundling all source files into initial JS
 const rawFiles = import.meta.glob<string>(
   [
     "/src/**/*.ts",
@@ -47,7 +47,7 @@ const rawFiles = import.meta.glob<string>(
     "/.env.example",
     "/n8n/**/*.json",
   ],
-  { query: "?raw", import: "default", eager: true }
+  { query: "?raw", import: "default", eager: false }
 );
 
 // Common stop words in Spanish and English to filter out from query tokenization
@@ -111,18 +111,26 @@ const SYNONYM_MAP: Record<string, string[]> = {
  * Parses all ingested raw files into discrete, line-numbered chunks.
  * Chunks use a 40-line window with 10-line overlap to preserve context across boundaries.
  */
-function buildProjectChunks(): ProjectChunk[] {
+async function buildProjectChunks(): Promise<ProjectChunk[]> {
   const chunks: ProjectChunk[] = [];
   const entries = Object.entries(rawFiles);
 
-  for (const [rawPath, rawContent] of entries) {
-    if (typeof rawContent !== "string") continue;
+  for (const [rawPath, loader] of entries) {
+    if (typeof loader !== "function") continue;
 
     // Normalize path by stripping leading slash
     const cleanPath = rawPath.startsWith("/") ? rawPath.slice(1) : rawPath;
 
     // Do not index minified bundles, lockfiles or media
     if (cleanPath.includes("node_modules") || cleanPath.includes("dist")) continue;
+
+    let rawContent: string;
+    try {
+      rawContent = await loader();
+    } catch {
+      continue;
+    }
+    if (typeof rawContent !== "string") continue;
 
     const lines = rawContent.split(/\r?\n/);
     const totalLines = lines.length;
@@ -169,9 +177,9 @@ function buildProjectChunks(): ProjectChunk[] {
 // Module-level memoized chunk index
 let cachedChunks: ProjectChunk[] | null = null;
 
-export function getProjectChunks(): ProjectChunk[] {
+export async function getProjectChunks(): Promise<ProjectChunk[]> {
   if (!cachedChunks) {
-    cachedChunks = buildProjectChunks();
+    cachedChunks = await buildProjectChunks();
   }
   return cachedChunks;
 }
@@ -214,14 +222,14 @@ export function extractQueryTerms(query: string): { primaryTerms: string[]; expa
  * - Key symbol definitions (export, function, interface, class, markdown #): +5
  * - Term density bonus: + (unique_matched_terms * 4)
  */
-export function searchProjectContext(
+export async function searchProjectContext(
   query: string,
   options: { maxChunks?: number; maxChars?: number } = {}
-): ProjectContextResponse {
+): Promise<ProjectContextResponse> {
   const maxChunks = options.maxChunks ?? 8;
   const maxChars = options.maxChars ?? 14000;
 
-  const chunks = getProjectChunks();
+  const chunks = await getProjectChunks();
   const { primaryTerms, expandedTerms } = extractQueryTerms(query);
   const normalizedQuery = query.toLowerCase().trim();
 
