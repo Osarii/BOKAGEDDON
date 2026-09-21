@@ -264,10 +264,20 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         weaponGroupRef.current.rotation.y = -time * 2.6;
         weaponGroupRef.current.position.y = 0.12 + Math.sin(time * 3.2) * 0.06;
       }
-      if (coreMeshRef.current) {
+      if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
         // Eerie void eye pulse
         const eyeGlow = 1.4 + Math.sin(time * 4.0) * 0.5;
         (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = eyeGlow;
+        const parent = coreMeshRef.current.parent;
+        if (parent) {
+          const children = parent.children;
+          for (let i = 0; i < children.length; i++) {
+            const childMesh = children[i] as THREE.Mesh;
+            if (childMesh !== coreMeshRef.current && childMesh.material) {
+              (childMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = eyeGlow;
+            }
+          }
+        }
       }
     }
 
@@ -1556,9 +1566,9 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                 </mesh>
 
                 {/* Glowing Twin Diamond Hex Eyes (direct from hex.svg) */}
-                <group ref={coreMeshRef} position={[0, 0.02, 0.28]}>
+                <group position={[0, 0.02, 0.28]}>
                   {/* Left Diamond Hex Eye */}
-                  <mesh position={[-0.085, 0, 0]}>
+                  <mesh ref={coreMeshRef} position={[-0.085, 0, 0]}>
                     <octahedronGeometry args={[0.06]} />
                     <meshStandardMaterial
                       ref={(m) => registerFlashMaterial(m, "#22c55e", 2.0)}
