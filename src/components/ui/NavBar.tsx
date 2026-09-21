@@ -1,7 +1,7 @@
 import React from "react";
 import { NavLink, Link } from "react-router-dom";
 import { ASSETS } from "../../config/assets";
-import { Trophy, BookOpen, Users, Play } from "lucide-react";
+import { Trophy, BookOpen, Users, Play, Bot } from "lucide-react";
 
 export const NavBar: React.FC = () => {
   return (
@@ -43,6 +43,17 @@ export const NavBar: React.FC = () => {
             >
               <BookOpen size={16} style={{ display: "inline", verticalAlign: "text-bottom", marginRight: 4 }} />
               Instructions
+            </NavLink>
+          </li>
+          <li>
+            <NavLink
+              to="/profesor-ia"
+              className={({ isActive }) =>
+                `navbar-link ${isActive ? "active" : ""}`
+              }
+            >
+              <Bot size={16} style={{ display: "inline", verticalAlign: "text-bottom", marginRight: 4 }} />
+              Profesor IA
             </NavLink>
           </li>
           <li>

@@ -1,47 +1,41 @@
 # Current Task
 
 ## Objective
-Endless rounds + recovery system + movement jitter fix.
+Project-aware Professor AI assistant (`/profesor-ia`).
 
 ## Status
 Completed & Verified.
 
 ## Scope Completed
-1. **Separated Level and Round**:
-   - Level remains XP-driven player progression and upgrade selection.
-   - Round drives enemy wave pacing, composition/scaling, and boss spawning.
-   - Normal enemy difficulty decoupled from player level.
+1. **Local Project Context Engine (`src/services/projectContext.ts`)**:
+   - Ingests textual project files via Vite `import.meta.glob` (`?raw` eager imports):
+     - `src/**/*.{ts,tsx,css}`, `README.md`, `AGENTS.md`, `PROJECT_STATUS.md`, `CURRENT_TASK.md`
+     - `docs/**/*.md`, `n8n/**/*.md`, `package.json`, `db.json`, `vite.config.ts`, `tsconfig*.json`, `eslint.config.*`, `.env.example`, `n8n/**/*.json`.
+   - Excludes binaries, assets, `node_modules`, `dist`, and lockfiles.
+   - Splits files into line-indexed chunks with 40-line window and 10-line overlap.
+   - Ranked search scoring with keyword normalization, synonym mapping, symbol definition boosts, and file path matching.
 
-2. **Endless Rounds Progression**:
-   - Starts at Round 1.
-   - Finite enemy quotas (14 to 40) per round with 3.5s wave intermissions.
-   - Round completes after quota spawned and remaining enemies defeated.
+2. **Direct Gemini REST Service (`src/services/professorAi.ts`)**:
+   - Direct `fetch` to Google Gemini API (`generateContent`) with zero SDK dependencies.
+   - Dual-level academic output enforcement:
+     - `### 🎓 Respuesta corta para el profesor`
+     - `### 🛠️ Explicación técnica`
+   - Strict code grounding, disclaimers for unverified elements, and exact file:line citations.
+   - Supports `VITE_GEMINI_API_KEY`, `VITE_GEMINI_MODEL`, and client demo entry.
 
-3. **Tiered Boss Every 10 Rounds**:
-   - Rounds 10, 20, 30, 40... spawn Bonklord with tier scaling (`bossTier = round / 10`).
-   - Boss defeat awards guaranteed major recovery drops and advances to next round without triggering `victory`.
-   - Run finishes only through player death or exiting.
+3. **Professor AI View (`src/pages/ProfessorAI.tsx`)**:
+   - BONKAGEDDON dark arcade styling with glass panels and glowing accents.
+   - Chat history with user and assistant message bubbles.
+   - Suggested evaluation questions curated strictly for current branch features (no unmerged features referenced).
+   - Expandable "Archivos consultados" accordion showing file paths, line ranges, and snippet previews.
+   - "Limpiar conversación" button and API key configuration dialog with security disclosures.
 
-4. **Movement & Camera Jitter Fix**:
-   - Replaced raw frame-to-frame physics velocity estimation with low-pass filtered lookahead damping.
-   - Applied tangential velocity deflection at arena perimeter to eliminate boundary bouncing and snapping.
-
-5. **Shield System**:
-   - `shield` (up to 100 max, 0 at start): mitigated incoming damage is absorbed by shield first, overflow damages health.
-
-6. **Recovery System & Optimized Assets**:
-   - Extracted and registered WebP items: `medkit-emergency` (+35 HP), `medkit-case` (+70 HP), `shield-potion` (+25 shield), `shield-battery` (+50 shield).
-   - Contact-based collection with consumption guards (no pickup at full HP/shield).
-   - Weighted drops from normal enemies; guaranteed high-tier rewards from boss.
-
-7. **HUD Enhancements**:
-   - Added Round indicator with boss flame styling on boss rounds.
-   - Added Shield bar/value alongside HP, Level, XP, Score, and Kills.
-   - Added Intermission status banner.
-
-8. **Documentation Cleanup**:
-   - Updated `AGENTS.md`, `PROJECT_STATUS.md`, and `docs/DECISIONS.md` (ADR-018).
+4. **Navigation & Routing**:
+   - Registered `/profesor-ia` route in `Routing.tsx`.
+   - Added "Profesor IA" link with `Bot` icon to main `NavBar.tsx`.
+   - Documented environment variables and security notice in `.env.example`.
 
 ## Validation
 - `npm run lint` -> 0 errors, 0 warnings
 - `npm run build` -> production build exit 0
+- Dev server running and verified on `/profesor-ia` (HTTP 200)

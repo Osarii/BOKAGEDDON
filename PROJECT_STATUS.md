@@ -76,11 +76,19 @@ Post-Merge Integration Complete & Verified
   - Fixed camera and movement vibration across straight movement, diagonal movement, turns, and arena boundaries by replacing raw physics difference lookahead with exponential low-pass filtering and deflecting outward velocity tangentially along the arena perimeter.
   - Updated `HUDShell.tsx` to display Round indicator (with prominent flame boss wave styling on rounds 10, 20, 30...), Shield bar & value, and wave intermission banner while preserving existing synergy presentations.
 
+- **Workstream: Project-Aware Professor AI Assistant**:
+  - Implemented local in-memory codebase indexing (`src/services/projectContext.ts`) using Vite `import.meta.glob` (`?raw` eager imports) ingesting `.ts`, `.tsx`, `.css`, `.md`, `.json`, and config files with line-level chunking.
+  - Implemented direct Google Gemini REST service (`src/services/professorAi.ts`) with dual-level Spanish output (`### 🎓 Respuesta corta para el profesor` and `### 🛠️ Explicación técnica`), strict grounding, and exact file:line citations.
+  - Built `/profesor-ia` interactive page with chat stream, suggested evaluator questions, expandable "Archivos consultados" snippets, conversation reset, and API key management with security notices.
+  - Integrated `/profesor-ia` into `Routing.tsx` and main `NavBar.tsx`.
+  - Documented Gemini environment variables in `.env.example` and added ADR-020 in `docs/DECISIONS.md`.
+
 ## Current
-- Endless rounds, shield mechanics, recovery pickups, and camera vibration fix are fully integrated and verified.
+- Project-Aware Professor AI assistant is fully integrated, verified, and operational at `/profesor-ia`.
 
 ## Next
 - Live n8n Verification + Final Rubric Audit
 
 ## Known Issues
 - Antigravity browser sandbox Playwright binary download returns 404 from upstream CDN; local Vite dev server and JSON Server fully verified via CLI and curl.
+

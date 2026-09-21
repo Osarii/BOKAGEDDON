@@ -403,3 +403,33 @@ a {
   box-shadow: 0 0 10px var(--accent-xp);
   transition: width 0.3s ease;
 }
+
+/* ==========================================================================
+   Profesor IA — Chat & Code Citation Styles
+   ========================================================================== */
+
+.professor-markdown-code {
+  font-family: var(--font-mono);
+  background: rgba(35, 213, 255, 0.08);
+  border: 1px solid rgba(35, 213, 255, 0.2);
+  color: var(--accent-energy);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+
+.citation-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(15, 20, 32, 0.85);
+  border: 1px solid rgba(35, 213, 255, 0.25);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-energy);
+  margin-right: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+

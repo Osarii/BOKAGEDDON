@@ -95,3 +95,14 @@
   5. Recovery pickups (`medkit-emergency`, `medkit-case`, `shield-potion`, `shield-battery`) collected strictly by contact without magnet pull, with full-HP/shield consumption guards.
   6. Camera look-ahead smoothed with exponential damping and boundary tangential movement deflection to eliminate physics jitter.
 - **Consequences**: Endless replayability with bounded frame-time budgets, stable camera tracking, and fair survivability mechanics.
+
+## ADR-020: Project-Aware Professor AI Assistant with Local Vite Raw Ingestion
+- **Context**: Evaluators and professors need an interactive way to inspect, query, and verify the codebase architecture and academic rubric requirements without heavy backend infrastructure or external SDK overhead.
+- **Decision**:
+  1. Build a client-side `/profesor-ia` interface using direct REST `fetch` to Google Gemini API (`generateContent`) with zero SDK dependencies.
+  2. Implement an in-memory retrieval engine (`src/services/projectContext.ts`) using Vite `import.meta.glob` with `{ query: '?raw', eager: true }` ingesting source files, documentation, and configuration.
+  3. Divide files into line-indexed chunks (40-line window, 10-line overlap) and rank by lexical, synonym, and path relevance.
+  4. Enforce dual-level Spanish output (`### 🎓 Respuesta corta para el profesor` and `### 🛠️ Explicación técnica`), explicit fact-checking disclaimers for unverified elements, and exact file:line citations.
+  5. Clearly document browser-side API key exposure; prioritize `.env.local` (git-ignored) for local classroom demos or ephemeral manual entry in the UI.
+- **Consequences**: Grounded, transparent code analysis in real-time with zero backend infrastructure requirements and strict academic accountability.
+
