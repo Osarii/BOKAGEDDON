@@ -16,6 +16,8 @@ export interface RunWebhookResult {
   error?: string;
 }
 
+export type CompletedRunScore = Omit<ScoreEntry, "id">;
+
 const WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL || "";
 
 export function classifyRun(run: {
@@ -30,7 +32,7 @@ export function classifyRun(run: {
 }
 
 export function buildCompletedRunPayload(
-  score: Omit<ScoreEntry, "id">,
+  score: CompletedRunScore,
   outcome: RunOutcome
 ): CompletedRunPayload {
   return {
@@ -48,7 +50,7 @@ export function buildCompletedRunPayload(
 }
 
 export async function sendRunWebhook(
-  score: Omit<ScoreEntry, "id">,
+  score: CompletedRunScore,
   outcome: RunOutcome
 ): Promise<RunWebhookResult> {
   const payload = buildCompletedRunPayload(score, outcome);
@@ -74,4 +76,17 @@ export async function sendRunWebhook(
       error: err instanceof Error ? err.message : "n8n webhook failed.",
     };
   }
+}
+
+export async function sendRunWebhookOnce(
+  score: CompletedRunScore,
+  outcome: RunOutcome,
+  hasSentWebhookRef: { current: boolean }
+): Promise<RunWebhookResult | null> {
+  if (hasSentWebhookRef.current) return null;
+
+  hasSentWebhookRef.current = true;
+  const result = await sendRunWebhook(score, outcome);
+  if (!result.ok && !result.skipped) hasSentWebhookRef.current = false;
+  return result;
 }

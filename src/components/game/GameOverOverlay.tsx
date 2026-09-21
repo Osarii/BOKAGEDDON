@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useGameStore } from "../../store/gameStore";
 import { saveScore } from "../../services/api";
 import { gameAudio } from "../../audio/gameAudio";
-import { sendRunWebhook, type RunClassification } from "../../services/webhook";
+import {
+  sendRunWebhookOnce,
+  type CompletedRunScore,
+  type RunClassification,
+} from "../../services/webhook";
 import { Skull, Trophy, Sparkles, Clock, RotateCcw, Check, Users } from "lucide-react";
 
 interface GameOverOverlayProps {
@@ -28,12 +32,14 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [submittedRun, setSubmittedRun] = useState<CompletedRunScore | null>(null);
   const [webhookResult, setWebhookResult] = useState<{
     ok: boolean;
     skipped: boolean;
     classification: RunClassification;
     error?: string;
   } | null>(null);
+  const submitInFlightRef = useRef(false);
 
   useEffect(() => {
     if (gameStatus === "gameover") gameAudio.play("gameOver");
@@ -43,16 +49,24 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
 
   const minutes = Math.floor(timeSurvivedSeconds / 60);
   const seconds = timeSurvivedSeconds % 60;
+  const webhookComplete = Boolean(webhookResult?.ok || webhookResult?.skipped);
+  const submissionComplete = saveSuccess && webhookComplete;
+  const submitLabel = submissionComplete
+    ? "Saved"
+    : saveSuccess
+    ? "Retry n8n"
+    : webhookComplete
+    ? "Retry Score"
+    : "Record Score";
 
   const handleSubmitScore = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (hasSavedScoreRef.current) return;
+    if (submitInFlightRef.current || (hasSavedScoreRef.current && hasSentWebhookRef.current)) return;
 
+    submitInFlightRef.current = true;
     setIsSubmitting(true);
-    setSaveError(null);
-    setWebhookResult(null);
 
-    const completedRun = {
+    const completedRun = submittedRun ?? {
       playerName: playerName.trim() || "Survivor",
       characterId: selectedCharacterId,
       score,
@@ -61,11 +75,16 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
       timeSurvivedSeconds,
       date: new Date().toISOString(),
     };
+    let shouldLockRun = Boolean(submittedRun);
+
+    if (!hasSavedScoreRef.current) setSaveError(null);
+    if (!hasSentWebhookRef.current) setWebhookResult(null);
 
     try {
       if (!hasSavedScoreRef.current) {
         hasSavedScoreRef.current = true;
         await saveScore(completedRun);
+        shouldLockRun = true;
         setSaveSuccess(true);
       }
     } catch (err: unknown) {
@@ -75,13 +94,14 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
     }
 
     try {
-      if (!hasSentWebhookRef.current) {
-        hasSentWebhookRef.current = true;
-        const result = await sendRunWebhook(completedRun, "gameover");
+      const result = await sendRunWebhookOnce(completedRun, "gameover", hasSentWebhookRef);
+      if (result) {
+        if (result.ok) shouldLockRun = true;
         setWebhookResult(result);
-        if (!result.ok && !result.skipped) hasSentWebhookRef.current = false;
       }
     } finally {
+      if (shouldLockRun) setSubmittedRun(completedRun);
+      submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -184,7 +204,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="Your survivor handle"
-              disabled={isSubmitting || saveSuccess}
+              disabled={isSubmitting || Boolean(submittedRun)}
               maxLength={20}
               style={{
                 flex: 1,
@@ -200,17 +220,17 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             <button
               type="submit"
               className="btn btn-secondary"
-              disabled={isSubmitting || saveSuccess}
+              disabled={isSubmitting || submissionComplete}
               style={{ whiteSpace: "nowrap" }}
             >
-              {saveSuccess ? (
+              {submissionComplete ? (
                 <>
-                  <Check size={16} /> Saved
+                  <Check size={16} /> {submitLabel}
                 </>
               ) : isSubmitting ? (
-                "Saving..."
+                "Submitting..."
               ) : (
-                "Record Score"
+                submitLabel
               )}
             </button>
           </div>
