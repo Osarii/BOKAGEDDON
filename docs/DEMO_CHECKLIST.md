@@ -14,8 +14,9 @@
 12. Enter handle and submit score: JSON Server receives POST `/scores`.
 13. Open Leaderboard: show GET `/scores` result.
 14. Configure `VITE_N8N_WEBHOOK_URL`, restart Vite, submit one run.
-15. In n8n, show the Webhook execution, classification branch, action node, and JSON response.
-16. Capture the n8n workflow screenshot.
+15. In n8n, show the Webhook execution, `Payload Valid?`, classification branch, action node, and JSON response.
+16. Optional hardening check: send an invalid payload and show `Invalid Payload Response`.
+17. Capture the n8n workflow screenshot.
 
 ## Quick Evidence
 
@@ -29,5 +30,4 @@
 - Reusable component: `src/components/characters/CharacterCard.tsx:6-22`
 - Loading/error UI: `src/components/ui/LoadingState.tsx`, `src/components/ui/ErrorState.tsx`
 - Playable scene: `src/scene/GameScene.tsx:43-76`
-- n8n workflow: `n8n/bonkageddon-run-workflow.json`
-
+- n8n workflow: `n8n/bonkageddon-run-workflow.json` (`Payload Valid?`, `Classify Run`, success/failure responses)

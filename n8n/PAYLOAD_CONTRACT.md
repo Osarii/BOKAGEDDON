@@ -37,3 +37,16 @@ Frontend sends one `POST` per completed run when `VITE_N8N_WEBHOOK_URL` is confi
 - `NORMAL_RUN`: everything else
 
 The n8n workflow recomputes classification after normalization so the frontend and workflow stay aligned.
+
+## Invalid Payload Response
+
+Invalid requests do not continue into run analysis or classification. They return:
+
+```json
+{
+  "ok": false,
+  "error": "Invalid BONKAGEDDON run payload",
+  "errors": ["playerName is required"],
+  "receivedAt": "2026-09-21T00:00:00.000Z"
+}
+```

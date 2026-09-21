@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body ?? $json;\nconst score = Number(body.score ?? 0);\nconst kills = Number(body.kills ?? 0);\nconst level = Number(body.level ?? 1);\nconst timeSurvivedSeconds = Number(body.timeSurvivedSeconds ?? 0);\nconst outcome = body.outcome === 'victory' ? 'victory' : 'gameover';\nconst classification = outcome === 'victory' || score >= 50000 || kills >= 500\n  ? 'LEGENDARY'\n  : score >= 10000 || level >= 10 || kills >= 100\n    ? 'HIGH_SCORE'\n    : 'NORMAL_RUN';\n\nreturn [{\n  json: {\n    event: 'bonkageddon.run.completed',\n    valid: Boolean(body.playerName && body.characterId && Number.isFinite(score)),\n    receivedAt: new Date().toISOString(),\n    run: {\n      playerName: String(body.playerName || 'Survivor').slice(0, 20),\n      characterId: String(body.characterId || 'bonk'),\n      outcome,\n      score,\n      kills,\n      level,\n      timeSurvivedSeconds,\n      date: body.date || new Date().toISOString(),\n      classification\n    }\n  }\n}];"
+        "jsCode": "const body = $json.body ?? $json;\nconst rawScore = body.score;\nconst rawKills = body.kills;\nconst rawLevel = body.level;\nconst rawTime = body.timeSurvivedSeconds;\nconst score = Number(rawScore);\nconst kills = Number(rawKills);\nconst level = Number(rawLevel);\nconst timeSurvivedSeconds = Number(rawTime);\nconst outcome = body.outcome === 'victory' ? 'victory' : 'gameover';\nconst characterId = String(body.characterId || '');\nconst playerName = String(body.playerName || '').trim().slice(0, 20);\nconst validCharacters = ['bonk', 'byte', 'tank'];\nconst errors = [];\n\nif (!playerName) errors.push('playerName is required');\nif (!validCharacters.includes(characterId)) errors.push('characterId must be bonk, byte, or tank');\nif (!Number.isFinite(score) || score < 0) errors.push('score must be a nonnegative number');\nif (!Number.isFinite(kills) || kills < 0) errors.push('kills must be a nonnegative number');\nif (!Number.isFinite(level) || level < 1) errors.push('level must be a number greater than or equal to 1');\nif (!Number.isFinite(timeSurvivedSeconds) || timeSurvivedSeconds < 0) errors.push('timeSurvivedSeconds must be a nonnegative number');\n\nconst classification = outcome === 'victory' || score >= 50000 || kills >= 500\n  ? 'LEGENDARY'\n  : score >= 10000 || level >= 10 || kills >= 100\n    ? 'HIGH_SCORE'\n    : 'NORMAL_RUN';\n\nreturn [{\n  json: {\n    event: 'bonkageddon.run.completed',\n    valid: errors.length === 0,\n    errors,\n    receivedAt: new Date().toISOString(),\n    run: {\n      playerName: playerName || 'Survivor',\n      characterId: characterId || 'bonk',\n      outcome,\n      score: Number.isFinite(score) ? score : 0,\n      kills: Number.isFinite(kills) ? kills : 0,\n      level: Number.isFinite(level) ? level : 1,\n      timeSurvivedSeconds: Number.isFinite(timeSurvivedSeconds) ? timeSurvivedSeconds : 0,\n      date: body.date || new Date().toISOString(),\n      classification\n    }\n  }\n}];"
       },
       "id": "08f21c7a-cc83-4fd7-aaef-8ccfb7dbe4c8",
       "name": "Validate and Normalize",
@@ -29,6 +29,66 @@
       "position": [
         -500,
         0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ String($json.valid) }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "VALID"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "INVALID"
+        }
+      },
+      "id": "7b585582-9f87-41d3-935b-f15fa4d7c8b2",
+      "name": "Payload Valid?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: \"Invalid BONKAGEDDON run payload\", errors: $json.errors, receivedAt: $json.receivedAt } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "5492c8a8-57f6-40c2-8e6e-8f7d54c51661",
+      "name": "Invalid Payload Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -60,
+        180
       ]
     },
     {
@@ -230,7 +290,7 @@
       "main": [
         [
           {
-            "node": "Run Analysis",
+            "node": "Payload Valid?",
             "type": "main",
             "index": 0
           }
@@ -300,6 +360,24 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payload Valid?": {
+      "main": [
+        [
+          {
+            "node": "Run Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Payload Response",
             "type": "main",
             "index": 0
           }
