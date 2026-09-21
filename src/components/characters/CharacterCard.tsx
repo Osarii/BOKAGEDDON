@@ -44,7 +44,11 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             boxShadow: `0 0 16px ${character.color}33`,
           }}
         >
-          <img src={portraitUrl} alt={`${character.name} portrait`} />
+          <img
+            src={portraitUrl}
+            alt={`${character.name} portrait`}
+            style={{ objectPosition: "center bottom" }}
+          />
         </div>
         <div>
           <h3 style={{ color: character.color, fontSize: "1.3rem" }}>{character.name}</h3>
@@ -96,7 +100,11 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         }}
       >
         <span>Weapon:</span>
-        <img src={weaponIcon} alt={character.weapon} style={{ width: 18, height: 18 }} />
+        <img
+          src={weaponIcon}
+          alt={character.weapon}
+          style={{ width: 22, height: 22, objectFit: "contain" }}
+        />
         <span style={{ textTransform: "capitalize", color: "var(--text-secondary)", fontWeight: 600 }}>
           {character.weapon.replace("-", " ")}
         </span>

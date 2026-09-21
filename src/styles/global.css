@@ -273,8 +273,8 @@ a {
 }
 
 .character-portrait-wrap {
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 108px;
   border-radius: 12px;
   background: var(--bg-surface-elevated);
   display: flex;
@@ -285,8 +285,8 @@ a {
 }
 
 .character-portrait-wrap img {
-  width: 58px;
-  height: 58px;
+  width: 88px;
+  height: 100px;
   object-fit: contain;
 }
 

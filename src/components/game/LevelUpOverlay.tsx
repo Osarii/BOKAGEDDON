@@ -141,7 +141,7 @@ export const LevelUpOverlay: React.FC = () => {
                       border: "1px solid rgba(35, 213, 255, 0.25)",
                     }}
                   >
-                    <img src={iconSrc} alt={info.name} style={{ width: 42, height: 42 }} />
+                    <img src={iconSrc} alt={info.name} style={{ width: 42, height: 42, objectFit: "contain" }} />
                   </div>
 
                   <span

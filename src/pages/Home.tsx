@@ -26,6 +26,7 @@ export const Home: React.FC = () => {
               width: "100%",
               maxWidth: "380px",
               height: "auto",
+              objectFit: "contain",
               filter: "drop-shadow(0 0 35px rgba(255, 107, 53, 0.4))",
             }}
           />

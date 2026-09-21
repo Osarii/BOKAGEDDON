@@ -32,9 +32,9 @@ export const HUDShell: React.FC = () => {
   const timeFormatted = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
   const portrait =
-    selectedCharacterId && selectedCharacterId in ASSETS.characters
-      ? ASSETS.characters[selectedCharacterId as keyof typeof ASSETS.characters]
-      : ASSETS.characters.bonk;
+    selectedCharacterId && selectedCharacterId in ASSETS.portraits
+      ? ASSETS.portraits[selectedCharacterId as keyof typeof ASSETS.portraits]
+      : ASSETS.portraits.bonk;
 
   const activeUpgrades = (Object.keys(upgrades) as UpgradeId[]).filter(
     (id) => (upgrades[id] || 0) > 0
@@ -124,7 +124,7 @@ export const HUDShell: React.FC = () => {
             <img
               src={portrait}
               alt="Active Character"
-              style={{ width: 24, height: 24, borderRadius: 4 }}
+              style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain" }}
             />
             <span style={{ textTransform: "uppercase" }}>{selectedCharacterId || "Survivor"}</span>
           </div>
@@ -196,7 +196,7 @@ export const HUDShell: React.FC = () => {
                 }}
                 title={`${name} (Tier ${tier})`}
               >
-                <img src={iconSrc} alt={name} style={{ width: 16, height: 16 }} />
+                <img src={iconSrc} alt={name} style={{ width: 16, height: 16, objectFit: "contain" }} />
                 <span style={{ color: "var(--accent-warm)" }}>T{tier}</span>
               </div>
             );

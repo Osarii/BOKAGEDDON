@@ -4,6 +4,14 @@ import { Move, Zap, Sparkles, Award, Play, AlertCircle } from "lucide-react";
 import { ASSETS } from "../config/assets";
 
 export const Instructions: React.FC = () => {
+  const enemyPreview = [
+    ["Slime", ASSETS.enemyArt.slime],
+    ["Runner", ASSETS.enemyArt.runner],
+    ["Brute", ASSETS.enemyArt.brute],
+    ["Shooter", ASSETS.enemyArt.shooter],
+    ["Bonklord", ASSETS.enemyArt.bonklord],
+  ] as const;
+
   return (
     <main className="container" style={{ padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "2.5rem" }}>
@@ -13,7 +21,7 @@ export const Instructions: React.FC = () => {
         </p>
       </header>
 
-      {/* Phase Status Banner */}
+      {/* Build Status Banner */}
       <div
         className="glass-panel"
         style={{
@@ -28,9 +36,8 @@ export const Instructions: React.FC = () => {
       >
         <AlertCircle size={24} color="var(--accent-energy)" style={{ flexShrink: 0 }} />
         <p style={{ fontSize: "0.9rem", margin: 0, color: "var(--text-primary)" }}>
-          <strong>Academic Note:</strong> You are currently on <strong>Phase 0 (Foundation)</strong>.
-          The 3D environment, Rapier physics, and data architecture are active.
-          Player WASD movement and active horde spawning will activate in subsequent phases.
+          <strong>Academic Note:</strong> This playable build includes the 3D arena, movement,
+          enemy waves, automatic attacks, XP, upgrades, leaderboard persistence, audio, and n8n hooks.
         </p>
       </div>
 
@@ -47,7 +54,7 @@ export const Instructions: React.FC = () => {
         <section className="glass-panel" style={{ padding: "1.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <Move size={24} color="var(--accent-warm)" />
-            <h2 style={{ fontSize: "1.3rem" }}>1. Movement (Phase 1)</h2>
+            <h2 style={{ fontSize: "1.3rem" }}>1. Movement</h2>
           </div>
           <p style={{ marginBottom: "1rem" }}>
             Navigate the 3D circular arena using standard keyboard controls:
@@ -67,16 +74,27 @@ export const Instructions: React.FC = () => {
         <section className="glass-panel" style={{ padding: "1.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <Zap size={24} color="var(--accent-orange)" />
-            <h2 style={{ fontSize: "1.3rem" }}>2. Automatic Attacks (Phase 2)</h2>
+            <h2 style={{ fontSize: "1.3rem" }}>2. Automatic Attacks</h2>
           </div>
           <p style={{ marginBottom: "1rem" }}>
             Your weapons fire automatically whenever their cooldown refreshes.
           </p>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center", background: "var(--bg-surface)", padding: "0.75rem", borderRadius: "8px" }}>
-            <img src={ASSETS.weapons.hammer} alt="Hammer" style={{ width: 28, height: 28 }} />
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center", background: "var(--bg-surface)", padding: "0.75rem", borderRadius: "8px", marginBottom: "0.75rem" }}>
+            <img src={ASSETS.weapons.hammer} alt="Hammer" style={{ width: 34, height: 34, objectFit: "contain" }} />
             <div style={{ fontSize: "0.85rem" }}>
               <strong>Smart Auto-Targeting:</strong> Attacks automatically acquire the nearest enemy within range.
             </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            {enemyPreview.map(([name, src]) => (
+              <img
+                key={name}
+                src={src}
+                alt={name}
+                title={name}
+                style={{ width: 36, height: 36, objectFit: "contain" }}
+              />
+            ))}
           </div>
         </section>
 
@@ -90,7 +108,7 @@ export const Instructions: React.FC = () => {
             Defeated enemies drop glowing emerald XP gems on the arena floor:
           </p>
           <div style={{ display: "flex", gap: "1rem", alignItems: "center", background: "var(--bg-surface)", padding: "0.75rem", borderRadius: "8px" }}>
-            <img src={ASSETS.pickups.xpGem} alt="XP Gem" style={{ width: 26, height: 26 }} />
+            <img src={ASSETS.pickups.xpGem} alt="XP Gem" style={{ width: 30, height: 30, objectFit: "contain" }} />
             <div style={{ fontSize: "0.85rem" }}>
               Move close to gems to pick them up. Increase your Magnet upgrade to vacuum gems from afar.
             </div>
@@ -107,14 +125,14 @@ export const Instructions: React.FC = () => {
             When the XP bar fills, the game presents 3 randomized upgrade cards to power up your survivor:
           </p>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <img src={ASSETS.upgrades.damage} alt="Damage" title="Damage Boost" style={{ width: 32, height: 32 }} />
-            <img src={ASSETS.upgrades.haste} alt="Haste" title="Haste" style={{ width: 32, height: 32 }} />
-            <img src={ASSETS.upgrades.speed} alt="Speed" title="Speed" style={{ width: 32, height: 32 }} />
-            <img src={ASSETS.upgrades.vitality} alt="Vitality" title="Vitality" style={{ width: 32, height: 32 }} />
-            <img src={ASSETS.upgrades.armor} alt="Armor" title="Armor" style={{ width: 32, height: 32 }} />
-            <img src={ASSETS.upgrades.magnet} alt="Magnet" title="Magnet" style={{ width: 32, height: 32 }} />
-            <img src={ASSETS.upgrades.critical} alt="Critical" title="Critical" style={{ width: 32, height: 32 }} />
-            <img src={ASSETS.upgrades.multishot} alt="Multishot" title="Multishot" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.damage} alt="Damage" title="Damage Boost" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img src={ASSETS.upgrades.haste} alt="Haste" title="Haste" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img src={ASSETS.upgrades.speed} alt="Speed" title="Speed" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img src={ASSETS.upgrades.vitality} alt="Vitality" title="Vitality" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img src={ASSETS.upgrades.armor} alt="Armor" title="Armor" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img src={ASSETS.upgrades.magnet} alt="Magnet" title="Magnet" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img src={ASSETS.upgrades.critical} alt="Critical" title="Critical" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img src={ASSETS.upgrades.multishot} alt="Multishot" title="Multishot" style={{ width: 32, height: 32, objectFit: "contain" }} />
           </div>
         </section>
       </div>
