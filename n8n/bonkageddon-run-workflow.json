@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body ?? $json;\nconst score = Number(body.score ?? 0);\nconst kills = Number(body.kills ?? 0);\nconst level = Number(body.level ?? 1);\nconst timeSurvivedSeconds = Number(body.timeSurvivedSeconds ?? 0);\nconst outcome = body.outcome === 'victory' ? 'victory' : 'gameover';\nconst classification = outcome === 'victory' || score >= 50000 || kills >= 500\n  ? 'LEGENDARY'\n  : score >= 10000 || level >= 10 || kills >= 100\n    ? 'HIGH_SCORE'\n    : 'NORMAL_RUN';\n\nreturn [{\n  json: {\n    event: 'bonkageddon.run.completed',\n    valid: Boolean(body.playerName && body.characterId && Number.isFinite(score)),\n    receivedAt: new Date().toISOString(),\n    run: {\n      playerName: String(body.playerName || 'Survivor').slice(0, 20),\n      characterId: String(body.characterId || 'bonk'),\n      outcome,\n      score,\n      kills,\n      level,\n      timeSurvivedSeconds,\n      date: body.date || new Date().toISOString(),\n      classification\n    }\n  }\n}];"
+        "jsCode": "const body = $json.body ?? $json;\nconst allowedCharacters = ['bonk', 'byte', 'tank', 'nova', 'hex'];\nconst allowedOutcomes = ['gameover', 'victory'];\nconst errors = [];\n\nconst numericFields = ['score', 'kills', 'level', 'timeSurvivedSeconds'];\nconst numbers = {};\nfor (const field of numericFields) {\n  const raw = body[field];\n  const value = Number(raw);\n  if (raw === null || raw === undefined || raw === '' || !Number.isFinite(value)) {\n    errors.push(field + ' must be numeric');\n  }\n  numbers[field] = value;\n}\n\nconst playerName = String(body.playerName ?? '').trim();\nconst characterId = String(body.characterId ?? '').toLowerCase();\nconst outcome = String(body.outcome ?? '').toLowerCase();\n\nif (body.event !== 'bonkageddon.run.completed') {\n  errors.push('event must be bonkageddon.run.completed');\n}\nif (!playerName) {\n  errors.push('playerName is required');\n}\nif (!allowedCharacters.includes(characterId)) {\n  errors.push('characterId must be one of bonk, byte, tank, nova, hex');\n}\nif (!allowedOutcomes.includes(outcome)) {\n  errors.push('outcome must be gameover or victory');\n}\n\nif (errors.length > 0) {\n  return [{\n    json: {\n      event: body.event ?? null,\n      valid: false,\n      errors,\n      receivedAt: new Date().toISOString()\n    }\n  }];\n}\n\nconst { score, kills, level, timeSurvivedSeconds } = numbers;\nconst classification = outcome === 'victory' || score >= 50000 || kills >= 500\n  ? 'LEGENDARY'\n  : score >= 10000 || level >= 10 || kills >= 100\n    ? 'HIGH_SCORE'\n    : 'NORMAL_RUN';\n\nreturn [{\n  json: {\n    event: 'bonkageddon.run.completed',\n    valid: true,\n    errors: [],\n    receivedAt: new Date().toISOString(),\n    run: {\n      playerName: playerName.slice(0, 20),\n      characterId,\n      outcome,\n      score,\n      kills,\n      level,\n      timeSurvivedSeconds,\n      date: body.date || new Date().toISOString(),\n      classification\n    }\n  }\n}];"
       },
       "id": "08f21c7a-cc83-4fd7-aaef-8ccfb7dbe4c8",
       "name": "Validate and Normalize",
@@ -40,8 +40,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -280,
-        0
+        -60,
+        -80
       ]
     },
     {
@@ -106,8 +106,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -60,
-        0
+        160,
+        -80
       ]
     },
     {
@@ -135,8 +135,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        180,
-        -180
+        400,
+        -260
       ]
     },
     {
@@ -164,8 +164,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        180,
-        0
+        400,
+        -80
       ]
     },
     {
@@ -193,8 +193,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        180,
-        180
+        400,
+        100
       ]
     },
     {
@@ -208,8 +208,59 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        460,
+        680,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "payload-valid-condition",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5bfb533a-bd5c-465a-9001-2d0daeea1d18",
+      "name": "Payload Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -280,
         0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: \"Invalid BONKAGEDDON run payload\", errors: $json.errors, receivedAt: $json.receivedAt } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "9099baba-1272-4491-bc95-af5999038d10",
+      "name": "Invalid Payload Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -60,
+        220
       ]
     }
   ],
@@ -230,7 +281,7 @@
       "main": [
         [
           {
-            "node": "Run Analysis",
+            "node": "Payload Valid?",
             "type": "main",
             "index": 0
           }
@@ -300,6 +351,24 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payload Valid?": {
+      "main": [
+        [
+          {
+            "node": "Run Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Payload Response",
             "type": "main",
             "index": 0
           }
