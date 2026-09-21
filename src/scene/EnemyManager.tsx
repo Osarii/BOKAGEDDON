@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -54,6 +54,8 @@ const tempScale = new THREE.Vector3();
 const tempQuaternion = new THREE.Quaternion();
 const decalMatrix = new THREE.Matrix4();
 const decalPosition = new THREE.Vector3();
+const decalRotation = new THREE.Euler();
+const decalQuaternion = new THREE.Quaternion();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
 
 // Base and flash colors for InstancedMesh.setColorAt
@@ -66,10 +68,14 @@ const baseColors: Record<EnemyType, THREE.Color> = {
   bonklord: new THREE.Color("#e11d48"),
 };
 
-// Safe geometry merger normalizing indexed and non-indexed buffers
+// Safe geometry merger normalizing indexed and non-indexed buffers and computing bounds/normals
 function safeMerge(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const normalized = geometries.map((g) => (g.index ? g.toNonIndexed() : g));
-  return mergeGeometries(normalized);
+  const merged = mergeGeometries(normalized);
+  merged.computeBoundingSphere();
+  merged.computeBoundingBox();
+  merged.computeVertexNormals();
+  return merged;
 }
 
 export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
@@ -130,8 +136,14 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       brute: new THREE.PlaneGeometry(1.1, 1.1),
       shooter: new THREE.PlaneGeometry(0.85, 0.85),
     };
+    Object.values(decals).forEach((d) => {
+      d.computeBoundingSphere();
+      d.computeBoundingBox();
+    });
 
     const deathRing = new THREE.RingGeometry(0.7, 0.95, 32).rotateX(-Math.PI / 2);
+    deathRing.computeBoundingSphere();
+    deathRing.computeBoundingBox();
 
     return {
       slime: slimeGeo,
@@ -180,6 +192,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         transparent: true,
         alphaTest: 0.1,
         depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
         side: THREE.DoubleSide,
       }),
       decalRunner: new THREE.MeshBasicMaterial({
@@ -187,6 +202,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         transparent: true,
         alphaTest: 0.1,
         depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
         side: THREE.DoubleSide,
       }),
       decalBrute: new THREE.MeshBasicMaterial({
@@ -194,6 +212,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         transparent: true,
         alphaTest: 0.1,
         depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
         side: THREE.DoubleSide,
       }),
       decalShooter: new THREE.MeshBasicMaterial({
@@ -201,6 +222,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         transparent: true,
         alphaTest: 0.1,
         depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
         side: THREE.DoubleSide,
       }),
       deathRing: new THREE.MeshBasicMaterial({
@@ -210,6 +234,50 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         side: THREE.DoubleSide,
       }),
     };
+  }, []);
+
+  // Initialize instance counts to 0 and pre-allocate instanceColor buffers
+  useEffect(() => {
+    const archetypes: Array<{
+      mesh: THREE.InstancedMesh | null;
+      decal: THREE.InstancedMesh | null;
+      type: EnemyType;
+    }> = [
+      { mesh: slimeMeshRef.current, decal: slimeDecalRef.current, type: "slime" },
+      { mesh: runnerMeshRef.current, decal: runnerDecalRef.current, type: "runner" },
+      { mesh: bruteMeshRef.current, decal: bruteDecalRef.current, type: "brute" },
+      { mesh: shooterMeshRef.current, decal: shooterDecalRef.current, type: "shooter" },
+    ];
+
+    archetypes.forEach(({ mesh, decal, type }) => {
+      if (mesh) {
+        mesh.count = 0;
+        const colors = new Float32Array(HARD_ENEMY_CAP * 3);
+        const base = baseColors[type];
+        for (let i = 0; i < HARD_ENEMY_CAP; i++) {
+          colors[i * 3] = base.r;
+          colors[i * 3 + 1] = base.g;
+          colors[i * 3 + 2] = base.b;
+        }
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+        mesh.instanceColor.needsUpdate = true;
+      }
+      if (decal) {
+        decal.count = 0;
+      }
+    });
+
+    if (deathMeshRef.current) {
+      deathMeshRef.current.count = 0;
+      const colors = new Float32Array(MAX_DEATH_RINGS * 3);
+      for (let i = 0; i < MAX_DEATH_RINGS; i++) {
+        colors[i * 3] = 1;
+        colors[i * 3 + 1] = 1;
+        colors[i * 3 + 2] = 1;
+      }
+      deathMeshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+      deathMeshRef.current.instanceColor.needsUpdate = true;
+    }
   }, []);
 
   useFrame((state, delta) => {
@@ -566,8 +634,8 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         );
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
-        // Decal on front face of slime
-        decalPosition.set(e.x + sinA * 0.45, 0.5 + bounce * 0.05, e.z + cosA * 0.45);
+        // Decal on front surface of slime
+        decalPosition.set(e.x + sinA * 0.58, 0.5 + bounce * 0.05, e.z + cosA * 0.58);
         decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
       } else if (e.type === "runner") {
         // High-speed jet banking tilt
@@ -578,9 +646,11 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         tempScale.set(flashScale, flashScale, flashScale);
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
-        // Decal on dorsal surface of runner drone
-        decalPosition.set(e.x, 0.65, e.z);
-        decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
+        // Decal on dorsal surface of runner drone tilted toward overhead camera
+        decalRotation.set(-0.35, angle, bank);
+        decalQuaternion.setFromEuler(decalRotation);
+        decalPosition.set(e.x + sinA * 0.15, 0.62, e.z + cosA * 0.15);
+        decalMatrix.compose(decalPosition, decalQuaternion, tempScale);
       } else if (e.type === "brute") {
         // Heavy lumbering stomp sway
         const sway = Math.sin(time * 5 + e.id) * 0.08;
@@ -591,7 +661,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
         // Decal on front armored chest plate
-        decalPosition.set(e.x + sinA * 0.62, 0.8, e.z + cosA * 0.62);
+        decalPosition.set(e.x + sinA * 0.66, 0.85, e.z + cosA * 0.66);
         decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
       } else {
         // Shooter: Floating bob with subtle hovering spin
@@ -603,7 +673,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
         // Decal on front face of shooter
-        decalPosition.set(e.x + sinA * 0.45, 1.15 + bob, e.z + cosA * 0.45);
+        decalPosition.set(e.x + sinA * 0.58, 1.15 + bob, e.z + cosA * 0.58);
         decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
       }
 
@@ -613,16 +683,17 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       // Per-instance Hit Flash Color
       const activeColor = isFlashing ? flashColor : baseColors[e.type];
       meshRef.current.setColorAt(index, activeColor);
-      decalRef.current.setColorAt(index, flashColor);
     }
 
-    // Hide remaining unused slots and update instance buffers
+    // Set instance counts and update instance buffers
     const updateBatch = (
       mesh: THREE.InstancedMesh | null,
       decal: THREE.InstancedMesh | null,
       count: number
     ) => {
       if (mesh) {
+        mesh.count = count;
+        // Maintain hidden transform for unused capacity
         for (let i = count; i < HARD_ENEMY_CAP; i++) {
           mesh.setMatrixAt(i, hiddenMatrix);
         }
@@ -630,6 +701,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       }
       if (decal) {
+        decal.count = count;
         for (let i = count; i < HARD_ENEMY_CAP; i++) {
           decal.setMatrixAt(i, hiddenMatrix);
         }
@@ -675,6 +747,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     }
 
     if (deathMeshRef.current) {
+      deathMeshRef.current.count = activeRingCount;
       for (let i = activeRingCount; i < MAX_DEATH_RINGS; i++) {
         deathMeshRef.current.setMatrixAt(i, hiddenMatrix);
       }
@@ -710,24 +783,28 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       <instancedMesh
         ref={slimeMeshRef}
         args={[geometries.slime, materials.slime, HARD_ENEMY_CAP]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       />
       <instancedMesh
         ref={runnerMeshRef}
         args={[geometries.runner, materials.runner, HARD_ENEMY_CAP]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       />
       <instancedMesh
         ref={bruteMeshRef}
         args={[geometries.brute, materials.brute, HARD_ENEMY_CAP]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       />
       <instancedMesh
         ref={shooterMeshRef}
         args={[geometries.shooter, materials.shooter, HARD_ENEMY_CAP]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       />
@@ -736,24 +813,29 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       <instancedMesh
         ref={slimeDecalRef}
         args={[geometries.decals.slime, materials.decalSlime, HARD_ENEMY_CAP]}
+        frustumCulled={false}
       />
       <instancedMesh
         ref={runnerDecalRef}
         args={[geometries.decals.runner, materials.decalRunner, HARD_ENEMY_CAP]}
+        frustumCulled={false}
       />
       <instancedMesh
         ref={bruteDecalRef}
         args={[geometries.decals.brute, materials.decalBrute, HARD_ENEMY_CAP]}
+        frustumCulled={false}
       />
       <instancedMesh
         ref={shooterDecalRef}
         args={[geometries.decals.shooter, materials.decalShooter, HARD_ENEMY_CAP]}
+        frustumCulled={false}
       />
 
       {/* Lightweight Death Dissipation Ring InstancedMesh */}
       <instancedMesh
         ref={deathMeshRef}
         args={[geometries.deathRing, materials.deathRing, MAX_DEATH_RINGS]}
+        frustumCulled={false}
       />
 
       {/* ===================================================================== */}
