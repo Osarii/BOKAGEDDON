@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useGameStore } from "../../store/gameStore";
 import { ASSETS } from "../../config/assets";
 import { UPGRADE_DETAILS, MAX_UPGRADE_LEVEL } from "../../game/config";
+import { WEAPON_SYNERGIES } from "../../game/weaponSynergies";
 import type { UpgradeId } from "../../types/game";
 import { Sparkles, ArrowUpRight } from "lucide-react";
 
@@ -9,6 +10,7 @@ export const LevelUpOverlay: React.FC = () => {
   const gameStatus = useGameStore((s) => s.gameStatus);
   const upgrades = useGameStore((s) => s.upgrades);
   const level = useGameStore((s) => s.level);
+  const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
   const applyUpgrade = useGameStore((s) => s.applyUpgrade);
 
   // Generate 3 random upgrade choices from valid (non-maxed) upgrades
@@ -98,6 +100,16 @@ export const LevelUpOverlay: React.FC = () => {
               const currentTier = upgrades[id] || 0;
               const nextTier = currentTier + 1;
               const iconSrc = ASSETS.upgrades[id];
+              const synergy = Object.values(WEAPON_SYNERGIES).find(
+                (item) => item.characterId === selectedCharacterId && item.requiredUpgrades[id]
+              );
+              const requiredTier = synergy?.requiredUpgrades[id] || 0;
+              const contributesToSynergy = Boolean(synergy && currentTier < requiredTier);
+              const completesSynergy =
+                Boolean(synergy && nextTier >= requiredTier) &&
+                Object.entries(synergy?.requiredUpgrades || {}).every(([upgradeId, tier]) =>
+                  upgradeId === id ? nextTier >= (tier || 0) : (upgrades[upgradeId as UpgradeId] || 0) >= (tier || 0)
+                );
 
               return (
                 <button
@@ -164,6 +176,20 @@ export const LevelUpOverlay: React.FC = () => {
                   <p style={{ fontSize: "0.85rem", minHeight: "2.8rem", color: "var(--text-secondary)" }}>
                     {info.description(nextTier)}
                   </p>
+
+                  {contributesToSynergy && synergy && (
+                    <p
+                      style={{
+                        marginTop: "0.75rem",
+                        minHeight: "2.2rem",
+                        fontSize: "0.78rem",
+                        color: completesSynergy ? "var(--accent-xp)" : "var(--accent-warm)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {completesSynergy ? "Unlocks" : "Builds toward"} {synergy.name}
+                    </p>
+                  )}
 
                   <div
                     style={{

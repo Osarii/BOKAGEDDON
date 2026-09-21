@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useGameStore } from "../../store/gameStore";
 import { ASSETS } from "../../config/assets";
 import { UPGRADE_DETAILS } from "../../game/config";
+import { WEAPON_SYNERGIES, getActiveSynergies } from "../../game/weaponSynergies";
 import { AudioControl } from "./AudioControl";
 import type { UpgradeId } from "../../types/game";
 import { Heart, Skull, Trophy, Sparkles, ChevronLeft, Clock, Flame } from "lucide-react";
@@ -39,6 +40,15 @@ export const HUDShell: React.FC = () => {
   const activeUpgrades = (Object.keys(upgrades) as UpgradeId[]).filter(
     (id) => (upgrades[id] || 0) > 0
   );
+  const activeSynergyIds = selectedCharacterId ? getActiveSynergies(selectedCharacterId, upgrades) : [];
+  const selectedSynergy = Object.values(WEAPON_SYNERGIES).find(
+    (item) => item.characterId === selectedCharacterId
+  );
+  const synergyProgress = selectedSynergy
+    ? Object.entries(selectedSynergy.requiredUpgrades)
+        .map(([id, tier]) => `${UPGRADE_DETAILS[id as UpgradeId].name} ${(upgrades[id as UpgradeId] || 0)}/${tier}`)
+        .join(" · ")
+    : "";
 
   return (
     <div className="hud-overlay" aria-label="Game HUD">
@@ -153,6 +163,17 @@ export const HUDShell: React.FC = () => {
             <span>LVL {level}</span>
           </div>
 
+          {selectedSynergy && (
+            <div
+              className="hud-pill"
+              style={{ color: activeSynergyIds.length > 0 ? "var(--accent-xp)" : "var(--accent-warm)" }}
+              title={activeSynergyIds.length > 0 ? selectedSynergy.description : synergyProgress}
+            >
+              <Sparkles size={16} />
+              <span>{activeSynergyIds.length > 0 ? selectedSynergy.name : "SYNERGY"}</span>
+            </div>
+          )}
+
           <div className="hud-pill" style={{ color: "var(--accent-warm)" }}>
             <Trophy size={16} />
             <span>{score.toLocaleString()}</span>
@@ -221,7 +242,7 @@ export const HUDShell: React.FC = () => {
             border: "1px solid var(--border-subtle)",
           }}
         >
-          WASD / Arrow Keys — Move &bull; Attacks Automatic &bull; Survive to Level 10 for Bonklord
+          WASD / Arrow Keys — Move &bull; Attacks Automatic &bull; Stack upgrades to unlock weapon synergies
         </div>
       </div>
     </div>
