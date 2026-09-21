@@ -77,5 +77,5 @@ export function getRoundEnemyQuota(round: number): number {
  */
 export function getXpRequiredForLevel(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));
-  return Math.floor(100 * Math.pow(1.25, safeLevel - 1));
+  return Math.round(75 * Math.pow(1.18, safeLevel - 1));
 }

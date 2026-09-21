@@ -38,6 +38,8 @@ const SimulationTimer: React.FC<{ runtimeRef: React.RefObject<GameRuntime> }> = 
 };
 
 export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
+  const gameStatus = useGameStore((s) => s.gameStatus);
+
   return (
     <div className="game-canvas-wrapper">
       <Canvas
@@ -59,7 +61,7 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
 
         <Lighting />
 
-        <Physics gravity={[0, -20, 0]}>
+        <Physics gravity={[0, -20, 0]} paused={gameStatus !== "playing"}>
           <Arena />
           <PlayerPlaceholder runtimeRef={runtimeRef} />
         </Physics>

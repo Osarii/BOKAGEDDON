@@ -26,7 +26,11 @@ export type UpgradeId =
   | "armor"
   | "magnet"
   | "critical"
-  | "multishot";
+  | "multishot"
+  | "fire"
+  | "poison"
+  | "shock"
+  | "frost";
 
 export type UpgradeType = "offense" | "defense" | "utility" | "mobility";
 
@@ -53,6 +57,7 @@ export type GameStatus =
   | "idle"
   | "ready"
   | "playing"
+  | "paused"
   | "levelup"
   | "gameover"
   | "victory";
@@ -66,10 +71,17 @@ export type EnemyType =
   | "shooter"
   | "bonklord";
 
-export type PickupType =
-  | "xp"
+export type RecoveryPickupType =
   | "medkit_emergency"
   | "medkit_case"
   | "shield_potion"
   | "shield_battery";
+
+export type SpecialPickupType =
+  | "overclock_core"
+  | "tesla_cell"
+  | "toxic_relic"
+  | "phoenix_fragment";
+
+export type PickupType = "xp" | RecoveryPickupType | SpecialPickupType;
 

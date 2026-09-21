@@ -119,6 +119,17 @@
       "icon": "/assets/upgrades/multishot.svg"
     }
   ],
-  "scores": [],
+  "scores": [
+    {
+      "playerName": "Jared",
+      "characterId": "byte",
+      "score": 26590,
+      "kills": 1135,
+      "level": 19,
+      "timeSurvivedSeconds": 767,
+      "date": "2026-09-21T20:49:50.130Z",
+      "id": "hmp_GZ8y4Lg"
+    }
+  ],
   "$schema": "./node_modules/json-server/schema.json"
 }

@@ -24,15 +24,79 @@ const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
 // Pre-defined palette colors for instanced rendering
 const defaultProjColor = new THREE.Color("#23d5ff");
 const critProjColor = new THREE.Color("#a8ff60");
-const enemyProjColor = new THREE.Color("#06b6d4");
+const enemyProjColor = new THREE.Color("#ef4444"); // Clearly visible hostile red
 const prismProjColor = new THREE.Color("#f43f5e");
-const hexProjColor = new THREE.Color("#22c55e");
+const fireProjColor = new THREE.Color("#ff5722");
+const frostProjColor = new THREE.Color("#38bdf8");
+const poisonProjColor = new THREE.Color("#84cc16");
+const shockProjColor = new THREE.Color("#00e5ff");
 
 const defaultShockColor = new THREE.Color("#ffb020");
 const critShockColor = new THREE.Color("#ff3b5c");
 const bossShockColor = new THREE.Color("#e11d48");
 const novaShockColor = new THREE.Color("#d946ef");
 const supernovaShockColor = new THREE.Color("#f43f5e");
+
+// Helper to apply elemental status effects and electric shock arcs across all weapons
+function applyElementalOnHit(
+  enemy: { id: number; x: number; z: number; health: number; hitFlashTimer: number; burnTimer?: number; burnDps?: number; poisonTimer?: number; poisonDps?: number; frostTimer?: number; frostSlowPercent?: number },
+  upgrades: Record<string, number>,
+  runtime: GameRuntime
+) {
+  // 1. FIRE (Burn)
+  if (upgrades.fire > 0) {
+    const tier = upgrades.fire;
+    enemy.burnTimer = Math.max(enemy.burnTimer || 0, 2.0 + tier * 0.5);
+    enemy.burnDps = Math.max(enemy.burnDps || 0, tier * 8);
+  }
+
+  // 2. POISON (Sustained DoT, boosted 2x by Toxic Relic)
+  if (upgrades.poison > 0) {
+    const tier = upgrades.poison;
+    const isAmped = runtime.toxicRelicTimer > 0;
+    enemy.poisonTimer = Math.max(enemy.poisonTimer || 0, 3.0 + tier * 1.0);
+    enemy.poisonDps = Math.max(enemy.poisonDps || 0, (4 + tier * 4) * (isAmped ? 2.0 : 1.0));
+  }
+
+  // 3. FROST (Movement Slow)
+  if (upgrades.frost > 0) {
+    const tier = upgrades.frost;
+    enemy.frostTimer = Math.max(enemy.frostTimer || 0, 2.0 + tier * 0.5);
+    enemy.frostSlowPercent = Math.max(enemy.frostSlowPercent || 0, Math.min(0.65, 0.15 + tier * 0.1));
+  }
+
+  // 4. SHOCK (Chain electrical arcs, guaranteed by Tesla Cell)
+  const isTeslaActive = runtime.teslaTimer > 0;
+  const shockChance = isTeslaActive ? 0.9 : (upgrades.shock > 0 ? 0.20 + upgrades.shock * 0.15 : 0);
+
+  if (shockChance > 0 && Math.random() < shockChance) {
+    const shockDmg = (upgrades.shock || 1) * 12 * (isTeslaActive ? 1.5 : 1.0);
+    const rangeSq = (5.0 + (upgrades.shock || 0) * 1.5) ** 2;
+
+    for (let i = 0; i < runtime.enemies.length; i++) {
+      const other = runtime.enemies[i];
+      if (other.id === enemy.id || other.health <= 0) continue;
+      const dSq = (other.x - enemy.x) ** 2 + (other.z - enemy.z) ** 2;
+      if (dSq <= rangeSq) {
+        other.health -= Math.round(shockDmg);
+        other.hitFlashTimer = 0.15;
+        if (runtime.shockwaves.length < MAX_SHOCKWAVES) {
+          runtime.shockwaves.push({
+            id: runtime.nextEntityId++,
+            x: (enemy.x + other.x) * 0.5,
+            z: (enemy.z + other.z) * 0.5,
+            radius: 0.3,
+            maxRadius: 1.6,
+            color: "#00e5ff",
+            lifetime: 0,
+            maxLifetime: 0.25,
+          });
+        }
+        break; // arc to 1 nearest enemy
+      }
+    }
+  }
+}
 
 export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
   const projectileMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -133,9 +197,17 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
 
     const weaponConfig = WEAPON_CONFIGS[weaponType];
 
-    // Compute active upgrade bonuses
-    const damageMultiplier = 1 + (upgrades.damage || 0) * 0.2;
-    const hasteMultiplier = 1 + (upgrades.haste || 0) * 0.15;
+    // Decrement temporary special item buff timers during active gameplay
+    if (runtime.overclockTimer > 0) runtime.overclockTimer = Math.max(0, runtime.overclockTimer - delta);
+    if (runtime.teslaTimer > 0) runtime.teslaTimer = Math.max(0, runtime.teslaTimer - delta);
+    if (runtime.toxicRelicTimer > 0) runtime.toxicRelicTimer = Math.max(0, runtime.toxicRelicTimer - delta);
+    if (runtime.phoenixTimer > 0) runtime.phoenixTimer = Math.max(0, runtime.phoenixTimer - delta);
+
+    // Compute active upgrade bonuses and special item multipliers
+    const isOverclocked = runtime.overclockTimer > 0;
+    const isPhoenixBuffed = runtime.phoenixTimer > 0;
+    const damageMultiplier = (1 + (upgrades.damage || 0) * 0.2) * (isPhoenixBuffed ? 1.4 : 1.0);
+    const hasteMultiplier = (1 + (upgrades.haste || 0) * 0.15) * (isOverclocked ? 1.5 : 1.0);
     const effectiveCooldown = weaponConfig.baseCooldown / hasteMultiplier;
     const critChance = (upgrades.critical || 0) * 0.2;
     const multishotCount = 1 + (upgrades.multishot || 0);
@@ -231,6 +303,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               const bonusCritDamage = isCrit && hasMeteorSlam ? Math.round(totalDamage * 0.35) : 0;
               e.health -= totalDamage + bonusCritDamage;
               e.hitFlashTimer = 0.15;
+              applyElementalOnHit(e, upgrades, runtime);
               gameAudio.play("enemyHit");
               const dist = Math.sqrt(distSq) || 1;
               e.x += ((e.x - playerPos.x) / dist) * 1.5;
@@ -321,6 +394,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             if (distSq <= burstRadiusSq) {
               e.health -= totalDamage;
               e.hitFlashTimer = 0.15;
+              applyElementalOnHit(e, upgrades, runtime);
               gameAudio.play("enemyHit");
               const dist = Math.sqrt(distSq) || 1;
               e.x += ((e.x - playerPos.x) / dist) * 1.2;
@@ -408,6 +482,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq < hitDistance * hitDistance) {
             e.health -= Math.max(1, Math.round(totalDamage * 0.22));
             e.hitFlashTimer = 0.08;
+            applyElementalOnHit(e, upgrades, runtime);
             gameAudio.play("enemyHit");
           }
         }
@@ -448,6 +523,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq <= burstRadiusSq) {
             e.health -= burst.damage;
             e.hitFlashTimer = 0.15;
+            applyElementalOnHit(e, upgrades, runtime);
             gameAudio.play("enemyHit");
           }
         }
@@ -494,6 +570,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq < (proj.radius + enemy.radius) ** 2) {
             enemy.health -= proj.damage;
             enemy.hitFlashTimer = 0.15;
+            applyElementalOnHit(enemy, upgrades, runtime);
             gameAudio.play("enemyHit");
             proj.pierce -= 1;
 
@@ -610,8 +687,14 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           projectileMeshRef.current.setColorAt(i, enemyProjColor);
         } else if (proj.isPrism) {
           projectileMeshRef.current.setColorAt(i, prismProjColor);
-        } else if (proj.color === "#22c55e") {
-          projectileMeshRef.current.setColorAt(i, hexProjColor);
+        } else if (proj.color === "#22c55e" || upgrades.poison > 0) {
+          projectileMeshRef.current.setColorAt(i, poisonProjColor);
+        } else if (upgrades.fire > 0) {
+          projectileMeshRef.current.setColorAt(i, fireProjColor);
+        } else if (upgrades.frost > 0) {
+          projectileMeshRef.current.setColorAt(i, frostProjColor);
+        } else if (upgrades.shock > 0) {
+          projectileMeshRef.current.setColorAt(i, shockProjColor);
         } else if (proj.color === "#a8ff60") {
           projectileMeshRef.current.setColorAt(i, critProjColor);
         } else {

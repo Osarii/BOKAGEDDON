@@ -1,41 +1,44 @@
 # Current Task
 
 ## Objective
-Project-aware Professor AI assistant (`/profesor-ia`).
+Combat variety, pause menu, and faster progression.
 
 ## Status
 Completed & Verified.
 
 ## Scope Completed
-1. **Local Project Context Engine (`src/services/projectContext.ts`)**:
-   - Ingests textual project files via Vite `import.meta.glob` (`?raw` eager imports):
-     - `src/**/*.{ts,tsx,css}`, `README.md`, `AGENTS.md`, `PROJECT_STATUS.md`, `CURRENT_TASK.md`
-     - `docs/**/*.md`, `n8n/**/*.md`, `package.json`, `db.json`, `vite.config.ts`, `tsconfig*.json`, `eslint.config.*`, `.env.example`, `n8n/**/*.json`.
-   - Excludes binaries, assets, `node_modules`, `dist`, and lockfiles.
-   - Splits files into line-indexed chunks with 40-line window and 10-line overlap.
-   - Ranked search scoring with keyword normalization, synonym mapping, symbol definition boosts, and file path matching.
+1. **Enemy Projectile Readability (`src/scene/CombatManager.tsx`, `src/scene/EnemyManager.tsx`)**:
+   - Hostile shooter projectiles are explicitly rendered in glowing red (`#ef4444`) with high priority, ensuring clear readability against player abilities.
+   - Boss shockwaves remain intact with original identity.
 
-2. **Direct Gemini REST Service (`src/services/professorAi.ts`)**:
-   - Direct `fetch` to Google Gemini API (`generateContent`) with zero SDK dependencies.
-   - Dual-level academic output enforcement:
-     - `### 🎓 Respuesta corta para el profesor`
-     - `### 🛠️ Explicación técnica`
-   - Strict code grounding, disclaimers for unverified elements, and exact file:line citations.
-   - Supports `VITE_GEMINI_API_KEY`, `VITE_GEMINI_MODEL`, and client demo entry.
+2. **Pause Menu & Physics Freeze (`src/components/game/PauseOverlay.tsx`, `src/scene/GameScene.tsx`, `src/pages/Game.tsx`)**:
+   - Added `"paused"` state to `GameStatus` in `src/types/game.ts`.
+   - `Escape` key toggles pausing/resuming during active gameplay (`playing` <-> `paused`), without interfering with `levelup`, `gameover`, or `victory`.
+   - Rapier physics simulation is explicitly halted when gameplay is paused (`paused={gameStatus !== "playing"}`).
+   - `PauseOverlay` provides:
+     - **Continuar**: Resumes gameplay.
+     - **Reiniciar partida**: Full clean restart of simulation, score guards, and character state.
+     - **Salir a selección de personaje**: Resumes store state and navigates back to `/characters`.
+     - Live run stats overview (Ronda, Nivel, Bajas, Puntuación).
 
-3. **Professor AI View (`src/pages/ProfessorAI.tsx`)**:
-   - BONKAGEDDON dark arcade styling with glass panels and glowing accents.
-   - Chat history with user and assistant message bubbles.
-   - Suggested evaluation questions curated strictly for current branch features (no unmerged features referenced).
-   - Expandable "Archivos consultados" accordion showing file paths, line ranges, and snippet previews.
-   - "Limpiar conversación" button and API key configuration dialog with security disclosures.
+3. **Faster XP Progression (`src/game/progression.ts`, `src/store/gameStore.ts`)**:
+   - Updated curve to `Math.round(75 * Math.pow(1.18, safeLevel - 1))`, starting at 75 XP for level 1.
+   - Exact XP overflow preservation maintained.
 
-4. **Navigation & Routing**:
-   - Registered `/profesor-ia` route in `Routing.tsx`.
-   - Added "Profesor IA" link with `Bot` icon to main `NavBar.tsx`.
-   - Documented environment variables and security notice in `.env.example`.
+4. **Elemental Weapon Upgrades (`src/types/game.ts`, `src/game/config.ts`, `src/scene/CombatManager.tsx`, `src/scene/EnemyManager.tsx`)**:
+   - Added `fire`, `poison`, `shock`, and `frost` to `UpgradeId` and `UPGRADE_DETAILS`.
+   - Burn DoT (ignites foes for burn dmg/s), Poison DoT (stackable venom), Shock (chance to arc electric damage), Frost (chills and slows movement).
+   - Enemy mesh instance tinting (orange for burn, green for poison, cyan for frost).
+   - Dynamic projectile coloring reflecting active elemental builds across all 5 weapons.
+   - Safe Lucide UI icon resolver (`Flame`, `Skull`, `Zap`, `Snowflake`) preventing runtime breakage in `ASSETS.upgrades[id]`.
+
+5. **Separated Pickup Unions & Procedural Special Items (`src/types/game.ts`, `src/scene/PickupManager.tsx`, `src/components/game/HUDShell.tsx`)**:
+   - Separated types into `RecoveryPickupType`, `SpecialPickupType`, and composite `PickupType`.
+   - Recovery texture maps and instance maps strictly use `RecoveryPickupType`.
+   - Special pickups are 100% procedural 3D items (`overclock_core`, `tesla_cell`, `toxic_relic`, `phoenix_fragment`) without image files or `ASSETS.items` entries.
+   - Auto-clearing HUD notification toasts (2.8s auto-dismiss).
+   - Buff timers decrement only during active gameplay (`gameStatus === "playing"`) and freeze while paused.
 
 ## Validation
-- `npm run lint` -> 0 errors, 0 warnings
-- `npm run build` -> production build exit 0
-- Dev server running and verified on `/profesor-ia` (HTTP 200)
+- `npm run lint` -> 0 errors, 0 warnings.
+- `npm run build` -> production build exit 0.

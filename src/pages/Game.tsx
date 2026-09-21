@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { GameScene } from "../scene/GameScene";
 import { HUDShell } from "../components/game/HUDShell";
 import { LevelUpOverlay } from "../components/game/LevelUpOverlay";
+import { PauseOverlay } from "../components/game/PauseOverlay";
 import { GameOverOverlay } from "../components/game/GameOverOverlay";
 import { VictoryOverlay } from "../components/game/VictoryOverlay";
 import { useGameStore } from "../store/gameStore";
@@ -54,6 +55,25 @@ export const Game: React.FC = () => {
       controller.abort();
     };
   }, [isValid, characterId, selectedCharacterId, initializeCharacterRun]);
+
+  // Escape key toggle for pausing/resuming during active gameplay
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Escape") {
+        const status = useGameStore.getState().gameStatus;
+        if (status === "playing") {
+          useGameStore.getState().pauseGame();
+        } else if (status === "paused") {
+          useGameStore.getState().resumeGame();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   // Clean full run reset handler
   const handlePlayAgain = () => {
@@ -111,6 +131,9 @@ export const Game: React.FC = () => {
 
       {/* Layer A React HUD */}
       <HUDShell />
+
+      {/* Pause Menu Overlay */}
+      <PauseOverlay onPlayAgain={handlePlayAgain} />
 
       {/* Level Up Choice Overlay */}
       <LevelUpOverlay />

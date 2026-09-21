@@ -4,7 +4,7 @@ import { ASSETS } from "../../config/assets";
 import { UPGRADE_DETAILS, MAX_UPGRADE_LEVEL } from "../../game/config";
 import { WEAPON_SYNERGIES } from "../../game/weaponSynergies";
 import type { UpgradeId } from "../../types/game";
-import { Sparkles, ArrowUpRight } from "lucide-react";
+import { Sparkles, ArrowUpRight, Flame, Skull, Zap, Snowflake } from "lucide-react";
 
 export const LevelUpOverlay: React.FC = () => {
   const gameStatus = useGameStore((s) => s.gameStatus);
@@ -31,6 +31,23 @@ export const LevelUpOverlay: React.FC = () => {
     return shuffled.slice(0, 3);
   }, [upgrades, level]);
 
+  const renderUpgradeIcon = (id: UpgradeId, size = 42) => {
+    switch (id) {
+      case "fire":
+        return <Flame size={size} color="#f97316" />;
+      case "poison":
+        return <Skull size={size} color="#22c55e" />;
+      case "shock":
+        return <Zap size={size} color="#00e5ff" />;
+      case "frost":
+        return <Snowflake size={size} color="#38bdf8" />;
+      default: {
+        const src = (ASSETS.upgrades as Record<string, string>)[id];
+        return src ? <img src={src} alt={id} style={{ width: size, height: size, objectFit: "contain" }} /> : null;
+      }
+    }
+  };
+
   if (gameStatus !== "levelup") return null;
 
   return (
@@ -38,17 +55,14 @@ export const LevelUpOverlay: React.FC = () => {
       className="level-up-modal-backdrop"
       style={{
         position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        background: "rgba(5, 7, 12, 0.85)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        inset: 0,
+        backgroundColor: "rgba(8, 11, 18, 0.85)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 100,
+        zIndex: 50,
         padding: "1.5rem",
       }}
       role="dialog"
@@ -57,26 +71,41 @@ export const LevelUpOverlay: React.FC = () => {
       <div
         className="glass-panel"
         style={{
-          maxWidth: "880px",
           width: "100%",
+          maxWidth: "860px",
           padding: "2.5rem 2rem",
-          textAlign: "center",
-          boxShadow: "0 0 50px rgba(35, 213, 255, 0.25)",
-          border: "1px solid rgba(35, 213, 255, 0.3)",
+          background: "rgba(13, 17, 26, 0.95)",
+          border: "1px solid rgba(255, 255, 255, 0.15)",
+          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(35, 213, 255, 0.2)",
+          borderRadius: "16px",
         }}
       >
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-          <Sparkles size={28} color="var(--accent-energy)" />
-          <h2 style={{ fontSize: "2.2rem", letterSpacing: "0.04em" }}>LEVEL UP! — TIER {level}</h2>
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              color: "var(--accent-energy)",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <Sparkles size={20} />
+            <span style={{ fontSize: "0.85rem", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 700 }}>
+              Tactical Acquisition
+            </span>
+            <Sparkles size={20} />
+          </div>
+          <h2 style={{ fontSize: "2.25rem", margin: 0, color: "var(--text-primary)" }}>LEVEL UP! (LVL {level})</h2>
+          <p style={{ color: "var(--text-secondary)", marginTop: "0.5rem", fontSize: "0.95rem" }}>
+            Select an upgrade or weapon synergy to adapt to escalating waves.
+          </p>
         </div>
-        <p style={{ marginBottom: "2rem" }}>
-          Select one augmentation to strengthen your survivor for the next horde wave.
-        </p>
 
         {availableChoices.length === 0 ? (
-          <div>
-            <p style={{ color: "var(--accent-xp)", fontWeight: 700, fontSize: "1.2rem" }}>
-              ALL UPGRADES ARE FULLY MAXED!
+          <div style={{ textAlign: "center", padding: "2rem" }}>
+            <p style={{ color: "var(--accent-energy)", fontSize: "1.1rem" }}>
+              All upgrades have reached maximum power!
             </p>
             <button
               type="button"
@@ -99,7 +128,6 @@ export const LevelUpOverlay: React.FC = () => {
               const info = UPGRADE_DETAILS[id];
               const currentTier = upgrades[id] || 0;
               const nextTier = currentTier + 1;
-              const iconSrc = ASSETS.upgrades[id];
               const synergy = Object.values(WEAPON_SYNERGIES).find(
                 (item) => item.characterId === selectedCharacterId && item.requiredUpgrades[id]
               );
@@ -153,7 +181,7 @@ export const LevelUpOverlay: React.FC = () => {
                       border: "1px solid rgba(35, 213, 255, 0.25)",
                     }}
                   >
-                    <img src={iconSrc} alt={info.name} style={{ width: 42, height: 42 }} />
+                    {renderUpgradeIcon(id, 36)}
                   </div>
 
                   <span

@@ -22,10 +22,15 @@ interface GameState {
   bossMaxHealth: number;
   upgrades: Record<UpgradeId, number>;
   gameStatus: GameStatus;
+  notification: { title: string; subtitle: string; timestamp: number } | null;
 
   // Actions
   setSelectedCharacter: (id: CharacterId | null) => void;
   setGameStatus: (status: GameStatus) => void;
+  pauseGame: () => void;
+  resumeGame: () => void;
+  togglePause: () => void;
+  setNotification: (notif: { title: string; subtitle: string } | null) => void;
   setRound: (round: number) => void;
   setRoundStatus: (status: RoundStatus) => void;
   advanceRound: () => void;
@@ -56,6 +61,10 @@ const INITIAL_UPGRADES: Record<UpgradeId, number> = {
   magnet: 0,
   critical: 0,
   multishot: 0,
+  fire: 0,
+  poison: 0,
+  shock: 0,
+  frost: 0,
 };
 
 const INITIAL_RUN_STATE = {
@@ -69,7 +78,7 @@ const INITIAL_RUN_STATE = {
   kills: 0,
   level: 1,
   xp: 0,
-  xpRequired: 100,
+  xpRequired: getXpRequiredForLevel(1),
   pendingLevelUps: 0,
   timeSurvivedSeconds: 0,
   bossActive: false,
@@ -77,6 +86,7 @@ const INITIAL_RUN_STATE = {
   bossMaxHealth: 1200,
   upgrades: INITIAL_UPGRADES,
   gameStatus: "idle" as GameStatus,
+  notification: null,
 };
 
 export const useGameStore = create<GameState>((set) => ({
@@ -86,6 +96,24 @@ export const useGameStore = create<GameState>((set) => ({
   setSelectedCharacter: (id) => set({ selectedCharacterId: id }),
 
   setGameStatus: (status) => set({ gameStatus: status }),
+
+  pauseGame: () =>
+    set((state) => (state.gameStatus === "playing" ? { gameStatus: "paused" } : state)),
+
+  resumeGame: () =>
+    set((state) => (state.gameStatus === "paused" ? { gameStatus: "playing" } : state)),
+
+  togglePause: () =>
+    set((state) => {
+      if (state.gameStatus === "playing") return { gameStatus: "paused" };
+      if (state.gameStatus === "paused") return { gameStatus: "playing" };
+      return state;
+    }),
+
+  setNotification: (notif) =>
+    set({
+      notification: notif ? { ...notif, timestamp: Date.now() } : null,
+    }),
 
   setRound: (round) => set({ round: Math.max(1, Math.floor(round)) }),
 
@@ -205,8 +233,8 @@ export const useGameStore = create<GameState>((set) => ({
         newHealth = Math.min(newMaxHealth, newHealth + 30);
       }
 
+      // Check if pending level ups remain
       const remainingPending = Math.max(0, state.pendingLevelUps - 1);
-      // Process remaining pending level-ups one choice at a time
       const nextStatus = remainingPending > 0 ? "levelup" : "playing";
 
       return {
@@ -257,7 +285,7 @@ export const useGameStore = create<GameState>((set) => ({
       kills: 0,
       level: 1,
       xp: 0,
-      xpRequired: 100,
+      xpRequired: getXpRequiredForLevel(1),
       pendingLevelUps: 0,
       timeSurvivedSeconds: 0,
       bossActive: false,
@@ -265,5 +293,6 @@ export const useGameStore = create<GameState>((set) => ({
       bossMaxHealth: 1200,
       upgrades: { ...INITIAL_UPGRADES },
       gameStatus: "playing",
+      notification: null,
     })),
 }));

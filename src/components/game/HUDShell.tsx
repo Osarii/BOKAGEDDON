@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useGameStore } from "../../store/gameStore";
 import { ASSETS } from "../../config/assets";
@@ -7,7 +7,7 @@ import { WEAPON_SYNERGIES, getActiveSynergies } from "../../game/weaponSynergies
 import { isBossRound } from "../../game/progression";
 import { AudioControl } from "./AudioControl";
 import type { UpgradeId } from "../../types/game";
-import { Heart, Skull, Trophy, Sparkles, ChevronLeft, Clock, Flame, Shield } from "lucide-react";
+import { Heart, Skull, Trophy, Sparkles, ChevronLeft, Clock, Flame, Shield, Zap, Snowflake } from "lucide-react";
 
 export const HUDShell: React.FC = () => {
   const health = useGameStore((s) => s.health);
@@ -27,6 +27,33 @@ export const HUDShell: React.FC = () => {
   const bossMaxHealth = useGameStore((s) => s.bossMaxHealth);
   const upgrades = useGameStore((s) => s.upgrades);
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
+  const notification = useGameStore((s) => s.notification);
+
+  // Auto-clear notification toast after 2.8s
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => {
+      useGameStore.getState().setNotification(null);
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [notification]);
+
+  const renderSmallUpgradeIcon = (id: UpgradeId) => {
+    switch (id) {
+      case "fire":
+        return <Flame size={14} color="#f97316" />;
+      case "poison":
+        return <Skull size={14} color="#22c55e" />;
+      case "shock":
+        return <Zap size={14} color="#00e5ff" />;
+      case "frost":
+        return <Snowflake size={14} color="#38bdf8" />;
+      default: {
+        const iconSrc = (ASSETS.upgrades as Record<string, string>)[id];
+        return iconSrc ? <img src={iconSrc} alt={id} style={{ width: 16, height: 16 }} /> : null;
+      }
+    }
+  };
 
   const hpPercent = maxHealth > 0 ? Math.max(0, Math.min(100, (health / maxHealth) * 100)) : 100;
   const shieldPercent = maxShield > 0 ? Math.max(0, Math.min(100, (shield / maxShield) * 100)) : 0;
@@ -298,7 +325,6 @@ export const HUDShell: React.FC = () => {
         >
           {activeUpgrades.map((id) => {
             const tier = upgrades[id];
-            const iconSrc = ASSETS.upgrades[id];
             const name = UPGRADE_DETAILS[id].name;
             return (
               <div
@@ -312,11 +338,63 @@ export const HUDShell: React.FC = () => {
                 }}
                 title={`${name} (Tier ${tier})`}
               >
-                <img src={iconSrc} alt={name} style={{ width: 16, height: 16 }} />
+                {renderSmallUpgradeIcon(id)}
                 <span style={{ color: "var(--accent-warm)" }}>T{tier}</span>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Special Pickup Auto-clearing Notification Toast */}
+      {notification && (
+        <div
+          style={{
+            position: "absolute",
+            top: "5.5rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            pointerEvents: "none",
+            animation: "fadeIn 0.2s ease",
+          }}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              padding: "0.6rem 1.4rem",
+              background: "rgba(10, 15, 26, 0.94)",
+              border: "1px solid rgba(35, 213, 255, 0.6)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.7), 0 0 24px rgba(35, 213, 255, 0.35)",
+              borderRadius: "12px",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "0.15rem",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.95rem",
+                fontWeight: 800,
+                letterSpacing: "0.05em",
+                color: "var(--accent-energy, #23d5ff)",
+                textTransform: "uppercase",
+              }}
+            >
+              {notification.title}
+            </div>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--text-primary, #ffffff)",
+                fontWeight: 600,
+              }}
+            >
+              {notification.subtitle}
+            </div>
+          </div>
         </div>
       )}
 

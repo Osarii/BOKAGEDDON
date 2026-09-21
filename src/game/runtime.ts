@@ -21,6 +21,16 @@ export interface EnemyEntity {
   stompCooldown?: number;
   hitFlashTimer: number;
   scaleY: number; // for squash/stretch
+
+  // Minimal elemental status effects (runtime-only)
+  burnTimer?: number;
+  burnDps?: number;
+  burnTickAcc?: number;
+  poisonTimer?: number;
+  poisonDps?: number;
+  poisonTickAcc?: number;
+  frostTimer?: number;
+  frostSlowPercent?: number;
 }
 
 export interface ProjectileEntity {
@@ -49,7 +59,7 @@ export interface PickupEntity {
   x: number;
   y: number;
   z: number;
-  value: number; // For xp: xpValue; for medkit: HP heal; for shield: shield amount
+  value: number; // For xp: xpValue; for medkit: HP heal; for shield: shield amount; for special: buff duration
   radius: number;
 }
 
@@ -97,6 +107,12 @@ export interface GameRuntime {
   roundQuota: number;
   intermissionTimer: number;
 
+  // Temporary Special Item Buff Timers (decrement only during active gameplay)
+  overclockTimer: number;
+  teslaTimer: number;
+  toxicRelicTimer: number;
+  phoenixTimer: number;
+
   reset: () => void;
 }
 
@@ -121,6 +137,10 @@ export function createGameRuntime(): GameRuntime {
     roundSpawnedCount: 0,
     roundQuota: 14,
     intermissionTimer: 0,
+    overclockTimer: 0,
+    teslaTimer: 0,
+    toxicRelicTimer: 0,
+    phoenixTimer: 0,
     reset: () => {
       runtime.enemies = [];
       runtime.projectiles = [];
@@ -141,6 +161,10 @@ export function createGameRuntime(): GameRuntime {
       runtime.roundSpawnedCount = 0;
       runtime.roundQuota = 14;
       runtime.intermissionTimer = 0;
+      runtime.overclockTimer = 0;
+      runtime.teslaTimer = 0;
+      runtime.toxicRelicTimer = 0;
+      runtime.phoenixTimer = 0;
     },
   };
 

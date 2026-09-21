@@ -199,7 +199,45 @@ export const UPGRADE_DETAILS: Record<
     description: (t) => `Fires +${t} additional projectile / cleaving strike`,
     type: "offense",
   },
+  fire: {
+    name: "Inferno (Fire)",
+    description: (t) => `Attacks ignite foes for ${t * 8} burn dmg/s for ${2 + t * 0.5}s`,
+    type: "offense",
+  },
+  poison: {
+    name: "Venom (Poison)",
+    description: (t) => `Attacks poison foes for ${4 + t * 4} dmg/s for ${3 + t}s`,
+    type: "offense",
+  },
+  shock: {
+    name: "Volt (Shock)",
+    description: (t) => `${20 + t * 15}% chance on hit to arc ${t * 12} electric dmg to nearby foes`,
+    type: "offense",
+  },
+  frost: {
+    name: "Glacier (Frost)",
+    description: (t) => `Chills enemies, slowing movement by ${15 + t * 10}% for ${2 + t * 0.5}s`,
+    type: "utility",
+  },
 };
+
+export const SPECIAL_PICKUP_CONFIG = {
+  maxActiveSpecialPickups: 4,
+  normalEnemyDropChance: 0.015,
+  bruteDropChance: 0.12,
+  buffDurations: {
+    overclock_core: 8.0,
+    tesla_cell: 10.0,
+    toxic_relic: 10.0,
+    phoenix_fragment: 8.0,
+  },
+  visuals: {
+    overclock_core: { name: "Overclock Core", subtitle: "Attack Speed Overdrive (+50%)!", color: "#ffb020", emissive: "#f59e0b" },
+    tesla_cell: { name: "Tesla Cell", subtitle: "Overcharged Electric Chain Arcs!", color: "#00e5ff", emissive: "#06b6d4" },
+    toxic_relic: { name: "Toxic Relic", subtitle: "2x Poison Toxicity Amplification!", color: "#22c55e", emissive: "#10b981" },
+    phoenix_fragment: { name: "Phoenix Fragment", subtitle: "+50 HP Healed & Flame Damage Surge (+40%)!", color: "#f43f5e", emissive: "#e11d48" },
+  },
+} as const;
 
 export const RECOVERY_CONFIG = {
   maxActivePickups: 24,

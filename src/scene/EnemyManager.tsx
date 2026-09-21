@@ -9,6 +9,7 @@ import {
   ARENA_BOUNDARY_LIMIT,
   GAME_CONFIG,
   RECOVERY_CONFIG,
+  SPECIAL_PICKUP_CONFIG,
 } from "../game/config";
 import {
   getRoundEnemyCap,
@@ -27,7 +28,7 @@ import {
 import { useGameStore } from "../store/gameStore";
 import { ASSETS } from "../config/assets";
 import { gameAudio } from "../audio/gameAudio";
-import type { EnemyType, PickupType } from "../types/game";
+import type { EnemyType, PickupType, SpecialPickupType, RecoveryPickupType } from "../types/game";
 
 interface EnemyManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -71,8 +72,11 @@ const decalRotation = new THREE.Euler();
 const decalQuaternion = new THREE.Quaternion();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
 
-// Base and flash colors for InstancedMesh.setColorAt
+// Base, flash, and status colors for InstancedMesh.setColorAt
 const flashColor = new THREE.Color("#ffffff");
+const burnStatusColor = new THREE.Color("#f97316"); // warm fiery orange
+const poisonStatusColor = new THREE.Color("#22c55e"); // toxic green
+const frostStatusColor = new THREE.Color("#38bdf8"); // icy blue
 const baseColors: Record<EnemyType, THREE.Color> = {
   slime: new THREE.Color("#c084fc"),
   runner: new THREE.Color("#ff6b35"),
@@ -466,6 +470,31 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         enemy.hitFlashTimer -= delta;
       }
 
+      // Elemental status processing (Burn DoT, Poison DoT, Frost Slow)
+      if (enemy.burnTimer && enemy.burnTimer > 0) {
+        enemy.burnTimer -= delta;
+        enemy.burnTickAcc = (enemy.burnTickAcc || 0) + delta;
+        if (enemy.burnTickAcc >= 0.25) {
+          enemy.health -= (enemy.burnDps || 8) * 0.25;
+          enemy.burnTickAcc = 0;
+        }
+      }
+
+      if (enemy.poisonTimer && enemy.poisonTimer > 0) {
+        enemy.poisonTimer -= delta;
+        enemy.poisonTickAcc = (enemy.poisonTickAcc || 0) + delta;
+        if (enemy.poisonTickAcc >= 0.5) {
+          enemy.health -= (enemy.poisonDps || 6) * 0.5;
+          enemy.poisonTickAcc = 0;
+        }
+      }
+
+      let currentSpeed = enemy.speed;
+      if (enemy.frostTimer && enemy.frostTimer > 0) {
+        enemy.frostTimer -= delta;
+        currentSpeed *= (1 - (enemy.frostSlowPercent || 0.3));
+      }
+
       // Check death
       if (enemy.health <= 0) {
         // Spawn XP pickup at death position
@@ -534,20 +563,57 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             });
           }
 
+          // Guaranteed special item drop from boss
+          const specialTypes: SpecialPickupType[] = ["overclock_core", "tesla_cell", "toxic_relic", "phoenix_fragment"];
+          const bossSpecial = specialTypes[Math.floor(Math.random() * specialTypes.length)];
+          runtime.pickups.push({
+            id: runtime.nextEntityId++,
+            type: bossSpecial,
+            x: enemy.x,
+            y: 0.45,
+            z: enemy.z + 0.8,
+            value: SPECIAL_PICKUP_CONFIG.buffDurations[bossSpecial],
+            radius: 0.7,
+          });
+
           // Boss round complete! Enter intermission to advance to next round (e.g. 10 -> 11)
           runtime.intermissionTimer = 0;
           useGameStore.getState().setRoundStatus("intermission");
         } else {
           gameAudio.play("enemyDeath");
 
+          // Rare special item drop check (1.5% normal, 12% Brute)
+          const specialChance = enemy.type === "brute"
+            ? SPECIAL_PICKUP_CONFIG.bruteDropChance
+            : SPECIAL_PICKUP_CONFIG.normalEnemyDropChance;
+          const activeSpecialCount = runtime.pickups.filter((p) =>
+            p.type === "overclock_core" || p.type === "tesla_cell" || p.type === "toxic_relic" || p.type === "phoenix_fragment"
+          ).length;
+
+          if (activeSpecialCount < SPECIAL_PICKUP_CONFIG.maxActiveSpecialPickups && Math.random() < specialChance) {
+            const specialPool: SpecialPickupType[] = ["overclock_core", "tesla_cell", "toxic_relic", "phoenix_fragment"];
+            const chosenSpecial = specialPool[Math.floor(Math.random() * specialPool.length)];
+            runtime.pickups.push({
+              id: runtime.nextEntityId++,
+              type: chosenSpecial,
+              x: enemy.x + (Math.random() - 0.5) * 0.5,
+              y: 0.45,
+              z: enemy.z + (Math.random() - 0.5) * 0.5,
+              value: SPECIAL_PICKUP_CONFIG.buffDurations[chosenSpecial],
+              radius: 0.6,
+            });
+          }
+
           // Normal enemy recovery item drop (bounded by maxActivePickups)
-          const activeRecoveryCount = runtime.pickups.filter((p) => p.type !== "xp").length;
+          const activeRecoveryCount = runtime.pickups.filter((p) =>
+            p.type === "medkit_emergency" || p.type === "medkit_case" || p.type === "shield_potion" || p.type === "shield_battery"
+          ).length;
           if (
             activeRecoveryCount < RECOVERY_CONFIG.maxActivePickups &&
             Math.random() < RECOVERY_CONFIG.normalEnemyDropChance
           ) {
             const roll = Math.random();
-            let dropType: PickupType;
+            let dropType: RecoveryPickupType;
             let dropVal: number;
 
             if (roll < 0.40) {
@@ -590,15 +656,15 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       if (enemy.type === "shooter") {
         // Shooter maintains standoff distance (~7.5 units)
         if (distToPlayer > 8.0) {
-          enemy.x += (dx / distToPlayer) * enemy.speed * delta;
-          enemy.z += (dz / distToPlayer) * enemy.speed * delta;
+          enemy.x += (dx / distToPlayer) * currentSpeed * delta;
+          enemy.z += (dz / distToPlayer) * currentSpeed * delta;
         } else if (distToPlayer < 6.0) {
           // Back away
-          enemy.x -= (dx / distToPlayer) * enemy.speed * 0.7 * delta;
-          enemy.z -= (dz / distToPlayer) * enemy.speed * 0.7 * delta;
+          enemy.x -= (dx / distToPlayer) * currentSpeed * 0.7 * delta;
+          enemy.z -= (dz / distToPlayer) * currentSpeed * 0.7 * delta;
         }
 
-        // Shoot projectile
+        // Shoot hostile projectile (clearly visible red identity)
         if (enemy.shootCooldown !== undefined) {
           enemy.shootCooldown -= delta;
           if (enemy.shootCooldown <= 0) {
@@ -613,7 +679,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
               vz: (dz / distToPlayer) * projSpeed,
               damage: enemy.damage,
               radius: 0.28,
-              color: "#22d3ee",
+              color: "#ef4444",
               lifetime: 0,
               maxLifetime: 3.5,
               isEnemy: true,
@@ -624,8 +690,8 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       } else if (enemy.type === "bonklord") {
         // Boss moves steadily toward player
         if (distToPlayer > 0.1) {
-          enemy.x += (dx / distToPlayer) * enemy.speed * delta;
-          enemy.z += (dz / distToPlayer) * enemy.speed * delta;
+          enemy.x += (dx / distToPlayer) * currentSpeed * delta;
+          enemy.z += (dz / distToPlayer) * currentSpeed * delta;
         }
 
         // Boss Stomp AOE every 4 seconds
@@ -661,8 +727,8 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       } else {
         // Standard chase
         if (distToPlayer > 0.1) {
-          enemy.x += (dx / distToPlayer) * enemy.speed * delta;
-          enemy.z += (dz / distToPlayer) * enemy.speed * delta;
+          enemy.x += (dx / distToPlayer) * currentSpeed * delta;
+          enemy.z += (dz / distToPlayer) * currentSpeed * delta;
         }
       }
 
@@ -801,8 +867,17 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       meshRef.current.setMatrixAt(index, tempMatrix);
       decalRef.current.setMatrixAt(index, decalMatrix);
 
-      // Per-instance Hit Flash Color
-      const activeColor = isFlashing ? flashColor : baseColors[e.type];
+      // Per-instance Hit Flash & Elemental Status Color
+      let activeColor = baseColors[e.type];
+      if (isFlashing) {
+        activeColor = flashColor;
+      } else if (e.burnTimer && e.burnTimer > 0) {
+        activeColor = burnStatusColor;
+      } else if (e.poisonTimer && e.poisonTimer > 0) {
+        activeColor = poisonStatusColor;
+      } else if (e.frostTimer && e.frostTimer > 0) {
+        activeColor = frostStatusColor;
+      }
       meshRef.current.setColorAt(index, activeColor);
     }
 

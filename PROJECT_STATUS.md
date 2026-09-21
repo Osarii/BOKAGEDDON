@@ -83,12 +83,20 @@ Post-Merge Integration Complete & Verified
   - Integrated `/profesor-ia` into `Routing.tsx` and main `NavBar.tsx`.
   - Documented Gemini environment variables in `.env.example` and added ADR-020 in `docs/DECISIONS.md`.
 
+- **Workstream: Combat Variety, Pause Menu and Faster Progression**:
+  - Implemented clearly visible red projectile identity (`#ef4444`) for all hostile shooter attacks.
+  - Implemented pause menu with `Escape` keyboard shortcut, freezing Rapier physics simulation and gameplay updates, with options to resume, restart run, or exit to character selection.
+  - Accelerated XP curve with 75 baseline (`Math.round(75 * Math.pow(1.18, level - 1))`) preserving overflow.
+  - Added 4 elemental upgrade paths (`fire`, `poison`, `shock`, `frost`) with Burn DoT, Poison DoT, Shock chain arcs, and Frost slow, complete with enemy mesh tinting and safe Lucide icon resolvers.
+  - Separated pickup unions (`RecoveryPickupType`, `SpecialPickupType`, `PickupType`) and built procedural 3D special items (`overclock_core`, `tesla_cell`, `toxic_relic`, `phoenix_fragment`) with auto-clearing HUD notification toasts and gameplay-only timer decrements.
+
 ## Current
-- Project-Aware Professor AI assistant is fully integrated, verified, and operational at `/profesor-ia`.
+- Combat variety, pause menu, and faster progression fully integrated and verified.
 
 ## Next
 - Live n8n Verification + Final Rubric Audit
 
 ## Known Issues
 - Antigravity browser sandbox Playwright binary download returns 404 from upstream CDN; local Vite dev server and JSON Server fully verified via CLI and curl.
+
 
