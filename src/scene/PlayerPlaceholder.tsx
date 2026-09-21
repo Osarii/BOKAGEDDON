@@ -13,47 +13,25 @@ interface PlayerPlaceholderProps {
 export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   runtimeRef,
 }) => {
-  // Required React hook: useRef for Three.js and Rapier instances
   const bodyRef = useRef<RapierRigidBody>(null);
   const meshGroupRef = useRef<THREE.Group>(null);
-  const bodyMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const modelAnchorRef = useRef<THREE.Group>(null);
+  const weaponGroupRef = useRef<THREE.Group>(null);
+  const coreMeshRef = useRef<THREE.Mesh>(null);
+
+  // References for dynamic hit-flash material tints
+  const flashMaterialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
 
   // High-frequency input state kept in ref to prevent React re-renders
   const keysRef = useRef<Record<string, boolean>>({});
+  const lastFacingRef = useRef<number>(0);
+  const walkCycleRef = useRef<number>(0);
 
-  const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
-
-  // Character-specific visual attributes
-  const characterConfig = {
-    bonk: {
-      color: "#FF6B35",
-      accentColor: "#FFB020",
-      height: 1.4,
-      radius: 0.45,
-    },
-    byte: {
-      color: "#23D5FF",
-      accentColor: "#A8FF60",
-      height: 1.25,
-      radius: 0.38,
-    },
-    tank: {
-      color: "#FF3B5C",
-      accentColor: "#991B1B",
-      height: 1.55,
-      radius: 0.6,
-    },
-  }[selectedCharacterId || "bonk"] || {
-    color: "#FF6B35",
-    accentColor: "#FFB020",
-    height: 1.4,
-    radius: 0.45,
-  };
+  const selectedCharacterId = useGameStore((s) => s.selectedCharacterId) || "bonk";
 
   // Setup keyboard input listeners with blur protection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent browser scrolling with arrow keys
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
         e.preventDefault();
       }
@@ -66,7 +44,6 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       keysRef.current[e.key.toLowerCase()] = false;
     };
 
-    // Prevent stuck keys when user switches tabs or window blurs
     const handleBlur = () => {
       keysRef.current = {};
     };
@@ -82,12 +59,13 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     };
   }, []);
 
-  // Frame-rate independent movement simulation loop
-  useFrame((_, delta) => {
+  // Frame-rate independent movement and visual animation loop
+  useFrame((state, delta) => {
     if (!bodyRef.current) return;
 
     const runtime = runtimeRef.current;
     const gameStatus = useGameStore.getState().gameStatus;
+    const time = state.clock.elapsedTime;
 
     // Halt physics velocity when paused / level-up / game over
     if (gameStatus !== "playing") {
@@ -96,7 +74,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     }
 
     const upgrades = useGameStore.getState().upgrades;
-    const baseSpeed = CHARACTER_BASE_SPEEDS[selectedCharacterId || "bonk"] || 5.0;
+    const baseSpeed = CHARACTER_BASE_SPEEDS[selectedCharacterId] || 5.0;
     const speed = baseSpeed * (1 + (upgrades.speed || 0) * 0.15);
 
     const keys = keysRef.current;
@@ -115,7 +93,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     if (isDown) moveZ += 1;
     if (isUp) moveZ -= 1;
 
-    // Normalize diagonal movement so diagonals aren't faster
+    // Normalize diagonal movement
     const inputLength = Math.hypot(moveX, moveZ);
     if (inputLength > 0) {
       moveX /= inputLength;
@@ -133,7 +111,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       true
     );
 
-    // Enforce circular arena boundary clamping
+    // Circular arena boundary clamping
     const currentPos = bodyRef.current.translation();
     const distanceFromCenter = Math.hypot(currentPos.x, currentPos.z);
     if (distanceFromCenter > ARENA_BOUNDARY_LIMIT) {
@@ -154,28 +132,101 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       runtime.playerPosition.set(translation.x, translation.y, translation.z);
     }
 
-    // Smoothly rotate player mesh to face movement direction
-    if (meshGroupRef.current && inputLength > 0) {
-      const targetRotation = Math.atan2(moveX, moveZ);
-      let diff = targetRotation - meshGroupRef.current.rotation.y;
+    // Smooth rotation towards movement direction (persists last facing when stopped)
+    if (inputLength > 0) {
+      lastFacingRef.current = Math.atan2(moveX, moveZ);
+      walkCycleRef.current += delta * speed * 2.8;
+    }
+
+    if (meshGroupRef.current) {
+      let diff = lastFacingRef.current - meshGroupRef.current.rotation.y;
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff > Math.PI) diff -= Math.PI * 2;
 
-      const t = 1 - Math.exp(-14 * Math.min(delta, 0.1));
+      const t = 1 - Math.exp(-15 * Math.min(delta, 0.1));
       meshGroupRef.current.rotation.y += diff * t;
     }
 
-    // Visual i-frame hit flash effect
-    if (bodyMaterialRef.current && runtime) {
-      if (runtime.playerInvulnerableTimer > 0) {
-        bodyMaterialRef.current.emissive.set("#ef4444");
-        bodyMaterialRef.current.emissiveIntensity = 0.8;
+    // Subtle walk stride / breathing idle animation on the inner visual anchor
+    if (modelAnchorRef.current) {
+      const isInvulnerable = !!(runtime && runtime.playerInvulnerableTimer > 0);
+      const isMoving = inputLength > 0;
+
+      if (isMoving) {
+        // Dynamic walking stride with subtle banking tilt
+        const strideBob = Math.abs(Math.sin(walkCycleRef.current)) * 0.1;
+        const strideRoll = Math.sin(walkCycleRef.current) * 0.06;
+        modelAnchorRef.current.position.y = strideBob;
+        modelAnchorRef.current.rotation.z = -strideRoll;
+        modelAnchorRef.current.rotation.x = 0.08; // Lean forward into motion
       } else {
-        bodyMaterialRef.current.emissive.set("#000000");
-        bodyMaterialRef.current.emissiveIntensity = 0;
+        // Idle breathing motion
+        if (selectedCharacterId === "byte") {
+          // BYTE floats smoothly on hover repulsors
+          const hover = Math.sin(time * 3.5) * 0.08;
+          modelAnchorRef.current.position.y = 0.06 + hover;
+          modelAnchorRef.current.rotation.z = Math.sin(time * 2.0) * 0.03;
+          modelAnchorRef.current.rotation.x = 0;
+        } else {
+          // Grounded subtle breath
+          const breath = Math.sin(time * 4) * 0.03;
+          modelAnchorRef.current.position.y = breath;
+          modelAnchorRef.current.rotation.z = 0;
+          modelAnchorRef.current.rotation.x = 0;
+        }
+      }
+
+      // Hit feedback: squash & stretch pulse on damage
+      if (isInvulnerable) {
+        const pulse = 1.0 + Math.sin(runtime!.playerInvulnerableTimer * 25) * 0.14;
+        modelAnchorRef.current.scale.set(pulse, 2 - pulse, pulse);
+      } else {
+        modelAnchorRef.current.scale.set(1, 1, 1);
       }
     }
+
+    // Character-specific weapon/core subtle animations
+    if (selectedCharacterId === "bonk" && weaponGroupRef.current) {
+      // Hammer idle ready sway
+      const hammerSway = Math.sin(time * 3) * 0.08;
+      weaponGroupRef.current.rotation.z = -0.25 + hammerSway;
+      weaponGroupRef.current.rotation.x = 0.2 + hammerSway * 0.5;
+    } else if (selectedCharacterId === "byte") {
+      if (weaponGroupRef.current) {
+        // Orbiting energy satellite
+        weaponGroupRef.current.rotation.y = time * 3.2;
+        weaponGroupRef.current.position.y = 0.2 + Math.sin(time * 4) * 0.06;
+      }
+      if (coreMeshRef.current) {
+        // Pulsing chest core
+        const coreGlow = 1.2 + Math.sin(time * 6) * 0.4;
+        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = coreGlow;
+      }
+    }
+
+    // Visual i-frame hit flash effect across registered materials
+    const isFlashing = !!(runtime && runtime.playerInvulnerableTimer > 0);
+    flashMaterialsRef.current.forEach((mat) => {
+      if (mat) {
+        if (isFlashing) {
+          mat.emissive.set("#ef4444");
+          mat.emissiveIntensity = 0.9;
+        } else {
+          mat.emissive.copy(mat.userData.baseEmissive || new THREE.Color("#000000"));
+          mat.emissiveIntensity = mat.userData.baseIntensity || 0;
+        }
+      }
+    });
   });
+
+  // Helper to register materials for dynamic hit flashes
+  const registerFlashMaterial = (mat: THREE.MeshStandardMaterial | null, baseEmissive = "#000000", baseIntensity = 0) => {
+    if (mat && !flashMaterialsRef.current.includes(mat)) {
+      mat.userData.baseEmissive = new THREE.Color(baseEmissive);
+      mat.userData.baseIntensity = baseIntensity;
+      flashMaterialsRef.current.push(mat);
+    }
+  };
 
   return (
     <RigidBody
@@ -186,78 +237,358 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       linearDamping={2}
     >
       <group ref={meshGroupRef}>
-        {/* Main Body Capsule */}
-        <mesh castShadow position={[0, 0, 0]}>
-          <capsuleGeometry
-            args={[
-              characterConfig.radius,
-              characterConfig.height - characterConfig.radius * 2,
-              8,
-              16,
-            ]}
-          />
-          <meshStandardMaterial
-            ref={bodyMaterialRef}
-            color={characterConfig.color}
-            roughness={0.4}
-            metalness={0.2}
-          />
-        </mesh>
+        <group ref={modelAnchorRef}>
+          {/* ================================================================= */}
+          {/* CHARACTER 1: BONK — Heavy Bruiser, Orange/Gold, Mega Warhammer   */}
+          {/* ================================================================= */}
+          {selectedCharacterId === "bonk" && (
+            <group>
+              {/* Torso: Broad heavy armored chassis */}
+              <mesh castShadow position={[0, 0, 0]}>
+                <capsuleGeometry args={[0.5, 0.48, 8, 16]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#ea580c"
+                  roughness={0.35}
+                  metalness={0.3}
+                />
+              </mesh>
 
-        {/* Visor / Eye */}
-        <mesh position={[0, 0.35, characterConfig.radius * 0.85]}>
-          <boxGeometry args={[0.36, 0.12, 0.1]} />
-          <meshStandardMaterial
-            color={characterConfig.accentColor}
-            emissive={characterConfig.accentColor}
-            emissiveIntensity={0.6}
-          />
-        </mesh>
+              {/* Heavy Golden Shoulder Pauldrons */}
+              <mesh castShadow position={[-0.62, 0.28, 0]} rotation={[0, 0, 0.25]}>
+                <boxGeometry args={[0.38, 0.3, 0.48]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)}
+                  color="#f59e0b"
+                  roughness={0.25}
+                  metalness={0.8}
+                />
+              </mesh>
+              <mesh castShadow position={[0.62, 0.28, 0]} rotation={[0, 0, -0.25]}>
+                <boxGeometry args={[0.38, 0.3, 0.48]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)}
+                  color="#f59e0b"
+                  roughness={0.25}
+                  metalness={0.8}
+                />
+              </mesh>
 
-        {/* Procedural Character Weapon Attachment */}
-        {selectedCharacterId === "bonk" && (
-          <group position={[0.55, 0.1, 0.1]} rotation={[0.2, 0, -0.2]}>
-            {/* Hammer Handle */}
-            <mesh position={[0, 0, 0]}>
-              <cylinderGeometry args={[0.04, 0.04, 0.8, 8]} />
-              <meshStandardMaterial color="#78350f" />
-            </mesh>
-            {/* Hammer Head */}
-            <mesh position={[0, 0.4, 0]}>
-              <boxGeometry args={[0.3, 0.22, 0.22]} />
-              <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.3} />
-            </mesh>
-          </group>
-        )}
+              {/* Reinforced Bruiser Helmet with Golden Brow & Horn Antennas */}
+              <group position={[0, 0.52, 0.05]}>
+                {/* Main Helmet Dome */}
+                <mesh castShadow>
+                  <sphereGeometry args={[0.36, 16, 14]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m)}
+                    color="#1e293b"
+                    metalness={0.6}
+                    roughness={0.3}
+                  />
+                </mesh>
+                {/* Prominent Forward-Pointing Golden Visor (Top-Down Facing Readability) */}
+                <mesh position={[0, 0.02, 0.32]}>
+                  <boxGeometry args={[0.42, 0.14, 0.12]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.9)}
+                    color="#fbbf24"
+                    emissive="#fbbf24"
+                    emissiveIntensity={0.9}
+                  />
+                </mesh>
+                {/* Dual Bruiser Horn Exhausts */}
+                <mesh position={[-0.32, 0.2, -0.05]} rotation={[0, 0, 0.5]}>
+                  <coneGeometry args={[0.1, 0.32, 5]} />
+                  <meshStandardMaterial color="#f59e0b" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.32, 0.2, -0.05]} rotation={[0, 0, -0.5]}>
+                  <coneGeometry args={[0.1, 0.32, 5]} />
+                  <meshStandardMaterial color="#f59e0b" metalness={0.9} />
+                </mesh>
+              </group>
 
-        {selectedCharacterId === "byte" && (
-          <group position={[0.5, 0.2, 0.2]}>
-            {/* Floating Energy Orb */}
-            <mesh>
-              <sphereGeometry args={[0.15, 12, 12]} />
-              <meshStandardMaterial
-                color="#23d5ff"
-                emissive="#23d5ff"
-                emissiveIntensity={1.2}
-              />
-            </mesh>
-          </group>
-        )}
+              {/* Heavy Chest Chevron Crest (Directional Facing Indicator) */}
+              <mesh position={[0, 0.08, 0.48]} rotation={[0.2, 0, 0]}>
+                <boxGeometry args={[0.36, 0.24, 0.12]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.5)}
+                  color="#fbbf24"
+                  metalness={0.85}
+                  roughness={0.25}
+                />
+              </mesh>
 
-        {selectedCharacterId === "tank" && (
-          <group>
-            {/* Left Shoulder Armor */}
-            <mesh position={[-0.65, 0.3, 0]}>
-              <boxGeometry args={[0.28, 0.28, 0.35]} />
-              <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.4} />
-            </mesh>
-            {/* Right Shoulder Armor */}
-            <mesh position={[0.65, 0.3, 0]}>
-              <boxGeometry args={[0.28, 0.28, 0.35]} />
-              <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.4} />
-            </mesh>
-          </group>
-        )}
+              {/* Iconic Kinetic Mega Warhammer Attachment */}
+              <group ref={weaponGroupRef} position={[0.68, 0.1, 0.15]} rotation={[0.2, 0, -0.2]}>
+                {/* Dark Textured Titanium Haft */}
+                <mesh position={[0, 0.15, 0]}>
+                  <cylinderGeometry args={[0.045, 0.045, 1.15, 8]} />
+                  <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.3} />
+                </mesh>
+                {/* Massive Double Hammer Head */}
+                <mesh castShadow position={[0, 0.65, 0]}>
+                  <boxGeometry args={[0.48, 0.34, 0.32]} />
+                  <meshStandardMaterial
+                    color="#ea580c"
+                    emissive="#c2410c"
+                    emissiveIntensity={0.4}
+                    roughness={0.25}
+                    metalness={0.7}
+                  />
+                </mesh>
+                {/* Front Heavy Impact Strike Plate */}
+                <mesh position={[0, 0.65, 0.2]}>
+                  <boxGeometry args={[0.38, 0.26, 0.1]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
+                </mesh>
+                {/* Glowing Hammer Energy Core Conduit */}
+                <mesh position={[0, 0.65, 0]}>
+                  <cylinderGeometry args={[0.08, 0.08, 0.36, 8]} />
+                  <meshStandardMaterial
+                    color="#fbbf24"
+                    emissive="#fbbf24"
+                    emissiveIntensity={1.4}
+                  />
+                </mesh>
+              </group>
+            </group>
+          )}
+
+          {/* ================================================================= */}
+          {/* CHARACTER 2: BYTE — Agile Futuristic Caster, Cyan/Purple Core    */}
+          {/* ================================================================= */}
+          {selectedCharacterId === "byte" && (
+            <group>
+              {/* Sleek Aerodynamic Torso */}
+              <mesh castShadow position={[0, 0, 0]}>
+                <capsuleGeometry args={[0.38, 0.44, 8, 16]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#06b6d4"
+                  roughness={0.25}
+                  metalness={0.4}
+                />
+              </mesh>
+
+              {/* Violet Winglets / Aerodynamic Shoulder Plates */}
+              <mesh castShadow position={[-0.45, 0.15, -0.05]} rotation={[0.2, 0.3, 0.4]}>
+                <boxGeometry args={[0.2, 0.4, 0.3]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#a855f7", 0.4)}
+                  color="#a855f7"
+                  metalness={0.7}
+                  roughness={0.3}
+                />
+              </mesh>
+              <mesh castShadow position={[0.45, 0.15, -0.05]} rotation={[0.2, -0.3, -0.4]}>
+                <boxGeometry args={[0.2, 0.4, 0.3]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#a855f7", 0.4)}
+                  color="#a855f7"
+                  metalness={0.7}
+                  roughness={0.3}
+                />
+              </mesh>
+
+              {/* Pulsing Arc Reactor Chest Core */}
+              <mesh ref={coreMeshRef} position={[0, 0.05, 0.36]}>
+                <cylinderGeometry args={[0.16, 0.16, 0.12, 16]} />
+                <meshStandardMaterial
+                  color="#22d3ee"
+                  emissive="#06b6d4"
+                  emissiveIntensity={1.5}
+                />
+              </mesh>
+
+              {/* Sleek Cybernetic Helmet with Wrap-around Neon Cyan Visor */}
+              <group position={[0, 0.48, 0]}>
+                <mesh castShadow>
+                  <sphereGeometry args={[0.3, 16, 14]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m)}
+                    color="#0f172a"
+                    metalness={0.8}
+                    roughness={0.25}
+                  />
+                </mesh>
+                {/* Wide Cyber Visor (Dominant Facing Readability) */}
+                <mesh position={[0, 0.02, 0.25]}>
+                  <boxGeometry args={[0.44, 0.1, 0.14]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.2)}
+                    color="#22d3ee"
+                    emissive="#22d3ee"
+                    emissiveIntensity={1.3}
+                  />
+                </mesh>
+                {/* Swept Dorsal Fin pointing backward */}
+                <mesh position={[0, 0.22, -0.15]} rotation={[-0.45, 0, 0]}>
+                  <boxGeometry args={[0.06, 0.25, 0.32]} />
+                  <meshStandardMaterial color="#a855f7" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* Dual Rear Mag-Lev Thrusters (Emitting Soft Blue Glow) */}
+              <group position={[0, -0.15, -0.32]}>
+                <mesh position={[-0.2, 0, 0]} rotation={[0.3, 0, 0]}>
+                  <cylinderGeometry args={[0.08, 0.12, 0.3, 8]} />
+                  <meshStandardMaterial color="#0f172a" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.2, 0, 0]} rotation={[0.3, 0, 0]}>
+                  <cylinderGeometry args={[0.08, 0.12, 0.3, 8]} />
+                  <meshStandardMaterial color="#0f172a" metalness={0.9} />
+                </mesh>
+                <mesh position={[-0.2, -0.14, -0.04]}>
+                  <sphereGeometry args={[0.06, 8, 8]} />
+                  <meshBasicMaterial color="#38bdf8" />
+                </mesh>
+                <mesh position={[0.2, -0.14, -0.04]}>
+                  <sphereGeometry args={[0.06, 8, 8]} />
+                  <meshBasicMaterial color="#38bdf8" />
+                </mesh>
+              </group>
+
+              {/* Floating Orbiting Energy Orb Satellite */}
+              <group ref={weaponGroupRef} position={[0.55, 0.25, 0.15]}>
+                {/* Glowing Plasma Sphere */}
+                <mesh>
+                  <sphereGeometry args={[0.16, 16, 16]} />
+                  <meshStandardMaterial
+                    color="#22d3ee"
+                    emissive="#22d3ee"
+                    emissiveIntensity={1.8}
+                    roughness={0.1}
+                  />
+                </mesh>
+                {/* Rotating Mag-Ring Gimbal */}
+                <mesh rotation={[Math.PI / 3, 0, 0]}>
+                  <torusGeometry args={[0.26, 0.03, 8, 24]} />
+                  <meshStandardMaterial
+                    color="#a855f7"
+                    emissive="#a855f7"
+                    emissiveIntensity={0.8}
+                    metalness={0.9}
+                  />
+                </mesh>
+              </group>
+            </group>
+          )}
+
+          {/* ================================================================= */}
+          {/* CHARACTER 3: TANK — Heavy Armored Bastion, Dark Metal/Red Plates  */}
+          {/* ================================================================= */}
+          {selectedCharacterId === "tank" && (
+            <group>
+              {/* Massive Armored Obsidian Body Chassis */}
+              <mesh castShadow position={[0, 0, 0]}>
+                <capsuleGeometry args={[0.58, 0.44, 8, 16]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#1e293b"
+                  metalness={0.7}
+                  roughness={0.35}
+                />
+              </mesh>
+
+              {/* Colossal Bastion Shoulder Shields (Heavy Defensive Silhouette) */}
+              <mesh castShadow position={[-0.78, 0.25, 0]} rotation={[0, 0, 0.35]}>
+                <boxGeometry args={[0.42, 0.52, 0.62]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#dc2626", 0.4)}
+                  color="#dc2626"
+                  roughness={0.3}
+                  metalness={0.6}
+                />
+              </mesh>
+              <mesh castShadow position={[0.78, 0.25, 0]} rotation={[0, 0, -0.35]}>
+                <boxGeometry args={[0.42, 0.52, 0.62]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#dc2626", 0.4)}
+                  color="#dc2626"
+                  roughness={0.3}
+                  metalness={0.6}
+                />
+              </mesh>
+
+              {/* Heavy Reinforced Frontal Prow / Chest Chevron (Instant Forward Facing) */}
+              <mesh position={[0, 0.08, 0.58]} rotation={[0.25, 0, 0]}>
+                <boxGeometry args={[0.54, 0.38, 0.16]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#dc2626", 0.4)}
+                  color="#dc2626"
+                  metalness={0.75}
+                  roughness={0.25}
+                />
+              </mesh>
+
+              {/* Heavy Fortress Knight Visor & Helm */}
+              <group position={[0, 0.55, 0.05]}>
+                <mesh castShadow>
+                  <boxGeometry args={[0.54, 0.42, 0.54]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m)}
+                    color="#0f172a"
+                    metalness={0.85}
+                    roughness={0.3}
+                  />
+                </mesh>
+                {/* Glowing Crimson Armor Slit Visor (Facing & Intimidation) */}
+                <mesh position={[0, 0.02, 0.29]}>
+                  <boxGeometry args={[0.44, 0.08, 0.06]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m, "#ef4444", 1.4)}
+                    color="#ef4444"
+                    emissive="#ef4444"
+                    emissiveIntensity={1.4}
+                  />
+                </mesh>
+                {/* Top Helm Ridge Plating */}
+                <mesh position={[0, 0.24, 0]}>
+                  <boxGeometry args={[0.16, 0.14, 0.58]} />
+                  <meshStandardMaterial color="#dc2626" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* Dual Heavy Back Exhaust Stacks */}
+              <group position={[0, 0.4, -0.42]}>
+                <mesh position={[-0.32, 0.1, 0]}>
+                  <cylinderGeometry args={[0.1, 0.1, 0.5, 8]} />
+                  <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
+                </mesh>
+                <mesh position={[0.32, 0.1, 0]}>
+                  <cylinderGeometry args={[0.1, 0.1, 0.5, 8]} />
+                  <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
+                </mesh>
+                {/* Heat Glow inside exhausts */}
+                <mesh position={[-0.32, 0.36, 0]}>
+                  <sphereGeometry args={[0.08, 8, 8]} />
+                  <meshBasicMaterial color="#f59e0b" />
+                </mesh>
+                <mesh position={[0.32, 0.36, 0]}>
+                  <sphereGeometry args={[0.08, 8, 8]} />
+                  <meshBasicMaterial color="#f59e0b" />
+                </mesh>
+              </group>
+            </group>
+          )}
+
+          {/* Forward-facing Tactical Ground Indicator Chevron (Shared Readability) */}
+          <mesh position={[0, -0.5, 0.7]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.18, 0.28, 3, 1, 0, Math.PI]} />
+            <meshBasicMaterial
+              color={
+                selectedCharacterId === "byte"
+                  ? "#22d3ee"
+                  : selectedCharacterId === "tank"
+                  ? "#ef4444"
+                  : "#fbbf24"
+              }
+              transparent
+              opacity={0.7}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </group>
       </group>
     </RigidBody>
   );

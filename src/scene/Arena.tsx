@@ -1,35 +1,93 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
-import { ARENA_RADIUS } from "../game/config";
+import { ARENA_RADIUS, ARENA_BOUNDARY_LIMIT } from "../game/config";
 
 const PILLAR_COUNT = 8;
-const EMBER_COUNT = 75;
-
-// Deterministic ember particle distribution generated once at module scope
-const emberPositions = new Float32Array(EMBER_COUNT * 3);
-for (let i = 0; i < EMBER_COUNT; i++) {
-  const angle = i * 2.39996323; // Golden angle for even circular distribution
-  const dist = (i / EMBER_COUNT) * (ARENA_RADIUS - 2.5) + 1.5;
-  emberPositions[i * 3] = Math.cos(angle) * dist;
-  emberPositions[i * 3 + 1] = ((i * 17) % 50) / 10 + 0.5;
-  emberPositions[i * 3 + 2] = Math.sin(angle) * dist;
-}
-const emberGeometry = new THREE.BufferGeometry();
-emberGeometry.setAttribute("position", new THREE.BufferAttribute(emberPositions, 3));
+const EMBER_COUNT = 85;
 
 export const Arena: React.FC = () => {
+  const embersRef = useRef<THREE.Points>(null);
+  const crystalGroupRef = useRef<THREE.Group>(null);
+
+  // Deterministic initial particle distribution
+  const [emberPositions, initialData] = useMemo(() => {
+    const pos = new Float32Array(EMBER_COUNT * 3);
+    const data: Array<{ speed: number; radius: number; angle: number }> = [];
+
+    for (let i = 0; i < EMBER_COUNT; i++) {
+      const angle = i * 2.39996323; // Golden angle distribution
+      const dist = (i / EMBER_COUNT) * (ARENA_RADIUS - 2.5) + 1.2;
+      const speed = 0.3 + (i % 5) * 0.15;
+      const y = ((i * 19) % 50) / 10 + 0.3;
+
+      pos[i * 3] = Math.cos(angle) * dist;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = Math.sin(angle) * dist;
+
+      data.push({ speed, radius: dist, angle });
+    }
+    return [pos, data];
+  }, []);
+
+  const emberGeometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(emberPositions, 3));
+    return geo;
+  }, [emberPositions]);
+
   // Precompute pillar positions along the circular arena perimeter
   const pillars = useMemo(() => {
-    const list: Array<{ x: number; z: number; angle: number }> = [];
+    const list: Array<{ x: number; z: number; angle: number; isAmber: boolean }> = [];
     for (let i = 0; i < PILLAR_COUNT; i++) {
       const angle = (i / PILLAR_COUNT) * Math.PI * 2;
-      const x = Math.cos(angle) * (ARENA_RADIUS - 0.6);
-      const z = Math.sin(angle) * (ARENA_RADIUS - 0.6);
-      list.push({ x, z, angle });
+      const x = Math.cos(angle) * (ARENA_RADIUS - 0.7);
+      const z = Math.sin(angle) * (ARENA_RADIUS - 0.7);
+      list.push({ x, z, angle, isAmber: i % 2 === 0 });
     }
     return list;
   }, []);
+
+  // Cardinal directional floor markers
+  const cardinalMarkers = useMemo(() => {
+    return [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle) => {
+      const dist = 11.5;
+      return {
+        x: Math.cos(angle) * dist,
+        z: Math.sin(angle) * dist,
+        rotY: -angle,
+      };
+    });
+  }, []);
+
+  // Subtle ambient animation for floating embers and hovering crystal beacons
+  useFrame((state, delta) => {
+    const time = state.clock.elapsedTime;
+
+    // Slowly rise and loop embers
+    if (embersRef.current) {
+      const positions = embersRef.current.geometry.attributes.position.array as Float32Array;
+      for (let i = 0; i < EMBER_COUNT; i++) {
+        const idx = i * 3 + 1;
+        positions[idx] += delta * initialData[i].speed;
+        if (positions[idx] > 5.5) {
+          positions[idx] = 0.2;
+        }
+      }
+      embersRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Animate levitating pylon crystals
+    if (crystalGroupRef.current) {
+      const children = crystalGroupRef.current.children;
+      for (let i = 0; i < children.length; i++) {
+        const c = children[i];
+        c.rotation.y = time * 0.8 + i;
+        c.position.y = 4.6 + Math.sin(time * 2.5 + i * 1.2) * 0.12;
+      }
+    }
+  });
 
   return (
     <group>
@@ -38,86 +96,191 @@ export const Arena: React.FC = () => {
         <CuboidCollider args={[ARENA_RADIUS, 0.25, ARENA_RADIUS]} />
       </RigidBody>
 
-      {/* Visual Arena Floor */}
+      {/* ===================================================================== */}
+      {/* 1. LAYERED ARENA FLOOR WITH RICH CONTRAST                             */}
+      {/* ===================================================================== */}
+
+      {/* Main Basalt Arena Floor */}
       <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <circleGeometry args={[ARENA_RADIUS, 64]} />
         <meshStandardMaterial
-          color="#0b0f19"
-          roughness={0.7}
-          metalness={0.3}
+          color="#080c14"
+          roughness={0.75}
+          metalness={0.25}
         />
       </mesh>
 
-      {/* Center Tactical Platform */}
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 0]}>
-        <circleGeometry args={[3.2, 32]} />
+      {/* Outer Raised Perimeter Curbs / Retaining Wall Rim */}
+      <mesh receiveShadow position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[ARENA_RADIUS - 0.4, ARENA_RADIUS + 0.6, 64]} />
         <meshStandardMaterial
-          color="#131b2e"
-          roughness={0.6}
-          metalness={0.4}
+          color="#0f172a"
+          roughness={0.5}
+          metalness={0.6}
         />
       </mesh>
 
-      {/* Outer Glow Ring */}
+      {/* Outer Boundary Warning Perimeter Line */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <ringGeometry args={[ARENA_RADIUS - 0.35, ARENA_RADIUS, 64]} />
-        <meshBasicMaterial color="#ff6b35" opacity={0.65} transparent />
+        <ringGeometry args={[ARENA_BOUNDARY_LIMIT - 0.35, ARENA_BOUNDARY_LIMIT, 64]} />
+        <meshBasicMaterial color="#ef4444" opacity={0.6} transparent />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.009, 0]}>
+        <ringGeometry args={[ARENA_BOUNDARY_LIMIT - 0.45, ARENA_BOUNDARY_LIMIT - 0.38, 64]} />
+        <meshBasicMaterial color="#f97316" opacity={0.4} transparent />
       </mesh>
 
-      {/* Concentric Tactical Rings */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
-        <ringGeometry args={[3.15, 3.25, 48]} />
-        <meshBasicMaterial color="#ffb020" opacity={0.5} transparent />
-      </mesh>
+      {/* ===================================================================== */}
+      {/* 2. TACTICAL COMBAT RINGS & DIRECTIONAL MARKERS                       */}
+      {/* ===================================================================== */}
 
+      {/* Mid-Range Tactical Ring (~8.0m shooter standoff / combat perimeter) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <ringGeometry args={[7.8, 8.0, 48]} />
-        <meshBasicMaterial color="#23d5ff" opacity={0.25} transparent />
+        <ringGeometry args={[7.9, 8.1, 64]} />
+        <meshBasicMaterial color="#06b6d4" opacity={0.35} transparent />
       </mesh>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <ringGeometry args={[13.8, 14.0, 48]} />
-        <meshBasicMaterial color="#23d5ff" opacity={0.2} transparent />
+      {/* Outer Transition Ring (~14.0m) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
+        <ringGeometry args={[13.9, 14.05, 64]} />
+        <meshBasicMaterial color="#38bdf8" opacity={0.2} transparent />
       </mesh>
 
-      {/* Subtle Coordinate Grid */}
-      <gridHelper
-        args={[ARENA_RADIUS * 2, 28, "#1e293b", "#0f172a"]}
-        position={[0, 0.01, 0]}
-      />
-
-      {/* 8 Procedural Perimeter Obelisks */}
-      {pillars.map((p, idx) => (
-        <group key={idx} position={[p.x, 0, p.z]} rotation={[0, -p.angle, 0]}>
-          {/* Main Stone Pillar */}
-          <mesh castShadow receiveShadow position={[0, 1.6, 0]}>
-            <boxGeometry args={[0.9, 3.2, 0.9]} />
-            <meshStandardMaterial color="#1e293b" metalness={0.5} roughness={0.5} />
+      {/* 4 Cardinal Floor Runes (N, S, E, W Navigation Guides) */}
+      {cardinalMarkers.map((m, idx) => (
+        <group key={idx} position={[m.x, 0.008, m.z]} rotation={[0, m.rotY, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.55, 1.2, 3]} />
+            <meshBasicMaterial color="#06b6d4" opacity={0.35} transparent />
           </mesh>
-          {/* Pillar Base */}
-          <mesh castShadow receiveShadow position={[0, 0.25, 0]}>
-            <boxGeometry args={[1.3, 0.5, 1.3]} />
-            <meshStandardMaterial color="#0f172a" roughness={0.7} />
-          </mesh>
-          {/* Glowing Crystal Torch */}
-          <mesh position={[0, 3.6, 0]}>
-            <octahedronGeometry args={[0.4]} />
-            <meshStandardMaterial
-              color={idx % 2 === 0 ? "#ff6b35" : "#23d5ff"}
-              emissive={idx % 2 === 0 ? "#ff6b35" : "#23d5ff"}
-              emissiveIntensity={1.5}
-            />
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -0.65]}>
+            <boxGeometry args={[0.2, 0.5, 0.02]} />
+            <meshBasicMaterial color="#38bdf8" opacity={0.4} transparent />
           </mesh>
         </group>
       ))}
 
-      {/* Floating Ambient Embers */}
-      <points geometry={emberGeometry}>
+      {/* ===================================================================== */}
+      {/* 3. CENTER TACTICAL PLATFORM (Central Colosseum Dais)                   */}
+      {/* ===================================================================== */}
+
+      {/* Layer 1: Octagonal Outer Dais */}
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, Math.PI / 8]} position={[0, 0.003, 0]}>
+        <circleGeometry args={[4.2, 8]} />
+        <meshStandardMaterial
+          color="#0f172a"
+          roughness={0.65}
+          metalness={0.45}
+        />
+      </mesh>
+
+      {/* Layer 2: Circular Inner Combat Platform */}
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
+        <circleGeometry args={[2.8, 48]} />
+        <meshStandardMaterial
+          color="#1e293b"
+          roughness={0.5}
+          metalness={0.5}
+        />
+      </mesh>
+
+      {/* Center Dais Golden Accent Ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]}>
+        <ringGeometry args={[2.72, 2.84, 48]} />
+        <meshBasicMaterial color="#fbbf24" opacity={0.6} transparent />
+      </mesh>
+
+      {/* Center Energy Well / Inset Core */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <ringGeometry args={[1.05, 1.25, 36]} />
+        <meshBasicMaterial color="#06b6d4" opacity={0.7} transparent />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
+        <circleGeometry args={[0.95, 24]} />
+        <meshStandardMaterial
+          color="#0f172a"
+          roughness={0.3}
+          metalness={0.8}
+        />
+      </mesh>
+      <mesh position={[0, 0.02, 0]}>
+        <octahedronGeometry args={[0.3]} />
+        <meshStandardMaterial
+          color="#22d3ee"
+          emissive="#06b6d4"
+          emissiveIntensity={1.4}
+        />
+      </mesh>
+
+      {/* Subtle Coordinate Grid */}
+      <gridHelper
+        args={[ARENA_RADIUS * 2, 32, "#1e293b", "#090d16"]}
+        position={[0, 0.007, 0]}
+      />
+
+      {/* ===================================================================== */}
+      {/* 4. 8 HIGH-TECH PERIMETER COLOSSEUM PYLONS                             */}
+      {/* ===================================================================== */}
+      {pillars.map((p, idx) => (
+        <group key={idx} position={[p.x, 0, p.z]} rotation={[0, -p.angle, 0]}>
+          {/* Stepped Pedestal Base (2-Tier) */}
+          <mesh castShadow receiveShadow position={[0, 0.25, 0]}>
+            <boxGeometry args={[1.6, 0.5, 1.6]} />
+            <meshStandardMaterial color="#0b0f19" roughness={0.7} metalness={0.4} />
+          </mesh>
+          <mesh castShadow receiveShadow position={[0, 0.65, 0]}>
+            <boxGeometry args={[1.3, 0.35, 1.3]} />
+            <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.5} />
+          </mesh>
+
+          {/* Main Monolith Column */}
+          <mesh castShadow receiveShadow position={[0, 2.4, 0]}>
+            <boxGeometry args={[0.95, 3.2, 0.95]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
+          </mesh>
+
+          {/* Vertical Glowing Energy Seam on Column Front Face */}
+          <mesh position={[0, 2.4, 0.49]}>
+            <boxGeometry args={[0.16, 2.8, 0.02]} />
+            <meshStandardMaterial
+              color={p.isAmber ? "#f59e0b" : "#06b6d4"}
+              emissive={p.isAmber ? "#f59e0b" : "#06b6d4"}
+              emissiveIntensity={1.6}
+            />
+          </mesh>
+
+          {/* Capital Crown Platform */}
+          <mesh castShadow position={[0, 4.15, 0]}>
+            <boxGeometry args={[1.2, 0.3, 1.2]} />
+            <meshStandardMaterial color="#0f172a" metalness={0.7} roughness={0.3} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Floating Levitating Pylon Crystal Beacons */}
+      <group ref={crystalGroupRef}>
+        {pillars.map((p, idx) => (
+          <mesh key={idx} position={[p.x, 4.6, p.z]}>
+            <octahedronGeometry args={[0.48]} />
+            <meshStandardMaterial
+              color={p.isAmber ? "#ff6b35" : "#22d3ee"}
+              emissive={p.isAmber ? "#ff6b35" : "#06b6d4"}
+              emissiveIntensity={1.8}
+              roughness={0.15}
+            />
+          </mesh>
+        ))}
+      </group>
+
+      {/* ===================================================================== */}
+      {/* 5. FLOATING ANIMATED AMBIENT EMBERS                                   */}
+      {/* ===================================================================== */}
+      <points ref={embersRef} geometry={emberGeometry}>
         <pointsMaterial
-          size={0.12}
-          color="#ffb020"
+          size={0.16}
+          color="#fbbf24"
           transparent
-          opacity={0.65}
+          opacity={0.7}
           blending={THREE.AdditiveBlending}
         />
       </points>
