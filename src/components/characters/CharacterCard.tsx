@@ -1,6 +1,8 @@
 import React from "react";
 import type { Character } from "../../types/game";
 import { ASSETS } from "../../config/assets";
+import { UPGRADE_DETAILS } from "../../game/config";
+import { WEAPON_SYNERGIES } from "../../game/weaponSynergies";
 import { Heart, Zap, Swords, Clock, ArrowRight } from "lucide-react";
 
 interface CharacterCardProps {
@@ -28,6 +30,12 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
       : ASSETS.portraits.bonk;
 
   const weaponIcon = WEAPON_ASSET_MAP[character.weapon] || ASSETS.weapons.hammer;
+  const synergy = Object.values(WEAPON_SYNERGIES).find((item) => item.characterId === character.id);
+  const synergyRequirements = synergy
+    ? Object.entries(synergy.requiredUpgrades)
+        .map(([id, tier]) => `${UPGRADE_DETAILS[id as keyof typeof UPGRADE_DETAILS].name} T${tier}`)
+        .join(" + ")
+    : "";
 
   return (
     <article
@@ -103,6 +111,22 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
           {character.weapon.replace("-", " ")}
         </span>
       </div>
+
+      {synergy && (
+        <div
+          style={{
+            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+            paddingTop: "0.75rem",
+            marginBottom: "1rem",
+            fontSize: "0.78rem",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <strong style={{ color: character.color }}>{synergy.name}</strong>
+          <div style={{ marginTop: "0.25rem" }}>{synergyRequirements}</div>
+          <div style={{ marginTop: "0.25rem", color: "var(--text-muted)" }}>{synergy.description}</div>
+        </div>
+      )}
 
       <button
         type="button"

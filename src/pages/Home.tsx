@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ASSETS } from "../config/assets";
+import { GAME_CONFIG } from "../game/config";
 import { Play, Trophy, BookOpen, Shield, Flame, Sparkles } from "lucide-react";
 
 export const Home: React.FC = () => {
@@ -50,8 +51,8 @@ export const Home: React.FC = () => {
             color: "var(--text-secondary)",
           }}
         >
-          Step into the 3D arena, survive swarming robotic fiends, harvest XP, and stack
-          overpowered synergies before the Bonklord arrives.
+          Pick one of five survivors, carve space in a wider 3D arena, harvest XP, and combine
+          upgrades into character-specific weapon synergies.
         </p>
 
         {/* Action Buttons */}
@@ -103,17 +104,17 @@ export const Home: React.FC = () => {
         >
           <div className="glass-panel" style={{ padding: "1.5rem" }}>
             <Flame size={28} color="var(--accent-orange)" style={{ marginBottom: "0.75rem" }} />
-            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>3 Unique Survivors</h3>
+            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>5 Unique Survivors</h3>
             <p style={{ fontSize: "0.85rem" }}>
-              Choose between Bonk the Bruiser, Byte the Caster, and Tank the Armored Wall.
+              BONK, BYTE, TANK, NOVA, and HEX each bring distinct stats, weapons, and synergy goals.
             </p>
           </div>
 
           <div className="glass-panel" style={{ padding: "1.5rem" }}>
             <Sparkles size={28} color="var(--accent-energy)" style={{ marginBottom: "0.75rem" }} />
-            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>8 Stackable Upgrades</h3>
+            <h3 style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>Weapon Synergies</h3>
             <p style={{ fontSize: "0.85rem" }}>
-              Tailor each run with attack speed, magnet range, multi-shot, and critical strikes.
+              Build combinations like METEOR SLAM, PRISM BARRAGE, CYCLONE EDGE, SUPERNOVA, and HEXSTORM.
             </p>
           </div>
 
@@ -121,7 +122,7 @@ export const Home: React.FC = () => {
             <Shield size={28} color="var(--accent-xp)" style={{ marginBottom: "0.75rem" }} />
             <h3 style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>Capped Enemy Hordes</h3>
             <p style={{ fontSize: "0.85rem" }}>
-              High-performance math scaling smoothly caps up to 90 concurrent foes in 3D space.
+              A radius-{GAME_CONFIG.arenaRadius} arena uses slower escalation and caps active enemies at {GAME_CONFIG.hardEnemyCap}.
             </p>
           </div>
         </div>

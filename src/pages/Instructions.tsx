@@ -1,9 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Move, Zap, Sparkles, Award, Play, AlertCircle } from "lucide-react";
+import { Move, Zap, Sparkles, Award, Play, AlertCircle, Flame } from "lucide-react";
 import { ASSETS } from "../config/assets";
+import { GAME_CONFIG, UPGRADE_DETAILS } from "../game/config";
+import { WEAPON_SYNERGIES } from "../game/weaponSynergies";
 
 export const Instructions: React.FC = () => {
+  const synergyList = Object.values(WEAPON_SYNERGIES);
+
   return (
     <main className="container" style={{ padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "2.5rem" }}>
@@ -13,7 +17,7 @@ export const Instructions: React.FC = () => {
         </p>
       </header>
 
-      {/* Phase Status Banner */}
+      {/* Build Status Banner */}
       <div
         className="glass-panel"
         style={{
@@ -28,9 +32,8 @@ export const Instructions: React.FC = () => {
       >
         <AlertCircle size={24} color="var(--accent-energy)" style={{ flexShrink: 0 }} />
         <p style={{ fontSize: "0.9rem", margin: 0, color: "var(--text-primary)" }}>
-          <strong>Academic Note:</strong> You are currently on <strong>Phase 0 (Foundation)</strong>.
-          The 3D environment, Rapier physics, and data architecture are active.
-          Player WASD movement and active horde spawning will activate in subsequent phases.
+          <strong>Current Build:</strong> Five playable survivors fight in a larger radius-{GAME_CONFIG.arenaRadius}
+          arena with slower escalating hordes capped at {GAME_CONFIG.hardEnemyCap} active enemies.
         </p>
       </div>
 
@@ -47,7 +50,7 @@ export const Instructions: React.FC = () => {
         <section className="glass-panel" style={{ padding: "1.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <Move size={24} color="var(--accent-warm)" />
-            <h2 style={{ fontSize: "1.3rem" }}>1. Movement (Phase 1)</h2>
+            <h2 style={{ fontSize: "1.3rem" }}>1. Movement</h2>
           </div>
           <p style={{ marginBottom: "1rem" }}>
             Navigate the 3D circular arena using standard keyboard controls:
@@ -67,7 +70,7 @@ export const Instructions: React.FC = () => {
         <section className="glass-panel" style={{ padding: "1.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <Zap size={24} color="var(--accent-orange)" />
-            <h2 style={{ fontSize: "1.3rem" }}>2. Automatic Attacks (Phase 2)</h2>
+            <h2 style={{ fontSize: "1.3rem" }}>2. Automatic Attacks</h2>
           </div>
           <p style={{ marginBottom: "1rem" }}>
             Your weapons fire automatically whenever their cooldown refreshes.
@@ -80,11 +83,29 @@ export const Instructions: React.FC = () => {
           </div>
         </section>
 
+        {/* Survivors */}
+        <section className="glass-panel" style={{ padding: "1.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+            <Flame size={24} color="var(--accent-orange)" />
+            <h2 style={{ fontSize: "1.3rem" }}>3. Five Survivors</h2>
+          </div>
+          <p style={{ marginBottom: "1rem" }}>
+            BONK, BYTE, TANK, NOVA, and HEX each start with a different weapon pattern and synergy path.
+          </p>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            {["BONK", "BYTE", "TANK", "NOVA", "HEX"].map((name) => (
+              <span key={name} className="hud-pill" style={{ padding: "0.3rem 0.75rem" }}>
+                {name}
+              </span>
+            ))}
+          </div>
+        </section>
+
         {/* XP Collection */}
         <section className="glass-panel" style={{ padding: "1.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <Sparkles size={24} color="var(--accent-xp)" />
-            <h2 style={{ fontSize: "1.3rem" }}>3. XP Harvesting</h2>
+            <h2 style={{ fontSize: "1.3rem" }}>4. XP Harvesting</h2>
           </div>
           <p style={{ marginBottom: "1rem" }}>
             Defeated enemies drop glowing emerald XP gems on the arena floor:
@@ -101,7 +122,7 @@ export const Instructions: React.FC = () => {
         <section className="glass-panel" style={{ padding: "1.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <Award size={24} color="var(--accent-energy)" />
-            <h2 style={{ fontSize: "1.3rem" }}>4. Level Up Upgrades</h2>
+            <h2 style={{ fontSize: "1.3rem" }}>5. Level Up Upgrades</h2>
           </div>
           <p style={{ marginBottom: "1rem" }}>
             When the XP bar fills, the game presents 3 randomized upgrade cards to power up your survivor:
@@ -115,6 +136,29 @@ export const Instructions: React.FC = () => {
             <img src={ASSETS.upgrades.magnet} alt="Magnet" title="Magnet" style={{ width: 32, height: 32 }} />
             <img src={ASSETS.upgrades.critical} alt="Critical" title="Critical" style={{ width: 32, height: 32 }} />
             <img src={ASSETS.upgrades.multishot} alt="Multishot" title="Multishot" style={{ width: 32, height: 32 }} />
+          </div>
+        </section>
+
+        {/* Synergies */}
+        <section className="glass-panel" style={{ padding: "1.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+            <Award size={24} color="var(--accent-energy)" />
+            <h2 style={{ fontSize: "1.3rem" }}>6. Weapon Synergies</h2>
+          </div>
+          <p style={{ marginBottom: "1rem" }}>
+            Each survivor has one upgrade combination that evolves their weapon behavior:
+          </p>
+          <div style={{ display: "grid", gap: "0.5rem" }}>
+            {synergyList.map((synergy) => (
+              <div key={synergy.id} className="hud-pill" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+                <strong>{synergy.name}</strong>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {Object.entries(synergy.requiredUpgrades)
+                    .map(([id, tier]) => `${UPGRADE_DETAILS[id as keyof typeof UPGRADE_DETAILS].name} T${tier}`)
+                    .join(" + ")}
+                </span>
+              </div>
+            ))}
           </div>
         </section>
       </div>
