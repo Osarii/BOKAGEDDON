@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import type { GameRuntime } from "../game/runtime";
 import { WEAPON_CONFIGS } from "../game/config";
 import { useGameStore } from "../store/gameStore";
+import { gameAudio } from "../audio/gameAudio";
 import type { WeaponType } from "../types/game";
 
 interface CombatManagerProps {
@@ -106,6 +107,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
 
       if (hasTarget || weaponType === "axe") {
         runtime.lastAttackTimer = 0;
+        gameAudio.play(weaponType === "energy-orb" ? "energyOrb" : weaponType);
 
         const isCrit = Math.random() < critChance;
         const totalDamage = Math.round(weaponConfig.baseDamage * damageMultiplier * (isCrit ? 2 : 1));
@@ -138,6 +140,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             if (distSq <= hitRadiusSq) {
               e.health -= totalDamage;
               e.hitFlashTimer = 0.15;
+              gameAudio.play("enemyHit");
               // Apply knockback
               const dist = Math.sqrt(distSq) || 1;
               e.x += ((e.x - playerPos.x) / dist) * 1.5;
@@ -204,6 +207,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             // Apply slight tick damage per hit
             e.health -= Math.max(1, Math.round(totalDamage * 0.2));
             e.hitFlashTimer = 0.08;
+            gameAudio.play("enemyHit");
           }
         }
       }
@@ -236,6 +240,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         if (distToPlayer < proj.radius + 0.45) {
           if (runtime.playerInvulnerableTimer <= 0) {
             useGameStore.getState().takeDamage(proj.damage);
+            gameAudio.play("playerDamage");
             runtime.playerInvulnerableTimer = 0.6;
           }
           runtime.projectiles.splice(p, 1);
@@ -250,6 +255,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq < (proj.radius + enemy.radius) ** 2) {
             enemy.health -= proj.damage;
             enemy.hitFlashTimer = 0.15;
+            gameAudio.play("enemyHit");
             proj.pierce -= 1;
             if (proj.pierce <= 0) break;
           }

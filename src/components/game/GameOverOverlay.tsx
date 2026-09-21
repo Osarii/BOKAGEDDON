@@ -1,17 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useGameStore } from "../../store/gameStore";
 import { saveScore } from "../../services/api";
+import { gameAudio } from "../../audio/gameAudio";
+import { sendRunWebhook, type RunClassification } from "../../services/webhook";
 import { Skull, Trophy, Sparkles, Clock, RotateCcw, Check, Users } from "lucide-react";
 
 interface GameOverOverlayProps {
   onPlayAgain: () => void;
   hasSavedScoreRef: React.RefObject<boolean>;
+  hasSentWebhookRef: React.RefObject<boolean>;
 }
 
 export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   onPlayAgain,
   hasSavedScoreRef,
+  hasSentWebhookRef,
 }) => {
   const gameStatus = useGameStore((s) => s.gameStatus);
   const score = useGameStore((s) => s.score);
@@ -24,6 +28,16 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [webhookResult, setWebhookResult] = useState<{
+    ok: boolean;
+    skipped: boolean;
+    classification: RunClassification;
+    error?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (gameStatus === "gameover") gameAudio.play("gameOver");
+  }, [gameStatus]);
 
   if (gameStatus !== "gameover") return null;
 
@@ -36,23 +50,37 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
 
     setIsSubmitting(true);
     setSaveError(null);
+    setWebhookResult(null);
+
+    const completedRun = {
+      playerName: playerName.trim() || "Survivor",
+      characterId: selectedCharacterId,
+      score,
+      kills,
+      level,
+      timeSurvivedSeconds,
+      date: new Date().toISOString(),
+    };
 
     try {
-      hasSavedScoreRef.current = true;
-      await saveScore({
-        playerName: playerName.trim() || "Survivor",
-        characterId: selectedCharacterId,
-        score,
-        kills,
-        level,
-        timeSurvivedSeconds,
-        date: new Date().toISOString(),
-      });
-      setSaveSuccess(true);
+      if (!hasSavedScoreRef.current) {
+        hasSavedScoreRef.current = true;
+        await saveScore(completedRun);
+        setSaveSuccess(true);
+      }
     } catch (err: unknown) {
       hasSavedScoreRef.current = false;
       const msg = err instanceof Error ? err.message : "Failed to record score to JSON Server.";
       setSaveError(msg);
+    }
+
+    try {
+      if (!hasSentWebhookRef.current) {
+        hasSentWebhookRef.current = true;
+        const result = await sendRunWebhook(completedRun, "gameover");
+        setWebhookResult(result);
+        if (!result.ok && !result.skipped) hasSentWebhookRef.current = false;
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -194,6 +222,21 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
           {saveError && (
             <p style={{ fontSize: "0.82rem", color: "var(--accent-danger)", marginTop: "0.5rem" }}>
               {saveError}
+            </p>
+          )}
+          {webhookResult && (
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: webhookResult.ok ? "var(--accent-energy)" : "var(--text-muted)",
+                marginTop: "0.5rem",
+              }}
+            >
+              {webhookResult.ok
+                ? `n8n notified: ${webhookResult.classification}`
+                : webhookResult.skipped
+                ? `n8n not configured: ${webhookResult.classification}`
+                : `n8n failed: ${webhookResult.error}`}
             </p>
           )}
         </form>

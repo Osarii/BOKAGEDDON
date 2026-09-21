@@ -1,22 +1,22 @@
-# n8n Automation Architecture
+# BONKAGEDDON n8n Workflow
 
-This directory is reserved for the future n8n workflow integration in BONKAGEDDON.
+Import `bonkageddon-run-workflow.json` into n8n and copy the production webhook URL into:
 
-## Scheduled Scope (Future Phase)
-During the endgame integration phase, the React frontend will trigger a webhook upon run completion to submit:
-- Player handle
-- Selected survivor
-- Final score & level reached
-- Enemies eliminated
-- Total survival duration
+```bash
+VITE_N8N_WEBHOOK_URL=https://your-n8n-host/webhook/bonkageddon/run-completed
+```
 
-## Planned n8n Workflow Nodes
-1. **Webhook Trigger**: Receives JSON payload from frontend `saveScore` submission.
-2. **Data Transformation / Score Validation**: Cleans and computes rank thresholds.
-3. **Branching Logic (If/Else)**:
-   - High Score branch (Top tier survival)
-   - Standard Run branch
-4. **Final Action Node**: Logs the achievement to an external ledger or notification endpoint.
+No paid external service is required. The workflow receives a completed run, validates and normalizes it, analyzes the run, branches by classification, assigns an action, and responds to the game.
 
-> [!NOTE]
-> No fake workflows or dummy JSON files have been created in this phase. The active workflow export (`bonkageddon-workflow.json`) and screenshot will be placed here when n8n integration is executed.
+## Nodes
+
+1. `Webhook`
+2. `Validate and Normalize`
+3. `Run Analysis`
+4. `Classify Run`
+5. `Legendary Action`
+6. `High Score Action`
+7. `Normal Run Action`
+8. `Respond to Webhook`
+
+See `PAYLOAD_CONTRACT.md` for the request shape and classification rules.
