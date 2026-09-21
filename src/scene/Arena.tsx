@@ -4,8 +4,8 @@ import { useFrame } from "@react-three/fiber";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import { ARENA_RADIUS, ARENA_BOUNDARY_LIMIT } from "../game/config";
 
-const PILLAR_COUNT = 8;
-const EMBER_COUNT = 85;
+const PILLAR_COUNT = 12;
+const EMBER_COUNT = 36;
 
 export const Arena: React.FC = () => {
   const embersRef = useRef<THREE.Points>(null);
@@ -18,8 +18,8 @@ export const Arena: React.FC = () => {
 
     for (let i = 0; i < EMBER_COUNT; i++) {
       const angle = i * 2.39996323; // Golden angle distribution
-      const dist = (i / EMBER_COUNT) * (ARENA_RADIUS - 2.5) + 1.2;
-      const speed = 0.3 + (i % 5) * 0.15;
+      const dist = (i / EMBER_COUNT) * (ARENA_RADIUS - 3.5) + 2.0;
+      const speed = 0.25 + (i % 4) * 0.12;
       const y = ((i * 19) % 50) / 10 + 0.3;
 
       pos[i * 3] = Math.cos(angle) * dist;
@@ -42,17 +42,17 @@ export const Arena: React.FC = () => {
     const list: Array<{ x: number; z: number; angle: number; isAmber: boolean }> = [];
     for (let i = 0; i < PILLAR_COUNT; i++) {
       const angle = (i / PILLAR_COUNT) * Math.PI * 2;
-      const x = Math.cos(angle) * (ARENA_RADIUS - 0.7);
-      const z = Math.sin(angle) * (ARENA_RADIUS - 0.7);
+      const x = Math.cos(angle) * (ARENA_RADIUS - 0.8);
+      const z = Math.sin(angle) * (ARENA_RADIUS - 0.8);
       list.push({ x, z, angle, isAmber: i % 2 === 0 });
     }
     return list;
   }, []);
 
-  // Cardinal directional floor markers
+  // Cardinal directional floor markers scaled for radius 30
   const cardinalMarkers = useMemo(() => {
     return [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle) => {
-      const dist = 11.5;
+      const dist = 20.0;
       return {
         x: Math.cos(angle) * dist,
         z: Math.sin(angle) * dist,
@@ -134,28 +134,34 @@ export const Arena: React.FC = () => {
       {/* 2. TACTICAL COMBAT RINGS & DIRECTIONAL MARKERS                       */}
       {/* ===================================================================== */}
 
-      {/* Mid-Range Tactical Ring (~8.0m shooter standoff / combat perimeter) */}
+      {/* Inner Combat Ring (~9.5m) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <ringGeometry args={[7.9, 8.1, 64]} />
+        <ringGeometry args={[9.4, 9.65, 64]} />
         <meshBasicMaterial color="#06b6d4" opacity={0.35} transparent />
       </mesh>
 
-      {/* Outer Transition Ring (~14.0m) */}
+      {/* Mid-Range Tactical Perimeter (~18.5m) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
-        <ringGeometry args={[13.9, 14.05, 64]} />
-        <meshBasicMaterial color="#38bdf8" opacity={0.2} transparent />
+        <ringGeometry args={[18.4, 18.65, 64]} />
+        <meshBasicMaterial color="#38bdf8" opacity={0.25} transparent />
+      </mesh>
+
+      {/* Outer Tactical Perimeter (~25.5m) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
+        <ringGeometry args={[25.4, 25.65, 64]} />
+        <meshBasicMaterial color="#a855f7" opacity={0.2} transparent />
       </mesh>
 
       {/* 4 Cardinal Floor Runes (N, S, E, W Navigation Guides) */}
       {cardinalMarkers.map((m, idx) => (
         <group key={idx} position={[m.x, 0.008, m.z]} rotation={[0, m.rotY, 0]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[0.55, 1.2, 3]} />
-            <meshBasicMaterial color="#06b6d4" opacity={0.35} transparent />
+            <coneGeometry args={[0.8, 1.6, 3]} />
+            <meshBasicMaterial color="#06b6d4" opacity={0.4} transparent />
           </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -0.65]}>
-            <boxGeometry args={[0.2, 0.5, 0.02]} />
-            <meshBasicMaterial color="#38bdf8" opacity={0.4} transparent />
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -0.9]}>
+            <boxGeometry args={[0.25, 0.7, 0.02]} />
+            <meshBasicMaterial color="#38bdf8" opacity={0.45} transparent />
           </mesh>
         </group>
       ))}
@@ -166,7 +172,7 @@ export const Arena: React.FC = () => {
 
       {/* Layer 1: Octagonal Outer Dais */}
       <mesh receiveShadow rotation={[-Math.PI / 2, 0, Math.PI / 8]} position={[0, 0.003, 0]}>
-        <circleGeometry args={[4.2, 8]} />
+        <circleGeometry args={[5.2, 8]} />
         <meshStandardMaterial
           color="#0f172a"
           roughness={0.65}
@@ -176,7 +182,7 @@ export const Arena: React.FC = () => {
 
       {/* Layer 2: Circular Inner Combat Platform */}
       <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
-        <circleGeometry args={[2.8, 48]} />
+        <circleGeometry args={[3.5, 48]} />
         <meshStandardMaterial
           color="#1e293b"
           roughness={0.5}
@@ -186,17 +192,17 @@ export const Arena: React.FC = () => {
 
       {/* Center Dais Golden Accent Ring */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]}>
-        <ringGeometry args={[2.72, 2.84, 48]} />
+        <ringGeometry args={[3.4, 3.55, 48]} />
         <meshBasicMaterial color="#fbbf24" opacity={0.6} transparent />
       </mesh>
 
       {/* Center Energy Well / Inset Core */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <ringGeometry args={[1.05, 1.25, 36]} />
+        <ringGeometry args={[1.3, 1.55, 36]} />
         <meshBasicMaterial color="#06b6d4" opacity={0.7} transparent />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
-        <circleGeometry args={[0.95, 24]} />
+        <circleGeometry args={[1.2, 24]} />
         <meshStandardMaterial
           color="#0f172a"
           roughness={0.3}
@@ -204,7 +210,7 @@ export const Arena: React.FC = () => {
         />
       </mesh>
       <mesh position={[0, 0.02, 0]}>
-        <octahedronGeometry args={[0.3]} />
+        <octahedronGeometry args={[0.38]} />
         <meshStandardMaterial
           color="#22d3ee"
           emissive="#06b6d4"
@@ -214,7 +220,7 @@ export const Arena: React.FC = () => {
 
       {/* Subtle Coordinate Grid */}
       <gridHelper
-        args={[ARENA_RADIUS * 2, 32, "#1e293b", "#090d16"]}
+        args={[ARENA_RADIUS * 2, 48, "#1e293b", "#090d16"]}
         position={[0, 0.007, 0]}
       />
 

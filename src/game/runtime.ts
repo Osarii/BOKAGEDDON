@@ -38,6 +38,9 @@ export interface ProjectileEntity {
   isEnemy: boolean;
   pierce: number;
   homing?: boolean;
+  chainRemaining?: number;
+  hitEnemyIds?: number[];
+  isPrism?: boolean;
 }
 
 export interface PickupEntity {
@@ -60,11 +63,22 @@ export interface ShockwaveEffect {
   maxLifetime: number;
 }
 
+export interface DelayedBurstEffect {
+  id: number;
+  x: number;
+  z: number;
+  delayTimer: number;
+  damage: number;
+  radius: number;
+  color: string;
+}
+
 export interface GameRuntime {
   enemies: EnemyEntity[];
   projectiles: ProjectileEntity[];
   pickups: PickupEntity[];
   shockwaves: ShockwaveEffect[];
+  delayedBursts: DelayedBurstEffect[];
   playerPosition: THREE.Vector3;
   playerInvulnerableTimer: number;
   lastAttackTimer: number;
@@ -84,6 +98,7 @@ export function createGameRuntime(): GameRuntime {
     projectiles: [],
     pickups: [],
     shockwaves: [],
+    delayedBursts: [],
     playerPosition: new THREE.Vector3(0, 1.2, 0),
     playerInvulnerableTimer: 0,
     lastAttackTimer: 0,
@@ -99,6 +114,7 @@ export function createGameRuntime(): GameRuntime {
       runtime.projectiles = [];
       runtime.pickups = [];
       runtime.shockwaves = [];
+      runtime.delayedBursts = [];
       runtime.playerPosition.set(0, 1.2, 0);
       runtime.playerInvulnerableTimer = 0;
       runtime.lastAttackTimer = 0;

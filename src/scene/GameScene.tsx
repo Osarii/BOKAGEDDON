@@ -42,11 +42,12 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
     <div className="game-canvas-wrapper">
       <Canvas
         shadows
+        dpr={[1, 1.5]}
         camera={{
-          position: [0, 15, 13],
-          fov: 46,
+          position: [0, 16.5, 14.5],
+          fov: 48,
           near: 0.1,
-          far: 100,
+          far: 140,
         }}
         gl={{
           antialias: true,
@@ -54,7 +55,7 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
         }}
       >
         <color attach="background" args={["#080b12"]} />
-        <fog attach="fog" args={["#080b12", 26, 56]} />
+        <fog attach="fog" args={["#080b12", 36, 76]} />
 
         <Lighting />
 

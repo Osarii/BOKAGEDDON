@@ -1,16 +1,18 @@
 import type { CharacterId, EnemyType, UpgradeId, WeaponType } from "../types/game";
 
-export const BASE_ENEMY_CAP = 18;
-export const ENEMIES_PER_LEVEL = 4;
-export const HARD_ENEMY_CAP = 90;
+export const BASE_ENEMY_CAP = 12;
+export const ENEMIES_PER_LEVEL = 3;
+export const HARD_ENEMY_CAP = 48;
 
-export const ARENA_RADIUS = 18;
-export const ARENA_BOUNDARY_LIMIT = 17.2;
+export const ARENA_RADIUS = 30;
+export const ARENA_BOUNDARY_LIMIT = 28.8;
 
 export const CHARACTER_BASE_SPEEDS: Record<CharacterId, number> = {
   bonk: 5.0,
   byte: 6.5,
   tank: 4.0,
+  nova: 6.1,
+  hex: 5.7,
 };
 
 export const MAX_UPGRADE_LEVEL = 5;
@@ -129,6 +131,24 @@ export const WEAPON_CONFIGS: Record<WeaponType, WeaponConfig> = {
     areaRadius: 3.5,
     color: "#ff3b5c",
   },
+  "nova-burst": {
+    type: "nova-burst",
+    name: "Nova Burst",
+    baseDamage: 23,
+    baseCooldown: 0.75,
+    range: 6.0,
+    areaRadius: 4.5,
+    color: "#d946ef",
+  },
+  "hex-chain": {
+    type: "hex-chain",
+    name: "Hex Chain",
+    baseDamage: 20,
+    baseCooldown: 0.65,
+    range: 11.0,
+    areaRadius: 0.6,
+    color: "#22c55e",
+  },
 };
 
 export const UPGRADE_DETAILS: Record<
@@ -188,8 +208,8 @@ export const GAME_CONFIG = {
   arenaRadius: ARENA_RADIUS,
   arenaBoundaryLimit: ARENA_BOUNDARY_LIMIT,
   defaultLevel: 1,
-  baseSpawnIntervalMs: 850,
-  minSpawnIntervalMs: 250,
+  baseSpawnIntervalMs: 1400,
+  minSpawnIntervalMs: 700,
   maxSpawnBatch: 3,
   bossLevel: 10,
   basePickupRadius: 2.5,

@@ -2,20 +2,22 @@ import { getEnemyCap } from "./progression";
 
 /**
  * Calculates spawn interval in milliseconds based on player level.
- * Decreases as level rises, capped at a minimum of 250ms.
+ * Starts at ~1400ms at Level 1, decreasing smoothly to a minimum of ~700ms.
  */
 export function getSpawnInterval(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));
-  return Math.max(850 - safeLevel * 30, 250);
+  return Math.max(1400 - (safeLevel - 1) * 70, 700);
 }
 
 /**
  * Calculates how many enemies can be spawned in a single batch.
- * Clamped between 1 and 3.
+ * Batch 1 in early levels (1-4), batch 2 in mid/late levels (5-8), and batch 3 near boss/endgame (9+).
  */
 export function getSpawnBatch(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));
-  return Math.min(1 + Math.floor((safeLevel - 1) / 5), 3);
+  if (safeLevel < 5) return 1;
+  if (safeLevel < 9) return 2;
+  return 3;
 }
 
 /**

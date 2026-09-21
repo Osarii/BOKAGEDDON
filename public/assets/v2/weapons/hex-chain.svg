@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs>
+  <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#080B12" flood-opacity=".45"/>
+  </filter>
+  <linearGradient id="gHex" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0%" stop-color="#4ADE80"/>
+    <stop offset="100%" stop-color="#22C55E"/>
+  </linearGradient>
+  <linearGradient id="gRune" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0%" stop-color="#A855F7"/>
+    <stop offset="100%" stop-color="#6B21A8"/>
+  </linearGradient>
+</defs>
+<g filter="url(#shadow)">
+  <!-- Void Chain Links -->
+  <line x1="64" y1="64" x2="128" y2="128" stroke="#22C55E" stroke-width="12" stroke-dasharray="16,8"/>
+  <line x1="128" y1="128" x2="192" y2="192" stroke="#22C55E" stroke-width="12" stroke-dasharray="16,8"/>
+  <!-- Primary Node 1 -->
+  <polygon points="64,36 88,50 88,78 64,92 40,78 40,50" fill="#0B0F19" stroke="url(#gRune)" stroke-width="6"/>
+  <circle cx="64" cy="64" r="8" fill="#22C55E"/>
+  <!-- Center Main Node 2 -->
+  <polygon points="128,94 158,111 158,145 128,162 98,145 98,111" fill="url(#gRune)" stroke="url(#gHex)" stroke-width="8"/>
+  <circle cx="128" cy="128" r="14" fill="#FFFFFF"/>
+  <!-- Target Node 3 -->
+  <polygon points="192,164 216,178 216,206 192,220 168,206 168,178" fill="#0B0F19" stroke="url(#gRune)" stroke-width="6"/>
+  <circle cx="192" cy="192" r="8" fill="#22C55E"/>
+</g>
+</svg>

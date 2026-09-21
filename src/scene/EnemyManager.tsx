@@ -255,15 +255,21 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         const colors = new Float32Array(HARD_ENEMY_CAP * 3);
         const base = baseColors[type];
         for (let i = 0; i < HARD_ENEMY_CAP; i++) {
+          mesh.setMatrixAt(i, hiddenMatrix);
           colors[i * 3] = base.r;
           colors[i * 3 + 1] = base.g;
           colors[i * 3 + 2] = base.b;
         }
+        mesh.instanceMatrix.needsUpdate = true;
         mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
         mesh.instanceColor.needsUpdate = true;
       }
       if (decal) {
         decal.count = 0;
+        for (let i = 0; i < HARD_ENEMY_CAP; i++) {
+          decal.setMatrixAt(i, hiddenMatrix);
+        }
+        decal.instanceMatrix.needsUpdate = true;
       }
     });
 
@@ -310,7 +316,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     if (isBossDue && runtime.enemies.length <= effectiveCap) {
       // Spawn the Bonklord
       const angle = Math.random() * Math.PI * 2;
-      const spawnDist = ARENA_BOUNDARY_LIMIT - 1.5;
+      const spawnDist = ARENA_BOUNDARY_LIMIT - 2.5;
       const bossConfig = ENEMY_CONFIGS.bonklord;
 
       const bossEntity: EnemyEntity = {
@@ -373,15 +379,15 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
           const config = ENEMY_CONFIGS[type];
 
-          // Spawn near camera perimeter (11.5 - 13.5 units from player), clamped inside arena
+          // Spawn near camera perimeter (15.0 - 18.5 units from player), clamped inside arena
           const angle = Math.random() * Math.PI * 2;
-          const spawnDist = 11.5 + Math.random() * 2.0;
+          const spawnDist = 15.0 + Math.random() * 3.5;
           let spawnX = playerPos.x + Math.cos(angle) * spawnDist;
           let spawnZ = playerPos.z + Math.sin(angle) * spawnDist;
 
           const distFromCenter = Math.hypot(spawnX, spawnZ);
-          if (distFromCenter > ARENA_BOUNDARY_LIMIT - 0.8) {
-            const clampRatio = (ARENA_BOUNDARY_LIMIT - 0.8) / distFromCenter;
+          if (distFromCenter > ARENA_BOUNDARY_LIMIT - 1.0) {
+            const clampRatio = (ARENA_BOUNDARY_LIMIT - 1.0) / distFromCenter;
             spawnX *= clampRatio;
             spawnZ *= clampRatio;
           }
@@ -394,8 +400,8 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             z: spawnZ,
             vx: 0,
             vz: 0,
-            health: config.health + (level - 1) * 3,
-            maxHealth: config.health + (level - 1) * 3,
+            health: config.health + (level - 1) * 5,
+            maxHealth: config.health + (level - 1) * 5,
             speed: config.speed,
             damage: config.damage,
             radius: config.radius,
@@ -685,7 +691,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       meshRef.current.setColorAt(index, activeColor);
     }
 
-    // Set instance counts and update instance buffers
+    // Set instance counts and update instance buffers efficiently
     const updateBatch = (
       mesh: THREE.InstancedMesh | null,
       decal: THREE.InstancedMesh | null,
@@ -693,20 +699,17 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     ) => {
       if (mesh) {
         mesh.count = count;
-        // Maintain hidden transform for unused capacity
-        for (let i = count; i < HARD_ENEMY_CAP; i++) {
-          mesh.setMatrixAt(i, hiddenMatrix);
+        if (count > 0) {
+          mesh.instanceMatrix.needsUpdate = true;
+          if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         }
-        mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       }
       if (decal) {
         decal.count = count;
-        for (let i = count; i < HARD_ENEMY_CAP; i++) {
-          decal.setMatrixAt(i, hiddenMatrix);
+        if (count > 0) {
+          decal.instanceMatrix.needsUpdate = true;
+          if (decal.instanceColor) decal.instanceColor.needsUpdate = true;
         }
-        decal.instanceMatrix.needsUpdate = true;
-        if (decal.instanceColor) decal.instanceColor.needsUpdate = true;
       }
     };
 

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs>
+  <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#080B12" flood-opacity=".45"/>
+  </filter>
+  <linearGradient id="gBurst" x1="0" x2="1" y1="0" y2="1">
+    <stop offset="0%" stop-color="#F472B6"/>
+    <stop offset="50%" stop-color="#D946EF"/>
+    <stop offset="100%" stop-color="#7C3AED"/>
+  </linearGradient>
+</defs>
+<g filter="url(#shadow)">
+  <!-- Radial Burst Spikes -->
+  <polygon points="128,24 140,84 196,44 164,96 224,108 168,136 216,180 156,168 168,228 128,176 88,228 100,168 40,180 88,136 32,108 92,96 60,44 116,84" fill="url(#gBurst)" stroke="#FDE68A" stroke-width="6"/>
+  <!-- Central Pulse Ring -->
+  <circle cx="128" cy="128" r="42" fill="#171D2B" stroke="#D946EF" stroke-width="8"/>
+  <!-- Core Nova Star -->
+  <polygon points="128,98 136,120 158,128 136,136 128,158 120,136 98,128 120,120" fill="#FFFFFF"/>
+</g>
+</svg>

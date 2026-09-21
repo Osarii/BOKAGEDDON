@@ -2,17 +2,16 @@ import { BASE_ENEMY_CAP, ENEMIES_PER_LEVEL, HARD_ENEMY_CAP } from "./config";
 
 /**
  * Calculates the maximum active enemy cap for a given player level.
- * Clamps level to >= 1 and enforces the HARD_ENEMY_CAP of 90.
+ * Clamps level to >= 1 and enforces the HARD_ENEMY_CAP of 48.
  *
  * Examples:
- * Level 1  -> 18
- * Level 2  -> 22
- * Level 3  -> 26
- * Level 5  -> 34
- * Level 10 -> 54
- * Level 15 -> 74
- * Level 20 -> 90
- * Level 21+ -> 90
+ * Level 1  -> 12
+ * Level 2  -> 15
+ * Level 3  -> 18
+ * Level 5  -> 24
+ * Level 10 -> 39
+ * Level 13 -> 48
+ * Level 14+ -> 48
  */
 export function getEnemyCap(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));

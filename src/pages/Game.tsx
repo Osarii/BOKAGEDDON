@@ -12,7 +12,7 @@ import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { createGameRuntime, type GameRuntime } from "../game/runtime";
 import type { Character, CharacterId } from "../types/game";
 
-const VALID_CHARACTER_IDS: CharacterId[] = ["bonk", "byte", "tank"];
+const VALID_CHARACTER_IDS: CharacterId[] = ["bonk", "byte", "tank", "nova", "hex"];
 
 export const Game: React.FC = () => {
   const { characterId } = useParams<{ characterId: string }>();

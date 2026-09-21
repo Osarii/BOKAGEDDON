@@ -3,6 +3,15 @@ export const ASSETS = {
     bonk: "/assets/characters/bonk.svg",
     byte: "/assets/characters/byte.svg",
     tank: "/assets/characters/tank.svg",
+    nova: "/assets/v2/characters/nova.svg",
+    hex: "/assets/v2/characters/hex.svg",
+  },
+  portraits: {
+    bonk: "/assets/characters/bonk.svg",
+    byte: "/assets/characters/byte.svg",
+    tank: "/assets/characters/tank.svg",
+    nova: "/assets/v2/characters/nova.svg",
+    hex: "/assets/v2/characters/hex.svg",
   },
   enemies: {
     slime: "/assets/enemies/slime.svg",
@@ -15,6 +24,8 @@ export const ASSETS = {
     hammer: "/assets/weapons/hammer.svg",
     energyOrb: "/assets/weapons/energy-orb.svg",
     axe: "/assets/weapons/axe.svg",
+    novaBurst: "/assets/v2/weapons/nova-burst.svg",
+    hexChain: "/assets/v2/weapons/hex-chain.svg",
   },
   upgrades: {
     damage: "/assets/upgrades/damage.svg",

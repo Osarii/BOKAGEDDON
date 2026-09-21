@@ -13,6 +13,8 @@ const WEAPON_ASSET_MAP: Record<string, string> = {
   hammer: ASSETS.weapons.hammer,
   "energy-orb": ASSETS.weapons.energyOrb,
   axe: ASSETS.weapons.axe,
+  "nova-burst": ASSETS.weapons.novaBurst,
+  "hex-chain": ASSETS.weapons.hexChain,
 };
 
 export const CharacterCard: React.FC<CharacterCardProps> = ({
@@ -21,9 +23,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   isSelected = false,
 }) => {
   const portraitUrl =
-    character.id in ASSETS.characters
-      ? ASSETS.characters[character.id as keyof typeof ASSETS.characters]
-      : ASSETS.characters.bonk;
+    character.id in ASSETS.portraits
+      ? ASSETS.portraits[character.id as keyof typeof ASSETS.portraits]
+      : ASSETS.portraits.bonk;
 
   const weaponIcon = WEAPON_ASSET_MAP[character.weapon] || ASSETS.weapons.hammer;
 

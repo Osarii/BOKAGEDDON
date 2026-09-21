@@ -1,6 +1,6 @@
-export type CharacterId = "bonk" | "byte" | "tank";
+export type CharacterId = "bonk" | "byte" | "tank" | "nova" | "hex";
 
-export type WeaponType = "hammer" | "energy-orb" | "axe";
+export type WeaponType = "hammer" | "energy-orb" | "axe" | "nova-burst" | "hex-chain";
 
 export interface CharacterStats {
   health: number;

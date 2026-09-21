@@ -10,7 +10,7 @@ interface PickupManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
 }
 
-const MAX_PICKUPS = 200;
+const MAX_PICKUPS = 100;
 const tempMatrix = new THREE.Matrix4();
 const tempPosition = new THREE.Vector3();
 const tempScale = new THREE.Vector3();
@@ -42,10 +42,14 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     []
   );
 
-  // Initialize instance count to 0 at mount
+  // Initialize instance count and hidden matrices once at mount
   useEffect(() => {
     if (pickupMeshRef.current) {
       pickupMeshRef.current.count = 0;
+      for (let i = 0; i < MAX_PICKUPS; i++) {
+        pickupMeshRef.current.setMatrixAt(i, hiddenMatrix);
+      }
+      pickupMeshRef.current.instanceMatrix.needsUpdate = true;
     }
   }, []);
 
@@ -88,7 +92,7 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     }
 
     // =========================================================================
-    // Instanced Rendering
+    // Instanced Rendering (Only active instances updated)
     // =========================================================================
     if (pickupMeshRef.current) {
       const count = Math.min(runtime.pickups.length, MAX_PICKUPS);
@@ -107,10 +111,9 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         pickupMeshRef.current.setMatrixAt(i, tempMatrix);
       }
 
-      for (let i = count; i < MAX_PICKUPS; i++) {
-        pickupMeshRef.current.setMatrixAt(i, hiddenMatrix);
+      if (count > 0) {
+        pickupMeshRef.current.instanceMatrix.needsUpdate = true;
       }
-      pickupMeshRef.current.instanceMatrix.needsUpdate = true;
     }
   });
 
@@ -119,7 +122,6 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       ref={pickupMeshRef}
       args={[gemGeometry, gemMaterial, MAX_PICKUPS]}
       frustumCulled={false}
-      castShadow
     />
   );
 };

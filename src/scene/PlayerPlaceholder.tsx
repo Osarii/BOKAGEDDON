@@ -167,6 +167,18 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
           modelAnchorRef.current.position.y = 0.06 + hover;
           modelAnchorRef.current.rotation.z = Math.sin(time * 2.0) * 0.03;
           modelAnchorRef.current.rotation.x = 0;
+        } else if (selectedCharacterId === "nova") {
+          // NOVA floats on radiant cosmic repulsion
+          const hover = Math.sin(time * 3.8) * 0.09;
+          modelAnchorRef.current.position.y = 0.08 + hover;
+          modelAnchorRef.current.rotation.z = Math.sin(time * 1.8) * 0.04;
+          modelAnchorRef.current.rotation.x = 0;
+        } else if (selectedCharacterId === "hex") {
+          // HEX hovers with eerie void levitation
+          const hover = Math.sin(time * 2.6) * 0.07;
+          modelAnchorRef.current.position.y = 0.05 + hover;
+          modelAnchorRef.current.rotation.z = Math.sin(time * 2.2) * 0.03;
+          modelAnchorRef.current.rotation.x = 0;
         } else {
           // Grounded subtle breath
           const breath = Math.sin(time * 4) * 0.03;
@@ -201,6 +213,28 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         // Pulsing chest core
         const coreGlow = 1.2 + Math.sin(time * 6) * 0.4;
         (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = coreGlow;
+      }
+    } else if (selectedCharacterId === "nova") {
+      if (weaponGroupRef.current) {
+        // Rotating astral focus ring
+        weaponGroupRef.current.rotation.y = time * 2.4;
+        weaponGroupRef.current.rotation.z = Math.sin(time * 2.0) * 0.15;
+      }
+      if (coreMeshRef.current) {
+        // Pulsing cosmic star core
+        const coreGlow = 1.4 + Math.sin(time * 5.0) * 0.5;
+        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = coreGlow;
+      }
+    } else if (selectedCharacterId === "hex") {
+      if (weaponGroupRef.current) {
+        // Orbiting triad of void runic shards
+        weaponGroupRef.current.rotation.y = -time * 2.6;
+        weaponGroupRef.current.position.y = 0.12 + Math.sin(time * 3.2) * 0.06;
+      }
+      if (coreMeshRef.current) {
+        // Eerie void eye pulse
+        const eyeGlow = 1.2 + Math.sin(time * 4.0) * 0.4;
+        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = eyeGlow;
       }
     }
 
@@ -572,6 +606,220 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
             </group>
           )}
 
+          {/* ================================================================= */}
+          {/* CHARACTER 4: NOVA — Arcane Burst Specialist, Violet/Magenta/Gold  */}
+          {/* ================================================================= */}
+          {selectedCharacterId === "nova" && (
+            <group>
+              {/* Star-Faceted Arcane Torso */}
+              <mesh castShadow position={[0, 0, 0]}>
+                <cylinderGeometry args={[0.36, 0.44, 0.82, 6]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#7e22ce"
+                  roughness={0.25}
+                  metalness={0.45}
+                />
+              </mesh>
+
+              {/* Radiant Star Pauldrons */}
+              <mesh castShadow position={[-0.52, 0.22, 0]} rotation={[0, 0, 0.35]}>
+                <octahedronGeometry args={[0.26]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#d946ef", 0.5)}
+                  color="#d946ef"
+                  metalness={0.65}
+                  roughness={0.25}
+                />
+              </mesh>
+              <mesh castShadow position={[0.52, 0.22, 0]} rotation={[0, 0, -0.35]}>
+                <octahedronGeometry args={[0.26]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#d946ef", 0.5)}
+                  color="#d946ef"
+                  metalness={0.65}
+                  roughness={0.25}
+                />
+              </mesh>
+
+              {/* Astral Crown & Head */}
+              <group position={[0, 0.55, 0]}>
+                <mesh castShadow>
+                  <sphereGeometry args={[0.3, 16, 14]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m)}
+                    color="#2e1065"
+                    metalness={0.5}
+                    roughness={0.3}
+                  />
+                </mesh>
+                {/* Glowing Magenta Visor */}
+                <mesh position={[0, 0.02, 0.26]}>
+                  <boxGeometry args={[0.38, 0.12, 0.1]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m, "#d946ef", 1.4)}
+                    color="#d946ef"
+                    emissive="#d946ef"
+                    emissiveIntensity={1.4}
+                  />
+                </mesh>
+                {/* Gold Astral Crown Spire */}
+                <mesh position={[0, 0.3, 0]}>
+                  <coneGeometry args={[0.12, 0.32, 5]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.2} />
+                </mesh>
+              </group>
+
+              {/* Pulsing Arcane Heart Core */}
+              <mesh ref={coreMeshRef} position={[0, 0.06, 0.34]}>
+                <octahedronGeometry args={[0.2]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#f472b6", 1.4)}
+                  color="#f472b6"
+                  emissive="#f472b6"
+                  emissiveIntensity={1.4}
+                />
+              </mesh>
+
+              {/* Floating Astral Focus Ring */}
+              <group ref={weaponGroupRef} position={[0, 0.3, 0]}>
+                <mesh rotation={[Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[0.72, 0.025, 8, 32]} />
+                  <meshStandardMaterial
+                    color="#fbbf24"
+                    emissive="#fbbf24"
+                    emissiveIntensity={0.6}
+                    metalness={0.9}
+                  />
+                </mesh>
+                {/* Orbiting Star Crystal Fragments */}
+                <mesh position={[0.72, 0, 0]}>
+                  <octahedronGeometry args={[0.1]} />
+                  <meshBasicMaterial color="#d946ef" />
+                </mesh>
+                <mesh position={[-0.36, 0, 0.62]}>
+                  <octahedronGeometry args={[0.1]} />
+                  <meshBasicMaterial color="#fbbf24" />
+                </mesh>
+                <mesh position={[-0.36, 0, -0.62]}>
+                  <octahedronGeometry args={[0.1]} />
+                  <meshBasicMaterial color="#d946ef" />
+                </mesh>
+              </group>
+            </group>
+          )}
+
+          {/* ================================================================= */}
+          {/* CHARACTER 5: HEX — Void Chain Controller, Black/Neon Green/Violet */}
+          {/* ================================================================= */}
+          {selectedCharacterId === "hex" && (
+            <group>
+              {/* Dark Void Robe Mantle */}
+              <mesh castShadow position={[0, -0.05, 0]}>
+                <cylinderGeometry args={[0.34, 0.46, 0.85, 7]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#09090b"
+                  roughness={0.8}
+                  metalness={0.3}
+                />
+              </mesh>
+
+              {/* Shoulder Mantle Pauldrons with Emerald Runic Trim */}
+              <mesh castShadow position={[-0.48, 0.18, 0]} rotation={[0.1, 0, 0.3]}>
+                <boxGeometry args={[0.26, 0.35, 0.38]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#22c55e", 0.4)}
+                  color="#15803d"
+                  metalness={0.7}
+                  roughness={0.3}
+                />
+              </mesh>
+              <mesh castShadow position={[0.48, 0.18, 0]} rotation={[0.1, 0, -0.3]}>
+                <boxGeometry args={[0.26, 0.35, 0.38]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#22c55e", 0.4)}
+                  color="#15803d"
+                  metalness={0.7}
+                  roughness={0.3}
+                />
+              </mesh>
+
+              {/* Masked Dark Hood with Void Horns */}
+              <group position={[0, 0.52, 0.02]}>
+                <mesh castShadow>
+                  <boxGeometry args={[0.44, 0.44, 0.44]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m)}
+                    color="#09090b"
+                    metalness={0.7}
+                    roughness={0.4}
+                  />
+                </mesh>
+                {/* Glowing Emerald Twin Eye Slits */}
+                <mesh ref={coreMeshRef} position={[0, 0.02, 0.24]}>
+                  <boxGeometry args={[0.34, 0.08, 0.06]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m, "#22c55e", 1.4)}
+                    color="#22c55e"
+                    emissive="#22c55e"
+                    emissiveIntensity={1.4}
+                  />
+                </mesh>
+                {/* Sharp Void Horn Antennas */}
+                <mesh position={[-0.22, 0.28, 0.05]} rotation={[0.2, 0, 0.4]}>
+                  <coneGeometry args={[0.08, 0.38, 4]} />
+                  <meshStandardMaterial
+                    color="#22c55e"
+                    emissive="#22c55e"
+                    emissiveIntensity={0.8}
+                  />
+                </mesh>
+                <mesh position={[0.22, 0.28, 0.05]} rotation={[0.2, 0, -0.4]}>
+                  <coneGeometry args={[0.08, 0.38, 4]} />
+                  <meshStandardMaterial
+                    color="#22c55e"
+                    emissive="#22c55e"
+                    emissiveIntensity={0.8}
+                  />
+                </mesh>
+              </group>
+
+              {/* Floating Void Runic Shards */}
+              <group ref={weaponGroupRef} position={[0, 0.25, 0]}>
+                {/* Triad of Orbiting Runic Glyph Tablets */}
+                {Array.from({ length: 3 }).map((_, idx) => {
+                  const angle = (idx * Math.PI * 2) / 3;
+                  const r = 0.65;
+                  return (
+                    <group
+                      key={idx}
+                      position={[Math.cos(angle) * r, 0, Math.sin(angle) * r]}
+                      rotation={[0, -angle, 0.3]}
+                    >
+                      <mesh>
+                        <boxGeometry args={[0.12, 0.28, 0.04]} />
+                        <meshStandardMaterial
+                          color="#09090b"
+                          roughness={0.4}
+                          metalness={0.8}
+                        />
+                      </mesh>
+                      <mesh position={[0, 0, 0.025]}>
+                        <boxGeometry args={[0.06, 0.16, 0.01]} />
+                        <meshStandardMaterial
+                          color="#22c55e"
+                          emissive="#22c55e"
+                          emissiveIntensity={1.2}
+                        />
+                      </mesh>
+                    </group>
+                  );
+                })}
+              </group>
+            </group>
+          )}
+
           {/* Forward-facing Tactical Ground Indicator Chevron (Shared Readability) */}
           <mesh position={[0, -0.5, 0.7]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.18, 0.28, 3, 1, 0, Math.PI]} />
@@ -581,6 +829,10 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                   ? "#22d3ee"
                   : selectedCharacterId === "tank"
                   ? "#ef4444"
+                  : selectedCharacterId === "nova"
+                  ? "#d946ef"
+                  : selectedCharacterId === "hex"
+                  ? "#22c55e"
                   : "#fbbf24"
               }
               transparent
