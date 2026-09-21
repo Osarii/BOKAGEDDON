@@ -20,10 +20,10 @@
 - **Decision**: High-frequency data (transforms, velocities, mutable cooldowns) lives in `useRef` and internal simulation structures; React state is updated only for low-frequency events (level up, death).
 - **Consequences**: High, stable frame rates without React render churn.
 
-## ADR-005: Selective Rapier Physics
-- **Context**: Rapier rigid bodies are computationally expensive when duplicated across hordes of enemies.
-- **Decision**: Apply `@react-three/rapier` selectively to the player character, arena floor, and arena boundary walls. Enemies and projectiles use lightweight vector math and distance checks.
-- **Consequences**: Optimal physics accuracy where it matters without choking CPU cycles on large enemy counts.
+## ADR-005: Selective Rapier Physics & Mathematical Arena Boundary
+- **Context**: Rapier dynamic rigid bodies and collision meshes are computationally expensive when duplicated across hordes of enemies or complex circular wall segments.
+- **Decision**: Apply `@react-three/rapier` selectively to the player character and flat arena floor collider. The circular arena boundary is enforced mathematically in X/Z space (`ARENA_BOUNDARY_LIMIT = 17.2`) for player, enemies, and boss, avoiding expensive physics wall colliders. Enemies and projectiles use lightweight vector distance math.
+- **Consequences**: Optimal physics accuracy for player locomotion and vertical gravity without choking CPU cycles or risking tunneling through thin collider meshes.
 
 ## ADR-006: Bounded Enemy Population Scaling (Cap = 90)
 - **Context**: Survivor-likes can easily experience memory and render degradation if spawns are uncapped.
@@ -74,3 +74,13 @@
 - **Context**: Game Over or Victory screens can trigger re-renders or repeat submissions, duplicating scores in `db.json`.
 - **Decision**: Protect score submissions using a per-run `hasSavedScoreRef` guard that is reset upon `handlePlayAgain`.
 - **Consequences**: Exactly one score record per completed run is transmitted to `POST /scores`.
+
+## ADR-016: Procedural Web Audio API Sound Synthesizers
+- **Context**: External audio packs and MP3/WAV assets bloat repository size, incur HTTP latency, and risk browser autoplay lockouts.
+- **Decision**: Implement a zero-dependency procedural audio synthesizer in `src/audio/gameAudio.ts` using the browser's native Web Audio API (oscillators, sweeps, exponential gain envelopes). Include user volume/mute controls persisted to `localStorage` and anti-spam cooldown throttles per SFX.
+- **Consequences**: Instantaneous audio playback, zero external asset weight, guaranteed failure-safe operation under browser autoplay policies.
+
+## ADR-017: n8n Completed-Run Webhook Telemetry
+- **Context**: Academic evaluation requires integration with automation tooling (n8n) without introducing a permanent custom backend or blocking local gameplay.
+- **Decision**: Dispatch completed run payloads (`characterId`, `score`, `kills`, `level`, `timeSurvivedSeconds`, computed `classification`) asynchronously to an importable n8n webhook workflow (`n8n/bonkageddon-run-workflow.json`). Decouple webhook dispatch from local JSON Server persistence with dedicated execution guards.
+- **Consequences**: Clean separation of concerns; if n8n is offline or unconfigured, single-player runs and local leaderboard persistence continue completely uninterrupted.

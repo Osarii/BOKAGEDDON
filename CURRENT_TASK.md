@@ -1,13 +1,13 @@
 # Current Task
- 
+
 ## Objective
-Phase 3 — n8n Webhook Integration + Audio / Polish + Final Rubric Audit
+Live n8n Verification + Screenshot + Final Rubric Audit
 
 ## Scope
-- Centralized webhook dispatch service in `src/services/webhook.ts`
-- Event triggers: Run Started, Level Up Reached, Boss Spawned, Game Over, Victory
-- Audio/SFX polish using Web Audio API procedural synthesizers (zero external audio dependencies)
-- Final Academic React Quiz rubric verification:
+- Import `n8n/bonkageddon-run-workflow.json` into a live n8n instance (local `http://localhost:5678` or cloud).
+- Execute an end-to-end test run with `VITE_N8N_WEBHOOK_URL` configured in `.env`.
+- Capture the live n8n execution canvas screenshot showing successful node execution and store at `docs/screenshots/n8n-execution.png`.
+- Perform final Academic React Quiz rubric audit:
   - Demonstrable `useState` (loading, error, overlays, local input)
   - Demonstrable `useEffect` (cleanups, AbortControllers, window listeners)
   - Demonstrable `useRef` (Rapier bodies, Three.js meshes, mutable runtime)

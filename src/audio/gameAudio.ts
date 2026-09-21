@@ -3,6 +3,8 @@ export type GameSfx =
   | "energyOrb"
   | "axe"
   | "enemyHit"
+  | "enemyDeath"
+  | "bossDeath"
   | "xpPickup"
   | "levelUp"
   | "playerDamage"
@@ -23,6 +25,8 @@ const sfxCooldownMs: Record<GameSfx, number> = {
   energyOrb: 80,
   axe: 140,
   enemyHit: 45,
+  enemyDeath: 60,
+  bossDeath: 1000,
   xpPickup: 35,
   levelUp: 400,
   playerDamage: 350,
@@ -129,6 +133,14 @@ function playUnlocked(sfx: GameSfx) {
       break;
     case "enemyHit":
       sweep(ctx, 220, 90, 0.08, "square", 0.12);
+      break;
+    case "enemyDeath":
+      sweep(ctx, 260, 75, 0.12, "sawtooth", 0.18);
+      tone(ctx, 95, 0.08, "square", 0.14);
+      break;
+    case "bossDeath":
+      sweep(ctx, 160, 35, 0.85, "sawtooth", 0.32);
+      tone(ctx, 55, 0.6, "square", 0.22);
       break;
     case "xpPickup":
       sweep(ctx, 740, 1320, 0.09, "sine", 0.14);

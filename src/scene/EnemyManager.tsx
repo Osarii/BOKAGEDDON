@@ -13,6 +13,7 @@ import { getEnemyCap } from "../game/progression";
 import { getSpawnInterval, getSpawnBatch } from "../game/spawnRules";
 import { useGameStore } from "../store/gameStore";
 import { ASSETS } from "../config/assets";
+import { gameAudio } from "../audio/gameAudio";
 import type { EnemyType } from "../types/game";
 
 interface EnemyManagerProps {
@@ -269,6 +270,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       runtime.bossSpawned = true;
       useGameStore.getState().setBossActive(true);
       useGameStore.getState().updateBossHealth(bossConfig.health, bossConfig.health);
+      gameAudio.play("bossSpawn");
     }
 
     // Dynamic camera-relative perimeter spawning
@@ -388,6 +390,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           runtime.bossDefeated = true;
           useGameStore.getState().setBossActive(false);
           useGameStore.getState().setGameStatus("victory");
+          gameAudio.play("bossDeath");
+        } else {
+          gameAudio.play("enemyDeath");
         }
 
         // Fast splice
@@ -462,6 +467,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             if (distToPlayer < 4.0 && runtime.playerInvulnerableTimer <= 0) {
               useGameStore.getState().takeDamage(15);
               runtime.playerInvulnerableTimer = GAME_CONFIG.playerInvulnerableDuration;
+              gameAudio.play("playerDamage");
             }
           }
         }
@@ -489,6 +495,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         if (runtime.playerInvulnerableTimer <= 0) {
           useGameStore.getState().takeDamage(enemy.damage);
           runtime.playerInvulnerableTimer = GAME_CONFIG.playerInvulnerableDuration;
+          gameAudio.play("playerDamage");
         }
       }
     }

@@ -1,9 +1,10 @@
 # BONKAGEDDON Project Status
 
 ## Current Phase
-Phase 1 — Player Movement + Camera Follow
+Post-Merge Integration Complete & Verified
 
 ## Completed
+
 - **Phase 0 Foundation**:
   - Initialized Vite + React 19 + TypeScript with strict typing.
   - Configured `@react-three/fiber`, `@react-three/drei`, `@react-three/rapier`, `three`, `zustand`, `react-router-dom`, `lucide-react`, and `json-server`.
@@ -13,6 +14,7 @@ Phase 1 — Player Movement + Camera Follow
   - Implemented React Router with 5 primary routes and dynamic validation.
   - Configured minimal Zustand store with selectors.
   - Verified R3F Canvas, Rapier physics floor, lighting, and initial arena.
+
 - **Phase 1 Movement & Camera Follow**:
   - Implemented keyboard input handling for WASD (`KeyW`, `KeyA`, `KeyS`, `KeyD`) and Arrow keys (`ArrowUp`, `ArrowLeft`, `ArrowDown`, `ArrowRight`).
   - Added window blur event listener to instantly clear pressed keys and eliminate stuck movement on tab switch.
@@ -25,7 +27,6 @@ Phase 1 — Player Movement + Camera Follow
   - Implemented `CameraController` using exponential decay lerp from elevated perspective without OrbitControls.
   - Reused module/ref `THREE.Vector3` instances, ensuring zero garbage collection overhead per frame.
   - Updated HUD banner with `"WASD / Arrow Keys — Move"`.
-  - `npm run build` and `npm run lint` pass with 0 errors and 0 warnings.
 
 - **Phase 2 Playable Core Gameplay Loop**:
   - Implemented lightweight `GameRuntime` mutable entity architecture in `src/game/runtime.ts` shared via React `useRef`, preventing 60 FPS transform churn in React or Zustand.
@@ -38,10 +39,8 @@ Phase 1 — Player Movement + Camera Follow
   - Implemented throttled 1Hz survival timer in `SimulationTimer`.
   - Implemented `GameOverOverlay` and `VictoryOverlay` with stats breakdown and single-submission `hasSavedScoreRef` guard posting to JSON Server (`/scores`).
   - Implemented full clean run restart with `handlePlayAgain`.
-  - `npm run build` and `npm run lint` pass with 0 errors and 0 warnings.
 
-- **Workstream Agent A — 3D Visual Quality & Enemy Identity**:
-  - Diagnosed and resolved enemy invisibility root causes: distant perimeter spawning and heavy camera fog obscuring incoming enemies.
+- **Workstream A — 3D Visual Quality & Enemy Identity**:
   - Rebuilt all 4 normal enemy archetypes (`slime`, `runner`, `brute`, `shooter`) with rich, silhouette-differentiated multi-part 3D geometries merged cleanly using `three/examples/jsm/utils/BufferGeometryUtils.js`.
   - Loaded official enemy SVG assets (`public/assets/enemies/`) as shared `THREE.Texture` instances and projected them as front-facing/dorsal decal quads via secondary `InstancedMesh`.
   - Implemented per-instance hit feedback using `InstancedMesh.setColorAt`: damaged enemies flash incandescent white (`#ffffff`) with a dynamic 1.3x scale pop.
@@ -50,13 +49,27 @@ Phase 1 — Player Movement + Camera Follow
   - Upgraded lighting in `Lighting.tsx` with a secondary cool-toned rim/fill light (`#38bdf8`) highlighting 3D entity silhouettes against the dark arena.
   - Expanded camera fog in `GameScene.tsx` from `[18, 42]` to `[26, 56]`, eliminating darkness clipping in the combat arena.
   - Refined perimeter spawning in `EnemyManager.tsx` to camera-relative 11.5–13.5 units from player, ensuring enemies appear on screen within 1–2 seconds.
+
+- **Workstream B (Codex) — Audio & n8n Integration**:
+  - Built centralized procedural Web Audio API service in `src/audio/gameAudio.ts` with oscillators, sweeps, envelopes, volume/mute state persistence, and anti-spam cooldowns.
+  - Integrated HUD audio controls (mute button, volume slider).
+  - Built production-ready n8n completed-run workflow in `n8n/bonkageddon-run-workflow.json` with 8 nodes: Webhook, Validate and Normalize, Run Analysis, Classify Run, 3 Action branches, and Respond to Webhook.
+  - Built `src/services/webhook.ts` dispatching run telemetry to `VITE_N8N_WEBHOOK_URL` with separate execution guard.
+
+- **Cross-Workstream Integration & Audio Glue**:
+  - Connected missing audio events directly in `src/scene/EnemyManager.tsx`:
+    - `enemyDeath`: procedural 260->75Hz sawtooth sweep + square pop
+    - `bossDeath`: deep 160->35Hz decaying sawtooth rumble
+    - `bossSpawn`: low ominous 70->180Hz siren sweep
+    - `playerDamage`: connected on player contact damage and Bonklord stomp damage
+  - Updated `README.md`, `PROJECT_STATUS.md`, `CURRENT_TASK.md`, and `docs/DECISIONS.md`.
   - `npm run build` and `npm run lint` pass with 0 errors and 0 warnings.
 
 ## Current
-- Agent A 3D Visual Quality and Enemy Readability workstream complete and verified.
+- Merged and integrated branch `feature/integration-final` is fully functional and verified.
 
 ## Next
-- Workstream Agent B (Codex) — Audio, n8n Webhook Integration, and Final Academic Rubric Audit.
+- Live n8n Verification + Screenshot + Final Rubric Audit
 
 ## Known Issues
 - Antigravity browser sandbox Playwright binary download returns 404 from upstream CDN; local Vite dev server and JSON Server fully verified via CLI and curl.
