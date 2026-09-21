@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { EnemyType } from "../types/game";
+import type { EnemyType, PickupType } from "../types/game";
 
 export interface EnemyEntity {
   id: number;
@@ -45,10 +45,11 @@ export interface ProjectileEntity {
 
 export interface PickupEntity {
   id: number;
+  type: PickupType;
   x: number;
   y: number;
   z: number;
-  xpValue: number;
+  value: number; // For xp: xpValue; for medkit: HP heal; for shield: shield amount
   radius: number;
 }
 
@@ -89,6 +90,13 @@ export interface GameRuntime {
   spawnTimer: number;
   elapsedSimulationTime: number;
   lastSecondLogged: number;
+
+  // Round progression state kept in runtime (high-frequency)
+  currentRound: number;
+  roundSpawnedCount: number;
+  roundQuota: number;
+  intermissionTimer: number;
+
   reset: () => void;
 }
 
@@ -109,6 +117,10 @@ export function createGameRuntime(): GameRuntime {
     spawnTimer: 0,
     elapsedSimulationTime: 0,
     lastSecondLogged: 0,
+    currentRound: 1,
+    roundSpawnedCount: 0,
+    roundQuota: 14,
+    intermissionTimer: 0,
     reset: () => {
       runtime.enemies = [];
       runtime.projectiles = [];
@@ -125,6 +137,10 @@ export function createGameRuntime(): GameRuntime {
       runtime.spawnTimer = 0;
       runtime.elapsedSimulationTime = 0;
       runtime.lastSecondLogged = 0;
+      runtime.currentRound = 1;
+      runtime.roundSpawnedCount = 0;
+      runtime.roundQuota = 14;
+      runtime.intermissionTimer = 0;
     },
   };
 

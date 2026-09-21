@@ -4,15 +4,16 @@
 
 BONKAGEDDON is an original 3D survivor-like videogame built for an academic React Quiz.
 
-- **Frozen MVP**:
-  - 3 playable characters: Bonk, Byte, Tank
-  - 1 circular arena
+- **Core Gameplay Scope**:
+  - 5 playable characters: Bonk, Byte, Tank, Nova, Hex
+  - 1 circular arena (radius 30, boundary 28.8)
   - 4 normal enemy archetypes: Slime, Runner, Brute, Shooter
-  - 1 boss: Bonklord
-  - 3 starting weapons: Hammer, Energy Orb, Axe
+  - Endless rounds progression with tiered Bonklord boss every 10 rounds
+  - 5 starting weapons: Hammer, Energy Orb, Axe, Nova Burst, Hex Chain + Weapon Synergies
   - 8 stackable upgrades
+  - Shield absorption & recovery pickups system
   - local JSON Server leaderboard
-  - approximately 5–8 minute runs
+  - Endless arcade survival loop
 
 - **Original Identity**:
   All assets, characters, names, UI, and mechanics must remain original.
@@ -158,6 +159,10 @@ Use for:
 - selectedCharacterId
 - health
 - maxHealth
+- shield
+- maxShield
+- round
+- roundStatus
 - score
 - kills
 - level
@@ -171,7 +176,12 @@ Use for:
 Use Zustand selectors:
 
 ```ts
-useGameStore((state) => state.score)## 5. High-Frequency Runtime Contract
+useGameStore((state) => state.score);
+```
+
+---
+
+## 5. High-Frequency Runtime Contract
 
 High-frequency gameplay simulation must remain outside React render state.
 
@@ -218,7 +228,7 @@ Do NOT automatically create Rapier dynamic rigid bodies for:
 
 Prefer lightweight vector mathematics and radius/distance checks for large entity counts.
 
-The arena currently uses mathematical X/Z boundary enforcement where appropriate.
+The arena currently uses mathematical X/Z boundary enforcement where appropriate (radius 30, limit 28.8).
 
 Do not replace it with expensive physics walls without a demonstrated need.
 
@@ -229,16 +239,21 @@ Do not replace it with expensive physics walls without a demonstrated need.
 Permanent enemy limits:
 
 ```ts
-BASE_ENEMY_CAP = 18
-ENEMIES_PER_LEVEL = 4
-HARD_ENEMY_CAP = 90Active enemy count must never exceed:
+BASE_ENEMY_CAP = 12
+ENEMIES_PER_LEVEL = 3
+HARD_ENEMY_CAP = 48
+```
 
+Active enemy count is scaled by `round` (independent of player level) and must never exceed:
+
+```ts
 Math.min(
-  BASE_ENEMY_CAP + (level - 1) * ENEMIES_PER_LEVEL,
+  BASE_ENEMY_CAP + (round - 1) * 3,
   HARD_ENEMY_CAP
 )
+```
 
-Bonklord counts toward the active enemy population.
+Bonklord spawns every 10 rounds (10, 20, 30, ...) as tiered boss encounters with scaled HP/damage. Defeating Bonklord advances to the next round in an endless run without setting gameStatus to victory.
 
 Before spawning, always respect available slots.
 

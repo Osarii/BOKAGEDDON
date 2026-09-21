@@ -8,13 +8,26 @@ import {
   HARD_ENEMY_CAP,
   ARENA_BOUNDARY_LIMIT,
   GAME_CONFIG,
+  RECOVERY_CONFIG,
 } from "../game/config";
-import { getEnemyCap } from "../game/progression";
-import { getSpawnInterval, getSpawnBatch } from "../game/spawnRules";
+import {
+  getRoundEnemyCap,
+  getRoundEnemyQuota,
+  isBossRound,
+  getBossTier,
+  getBossStats,
+} from "../game/progression";
+import {
+  getSpawnInterval,
+  getSpawnBatch,
+  getEnemyTypeForRound,
+  getEnemyHealthForRound,
+  getEnemyDamageForRound,
+} from "../game/spawnRules";
 import { useGameStore } from "../store/gameStore";
 import { ASSETS } from "../config/assets";
 import { gameAudio } from "../audio/gameAudio";
-import type { EnemyType } from "../types/game";
+import type { EnemyType, PickupType } from "../types/game";
 
 interface EnemyManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -290,12 +303,12 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
 
+    const playerPos = runtime.playerPosition;
     const gameStatus = useGameStore.getState().gameStatus;
     if (gameStatus !== "playing") return;
 
-    const level = useGameStore.getState().level;
-    const enemyCap = getEnemyCap(level);
-    const spawnIntervalSec = getSpawnInterval(level) / 1000;
+    const round = useGameStore.getState().round;
+    const roundStatus = useGameStore.getState().roundStatus;
     const time = state.clock.elapsedTime;
 
     // Player contact damage cooldown
@@ -303,117 +316,136 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       runtime.playerInvulnerableTimer -= delta;
     }
 
-    // =========================================================================
-    // 1. Spawning System (with Bonklord slot reservation at level 10)
-    // =========================================================================
-    runtime.spawnTimer += delta;
-
-    // Check if Bonklord boss is due to spawn
-    const isBossDue = level >= GAME_CONFIG.bossLevel && !runtime.bossSpawned;
-    const reservedSlots = isBossDue ? 1 : 0;
-    const effectiveCap = Math.min(enemyCap, HARD_ENEMY_CAP) - reservedSlots;
-
-    if (isBossDue && runtime.enemies.length <= effectiveCap) {
-      // Spawn the Bonklord
-      const angle = Math.random() * Math.PI * 2;
-      const spawnDist = ARENA_BOUNDARY_LIMIT - 2.5;
-      const bossConfig = ENEMY_CONFIGS.bonklord;
-
-      const bossEntity: EnemyEntity = {
-        id: runtime.nextEntityId++,
-        type: "bonklord",
-        x: Math.cos(angle) * spawnDist,
-        y: bossConfig.height / 2,
-        z: Math.sin(angle) * spawnDist,
-        vx: 0,
-        vz: 0,
-        health: bossConfig.health,
-        maxHealth: bossConfig.health,
-        speed: bossConfig.speed,
-        damage: bossConfig.damage,
-        radius: bossConfig.radius,
-        color: bossConfig.color,
-        scoreValue: bossConfig.scoreValue,
-        xpValue: bossConfig.xpValue,
-        stompCooldown: 4.0,
-        hitFlashTimer: 0,
-        scaleY: 1,
-      };
-
-      runtime.enemies.push(bossEntity);
-      runtime.bossSpawned = true;
-      useGameStore.getState().setBossActive(true);
-      useGameStore.getState().updateBossHealth(bossConfig.health, bossConfig.health);
-      gameAudio.play("bossSpawn");
+    // Synchronize round state if external reset or new run
+    if (runtime.currentRound !== round) {
+      runtime.currentRound = round;
+      runtime.roundQuota = getRoundEnemyQuota(round);
+      runtime.roundSpawnedCount = 0;
+      runtime.bossSpawned = false;
+      runtime.bossDefeated = false;
+      runtime.intermissionTimer = 0;
     }
 
-    // Dynamic camera-relative perimeter spawning
-    const playerPos = runtime.playerPosition;
+    // =========================================================================
+    // 1. Endless Rounds & Spawning State Machine
+    // =========================================================================
+    if (roundStatus === "intermission") {
+      runtime.intermissionTimer += delta;
+      if (runtime.intermissionTimer >= GAME_CONFIG.intermissionDurationSec) {
+        runtime.intermissionTimer = 0;
+        const nextRound = round + 1;
+        runtime.currentRound = nextRound;
+        runtime.roundQuota = getRoundEnemyQuota(nextRound);
+        runtime.roundSpawnedCount = 0;
+        runtime.bossSpawned = false;
+        runtime.bossDefeated = false;
+        useGameStore.getState().advanceRound();
+      }
+    } else {
+      // roundStatus === "wave"
+      const isBoss = isBossRound(round);
 
-    if (runtime.spawnTimer >= spawnIntervalSec) {
-      runtime.spawnTimer = 0;
-      const availableSlots = Math.max(0, effectiveCap - runtime.enemies.length);
-
-      if (availableSlots > 0) {
-        const batchSize = Math.min(getSpawnBatch(level), availableSlots);
-
-        for (let b = 0; b < batchSize; b++) {
-          // Select archetype based on level progression
-          let type: EnemyType;
-          const roll = Math.random();
-
-          if (level >= 7) {
-            if (roll < 0.3) type = "slime";
-            else if (roll < 0.6) type = "runner";
-            else if (roll < 0.8) type = "shooter";
-            else type = "brute";
-          } else if (level >= 5) {
-            if (roll < 0.4) type = "slime";
-            else if (roll < 0.7) type = "runner";
-            else type = "shooter";
-          } else if (level >= 3) {
-            type = roll < 0.6 ? "slime" : "runner";
-          } else {
-            type = "slime";
-          }
-
-          const config = ENEMY_CONFIGS[type];
-
-          // Spawn near camera perimeter (15.0 - 18.5 units from player), clamped inside arena
+      if (isBoss) {
+        // Boss Round: Strictly boss-focused
+        if (!runtime.bossSpawned) {
           const angle = Math.random() * Math.PI * 2;
-          const spawnDist = 15.0 + Math.random() * 3.5;
-          let spawnX = playerPos.x + Math.cos(angle) * spawnDist;
-          let spawnZ = playerPos.z + Math.sin(angle) * spawnDist;
+          const spawnDist = ARENA_BOUNDARY_LIMIT - 3.0;
+          const bossConfig = ENEMY_CONFIGS.bonklord;
+          const bossTier = getBossTier(round);
+          const bossStats = getBossStats(bossTier);
 
-          const distFromCenter = Math.hypot(spawnX, spawnZ);
-          if (distFromCenter > ARENA_BOUNDARY_LIMIT - 1.0) {
-            const clampRatio = (ARENA_BOUNDARY_LIMIT - 1.0) / distFromCenter;
-            spawnX *= clampRatio;
-            spawnZ *= clampRatio;
-          }
-
-          const enemy: EnemyEntity = {
+          const bossEntity: EnemyEntity = {
             id: runtime.nextEntityId++,
-            type,
-            x: spawnX,
-            y: config.height / 2,
-            z: spawnZ,
+            type: "bonklord",
+            x: Math.cos(angle) * spawnDist,
+            y: bossConfig.height / 2,
+            z: Math.sin(angle) * spawnDist,
             vx: 0,
             vz: 0,
-            health: config.health + (level - 1) * 5,
-            maxHealth: config.health + (level - 1) * 5,
-            speed: config.speed,
-            damage: config.damage,
-            radius: config.radius,
-            color: config.color,
-            scoreValue: config.scoreValue,
-            xpValue: config.xpValue,
-            shootCooldown: type === "shooter" ? Math.random() * 2 + 1 : undefined,
+            health: bossStats.health,
+            maxHealth: bossStats.health,
+            speed: bossStats.speed,
+            damage: bossStats.damage,
+            radius: bossConfig.radius,
+            color: bossConfig.color,
+            scoreValue: bossConfig.scoreValue * bossTier,
+            xpValue: bossConfig.xpValue * bossTier,
+            stompCooldown: 3.5,
             hitFlashTimer: 0,
             scaleY: 1,
           };
 
-          runtime.enemies.push(enemy);
+          runtime.enemies.push(bossEntity);
+          runtime.bossSpawned = true;
+          runtime.roundSpawnedCount = 1;
+          useGameStore.getState().setBossActive(true);
+          useGameStore.getState().updateBossHealth(bossStats.health, bossStats.health);
+          gameAudio.play("bossSpawn");
+        }
+      } else {
+        // Normal Round Spawning with finite quota
+        const remainingQuota = Math.max(0, runtime.roundQuota - runtime.roundSpawnedCount);
+
+        if (remainingQuota > 0) {
+          runtime.spawnTimer += delta;
+          const spawnIntervalSec = getSpawnInterval(round) / 1000;
+
+          if (runtime.spawnTimer >= spawnIntervalSec) {
+            runtime.spawnTimer = 0;
+            const enemyCap = getRoundEnemyCap(round);
+            const availableSlots = Math.max(0, enemyCap - runtime.enemies.length);
+            const batchSize = Math.min(getSpawnBatch(round), availableSlots, remainingQuota);
+
+            if (batchSize > 0) {
+              for (let b = 0; b < batchSize; b++) {
+                const type = getEnemyTypeForRound(round);
+                const config = ENEMY_CONFIGS[type];
+
+                const angle = Math.random() * Math.PI * 2;
+                const spawnDist = 15.0 + Math.random() * 3.5;
+                let spawnX = playerPos.x + Math.cos(angle) * spawnDist;
+                let spawnZ = playerPos.z + Math.sin(angle) * spawnDist;
+
+                const distFromCenter = Math.hypot(spawnX, spawnZ);
+                if (distFromCenter > ARENA_BOUNDARY_LIMIT - 1.0) {
+                  const clampRatio = (ARENA_BOUNDARY_LIMIT - 1.0) / distFromCenter;
+                  spawnX *= clampRatio;
+                  spawnZ *= clampRatio;
+                }
+
+                const enemyHealth = getEnemyHealthForRound(config.health, round);
+                const enemyDamage = getEnemyDamageForRound(config.damage, round);
+
+                const enemy: EnemyEntity = {
+                  id: runtime.nextEntityId++,
+                  type,
+                  x: spawnX,
+                  y: config.height / 2,
+                  z: spawnZ,
+                  vx: 0,
+                  vz: 0,
+                  health: enemyHealth,
+                  maxHealth: enemyHealth,
+                  speed: config.speed,
+                  damage: enemyDamage,
+                  radius: config.radius,
+                  color: config.color,
+                  scoreValue: config.scoreValue,
+                  xpValue: config.xpValue,
+                  shootCooldown: type === "shooter" ? Math.random() * 2 + 1 : undefined,
+                  hitFlashTimer: 0,
+                  scaleY: 1,
+                };
+
+                runtime.enemies.push(enemy);
+                runtime.roundSpawnedCount++;
+              }
+            }
+          }
+        } else if (runtime.enemies.length === 0) {
+          // All quota spawned and all remaining enemies defeated!
+          runtime.intermissionTimer = 0;
+          useGameStore.getState().setRoundStatus("intermission");
         }
       }
     }
@@ -436,10 +468,11 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         // Spawn XP pickup at death position
         runtime.pickups.push({
           id: runtime.nextEntityId++,
+          type: "xp",
           x: enemy.x,
           y: 0.35,
           z: enemy.z,
-          xpValue: enemy.xpValue,
+          value: enemy.xpValue,
           radius: 0.4,
         });
 
@@ -463,10 +496,80 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         if (enemy.type === "bonklord") {
           runtime.bossDefeated = true;
           useGameStore.getState().setBossActive(false);
-          useGameStore.getState().setGameStatus("victory");
           gameAudio.play("bossDeath");
+
+          // Boss recovery rewards:
+          // Guaranteed useful major recovery pickup + optional weighted secondary drop
+          const currentHp = useGameStore.getState().health;
+          const currentMaxHp = useGameStore.getState().maxHealth;
+          const guaranteedType: PickupType = currentHp < currentMaxHp ? "medkit_case" : "shield_battery";
+          const guaranteedVal = guaranteedType === "medkit_case" ? 70 : 50;
+
+          runtime.pickups.push({
+            id: runtime.nextEntityId++,
+            type: guaranteedType,
+            x: enemy.x - 0.5,
+            y: 0.35,
+            z: enemy.z,
+            value: guaranteedVal,
+            radius: 0.6,
+          });
+
+          // Optional additional weighted recovery drop (75% chance)
+          if (Math.random() < 0.75) {
+            const secondType: PickupType = Math.random() < 0.5 ? "shield_potion" : "medkit_emergency";
+            const secondVal = secondType === "shield_potion" ? 25 : 35;
+            runtime.pickups.push({
+              id: runtime.nextEntityId++,
+              type: secondType,
+              x: enemy.x + 0.5,
+              y: 0.35,
+              z: enemy.z,
+              value: secondVal,
+              radius: 0.5,
+            });
+          }
+
+          // Boss round complete! Enter intermission to advance to next round (e.g. 10 -> 11)
+          runtime.intermissionTimer = 0;
+          useGameStore.getState().setRoundStatus("intermission");
         } else {
           gameAudio.play("enemyDeath");
+
+          // Normal enemy recovery item drop (bounded by maxActivePickups)
+          const activeRecoveryCount = runtime.pickups.filter((p) => p.type !== "xp").length;
+          if (
+            activeRecoveryCount < RECOVERY_CONFIG.maxActivePickups &&
+            Math.random() < RECOVERY_CONFIG.normalEnemyDropChance
+          ) {
+            const roll = Math.random();
+            let dropType: PickupType;
+            let dropVal: number;
+
+            if (roll < 0.40) {
+              dropType = "medkit_emergency";
+              dropVal = 35;
+            } else if (roll < 0.80) {
+              dropType = "shield_potion";
+              dropVal = 25;
+            } else if (roll < 0.90) {
+              dropType = "medkit_case";
+              dropVal = 70;
+            } else {
+              dropType = "shield_battery";
+              dropVal = 50;
+            }
+
+            runtime.pickups.push({
+              id: runtime.nextEntityId++,
+              type: dropType,
+              x: enemy.x,
+              y: 0.35,
+              z: enemy.z,
+              value: dropVal,
+              radius: 0.5,
+            });
+          }
         }
 
         // Fast splice

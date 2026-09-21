@@ -100,6 +100,22 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       moveZ /= inputLength;
     }
 
+    // Circular arena boundary tangential projection:
+    // When near or against the boundary, cancel any outward velocity component so the player
+    // glides smoothly along the perimeter without vibrating or snapping.
+    const currentPos = bodyRef.current.translation();
+    const distanceFromCenter = Math.hypot(currentPos.x, currentPos.z);
+
+    if (distanceFromCenter >= ARENA_BOUNDARY_LIMIT - 0.15 && inputLength > 0) {
+      const nx = currentPos.x / (distanceFromCenter || 1);
+      const nz = currentPos.z / (distanceFromCenter || 1);
+      const outward = moveX * nx + moveZ * nz;
+      if (outward > 0) {
+        moveX -= outward * nx;
+        moveZ -= outward * nz;
+      }
+    }
+
     // Set linear velocity in Rapier while preserving vertical gravity
     const currentLinvel = bodyRef.current.linvel();
     bodyRef.current.setLinvel(
@@ -111,9 +127,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       true
     );
 
-    // Circular arena boundary clamping
-    const currentPos = bodyRef.current.translation();
-    const distanceFromCenter = Math.hypot(currentPos.x, currentPos.z);
+    // Hard boundary safety clamp (only applied if external forces push beyond limit)
     if (distanceFromCenter > ARENA_BOUNDARY_LIMIT) {
       const clampFactor = ARENA_BOUNDARY_LIMIT / distanceFromCenter;
       bodyRef.current.setTranslation(

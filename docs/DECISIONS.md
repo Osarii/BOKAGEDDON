@@ -22,13 +22,13 @@
 
 ## ADR-005: Selective Rapier Physics & Mathematical Arena Boundary
 - **Context**: Rapier dynamic rigid bodies and collision meshes are computationally expensive when duplicated across hordes of enemies or complex circular wall segments.
-- **Decision**: Apply `@react-three/rapier` selectively to the player character and flat arena floor collider. The circular arena boundary is enforced mathematically in X/Z space (`ARENA_BOUNDARY_LIMIT = 17.2`) for player, enemies, and boss, avoiding expensive physics wall colliders. Enemies and projectiles use lightweight vector distance math.
+- **Decision**: Apply `@react-three/rapier` selectively to the player character and flat arena floor collider. The circular arena boundary is enforced mathematically in X/Z space (`ARENA_BOUNDARY_LIMIT = 28.8`) with tangential outward velocity deflection to eliminate boundary vibration. Enemies and projectiles use lightweight vector distance math.
 - **Consequences**: Optimal physics accuracy for player locomotion and vertical gravity without choking CPU cycles or risking tunneling through thin collider meshes.
 
-## ADR-006: Bounded Enemy Population Scaling (Cap = 90)
+## ADR-006: Bounded Enemy Population Scaling (Cap = 48)
 - **Context**: Survivor-likes can easily experience memory and render degradation if spawns are uncapped.
-- **Decision**: Enforce dynamic formula `Math.min(18 + (level - 1) * 4, 90)` with a strict hard cap of 90 concurrent enemies.
-- **Consequences**: Guarantees frame rate stability on standard desktop browsers.
+- **Decision**: Enforce dynamic formula `Math.min(12 + (round - 1) * 3, 48)` with a strict hard cap of 48 concurrent enemies, scaled by round instead of player level.
+- **Consequences**: Guarantees frame rate stability on standard desktop browsers while decoupling enemy pacing from player upgrade level.
 
 ## ADR-007: JSON Server for Academic Persistence
 - **Context**: The MVP requires genuine GET and POST data consumption without complex cloud configurations.
@@ -84,3 +84,14 @@
 - **Context**: Academic evaluation requires integration with automation tooling (n8n) without introducing a permanent custom backend or blocking local gameplay.
 - **Decision**: Dispatch completed run payloads (`characterId`, `score`, `kills`, `level`, `timeSurvivedSeconds`, computed `classification`) asynchronously to an importable n8n webhook workflow (`n8n/bonkageddon-run-workflow.json`). Decouple webhook dispatch from local JSON Server persistence with dedicated execution guards.
 - **Consequences**: Clean separation of concerns; if n8n is offline or unconfigured, single-player runs and local leaderboard persistence continue completely uninterrupted.
+
+## ADR-018: Endless Rounds, Shield & Recovery System
+- **Context**: Decoupling player progression (XP/Level/Upgrades) from world progression (enemy pacing, scaling, boss rounds) requires an endless round progression system with bounded wave lengths, shield absorption mechanics, and contact recovery items.
+- **Decision**:
+  1. Separate `level` (XP-driven) and `round` (run-progression-driven).
+  2. Implement finite round quotas (early: 14-20, pre-boss: 22-32, late: capped at 40) followed by 3.5s intermissions.
+  3. Tiered Bonklord boss encounters every 10 rounds (`tier = round / 10`) with scaled HP and damage. Defeating Bonklord continues the endless run (10 -> 11, etc.) without triggering `victory`.
+  4. Mitigated damage is absorbed by `shield` first (max 100), remainder damages health.
+  5. Recovery pickups (`medkit-emergency`, `medkit-case`, `shield-potion`, `shield-battery`) collected strictly by contact without magnet pull, with full-HP/shield consumption guards.
+  6. Camera look-ahead smoothed with exponential damping and boundary tangential movement deflection to eliminate physics jitter.
+- **Consequences**: Endless replayability with bounded frame-time budgets, stable camera tracking, and fair survivability mechanics.

@@ -57,9 +57,19 @@ export type GameStatus =
   | "gameover"
   | "victory";
 
+export type RoundStatus = "wave" | "intermission";
+
 export type EnemyType =
   | "slime"
   | "runner"
   | "brute"
   | "shooter"
   | "bonklord";
+
+export type PickupType =
+  | "xp"
+  | "medkit_emergency"
+  | "medkit_case"
+  | "shield_potion"
+  | "shield_battery";
+

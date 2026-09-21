@@ -65,11 +65,22 @@ Post-Merge Integration Complete & Verified
   - Updated `README.md`, `PROJECT_STATUS.md`, `CURRENT_TASK.md`, and `docs/DECISIONS.md`.
   - `npm run build` and `npm run lint` pass with 0 errors and 0 warnings.
 
+- **Workstream: Endless Rounds, Shield & Recovery System**:
+  - Separated `level` (XP-driven player progression & upgrades) and `round` (run pacing, enemy quotas, composition scaling, boss rounds).
+  - Implemented endless rounds starting at Round 1 with finite enemy quotas (14 to 40) and 3.5s intermission intervals between waves.
+  - Implemented tiered Bonklord encounters every 10 rounds (`bossTier = round / 10`) with dynamic HP/damage scaling; defeating Bonklord advances to the next round (10 -> 11, etc.) without triggering `victory` (run concludes only on player death or exit).
+  - Implemented Shield absorption mechanic (`shield` starting at 0, max 100): mitigated damage hits shield first; remainder damages HP.
+  - Extracted and integrated optimized WebP recovery asset pack under `public/assets/v2/items/`: `medkit-emergency.webp` (+35 HP), `medkit-case.webp` (+70 HP), `shield-potion.webp` (+25 shield), `shield-battery.webp` (+50 shield).
+  - Implemented contact-based collection in `PickupManager.tsx` with consumption guards (full HP cannot consume medkits; full shield cannot consume shield items).
+  - Weighted drops: low recovery item drop chance on normal enemies (bounded to 24 active items); guaranteed major recovery drop + optional secondary drop on Bonklord defeat.
+  - Fixed camera and movement vibration across straight movement, diagonal movement, turns, and arena boundaries by replacing raw physics difference lookahead with exponential low-pass filtering and deflecting outward velocity tangentially along the arena perimeter.
+  - Updated `HUDShell.tsx` to display Round indicator (with prominent flame boss wave styling on rounds 10, 20, 30...), Shield bar & value, and wave intermission banner while preserving existing synergy presentations.
+
 ## Current
-- Merged and integrated branch `feature/integration-final` is fully functional and verified.
+- Endless rounds, shield mechanics, recovery pickups, and camera vibration fix are fully integrated and verified.
 
 ## Next
-- Live n8n Verification + Screenshot + Final Rubric Audit
+- Live n8n Verification + Final Rubric Audit
 
 ## Known Issues
 - Antigravity browser sandbox Playwright binary download returns 404 from upstream CDN; local Vite dev server and JSON Server fully verified via CLI and curl.

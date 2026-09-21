@@ -201,6 +201,17 @@ export const UPGRADE_DETAILS: Record<
   },
 };
 
+export const RECOVERY_CONFIG = {
+  maxActivePickups: 24,
+  normalEnemyDropChance: 0.07,
+  pickupEffects: {
+    medkit_emergency: { hp: 35, shield: 0 },
+    medkit_case: { hp: 70, shield: 0 },
+    shield_potion: { hp: 0, shield: 25 },
+    shield_battery: { hp: 0, shield: 50 },
+  },
+} as const;
+
 export const GAME_CONFIG = {
   baseEnemyCap: BASE_ENEMY_CAP,
   enemiesPerLevel: ENEMIES_PER_LEVEL,
@@ -208,10 +219,12 @@ export const GAME_CONFIG = {
   arenaRadius: ARENA_RADIUS,
   arenaBoundaryLimit: ARENA_BOUNDARY_LIMIT,
   defaultLevel: 1,
+  defaultRound: 1,
   baseSpawnIntervalMs: 1400,
   minSpawnIntervalMs: 700,
   maxSpawnBatch: 3,
-  bossLevel: 10,
+  bossIntervalRounds: 10,
   basePickupRadius: 2.5,
   playerInvulnerableDuration: 0.6,
+  intermissionDurationSec: 3.5,
 } as const;

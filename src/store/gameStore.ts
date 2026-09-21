@@ -1,11 +1,15 @@
 import { create } from "zustand";
-import type { Character, CharacterId, GameStatus, UpgradeId } from "../types/game";
+import type { Character, CharacterId, GameStatus, RoundStatus, UpgradeId } from "../types/game";
 import { getXpRequiredForLevel } from "../game/progression";
 
 interface GameState {
   selectedCharacterId: CharacterId | null;
   health: number;
   maxHealth: number;
+  shield: number;
+  maxShield: number;
+  round: number;
+  roundStatus: RoundStatus;
   score: number;
   kills: number;
   level: number;
@@ -22,7 +26,13 @@ interface GameState {
   // Actions
   setSelectedCharacter: (id: CharacterId | null) => void;
   setGameStatus: (status: GameStatus) => void;
+  setRound: (round: number) => void;
+  setRoundStatus: (status: RoundStatus) => void;
+  advanceRound: () => void;
   setHealth: (health: number) => void;
+  setShield: (shield: number) => void;
+  heal: (amount: number) => void;
+  addShield: (amount: number) => void;
   takeDamage: (amount: number) => void;
   addScore: (amount: number) => void;
   addKill: (scoreBonus?: number) => void;
@@ -50,6 +60,10 @@ const INITIAL_UPGRADES: Record<UpgradeId, number> = {
 const INITIAL_RUN_STATE = {
   health: 100,
   maxHealth: 100,
+  shield: 0,
+  maxShield: 100,
+  round: 1,
+  roundStatus: "wave" as RoundStatus,
   score: 0,
   kills: 0,
   level: 1,
@@ -72,10 +86,35 @@ export const useGameStore = create<GameState>((set) => ({
 
   setGameStatus: (status) => set({ gameStatus: status }),
 
+  setRound: (round) => set({ round: Math.max(1, Math.floor(round)) }),
+
+  setRoundStatus: (status) => set({ roundStatus: status }),
+
+  advanceRound: () =>
+    set((state) => ({
+      round: state.round + 1,
+      roundStatus: "wave",
+    })),
+
   setHealth: (health) =>
     set((state) => ({
       health: Math.max(0, Math.min(health, state.maxHealth)),
       gameStatus: health <= 0 ? "gameover" : state.gameStatus,
+    })),
+
+  setShield: (shield) =>
+    set((state) => ({
+      shield: Math.max(0, Math.min(shield, state.maxShield)),
+    })),
+
+  heal: (amount) =>
+    set((state) => ({
+      health: Math.min(state.maxHealth, state.health + Math.max(0, amount)),
+    })),
+
+  addShield: (amount) =>
+    set((state) => ({
+      shield: Math.min(state.maxShield, state.shield + Math.max(0, amount)),
     })),
 
   takeDamage: (amount) =>
@@ -83,10 +122,25 @@ export const useGameStore = create<GameState>((set) => ({
       // Armor reduces damage received by 15% per tier, up to 75% max
       const armorTier = state.upgrades.armor || 0;
       const reduction = Math.min(0.75, armorTier * 0.15);
-      const finalDamage = Math.max(1, Math.round(amount * (1 - reduction)));
-      const newHealth = Math.max(0, state.health - finalDamage);
+      const mitigatedDamage = Math.max(1, Math.round(amount * (1 - reduction)));
+
+      let newShield = state.shield;
+      let newHealth = state.health;
+
+      if (newShield > 0) {
+        if (newShield >= mitigatedDamage) {
+          newShield -= mitigatedDamage;
+        } else {
+          const remainder = mitigatedDamage - newShield;
+          newShield = 0;
+          newHealth = Math.max(0, newHealth - remainder);
+        }
+      } else {
+        newHealth = Math.max(0, newHealth - mitigatedDamage);
+      }
 
       return {
+        shield: newShield,
         health: newHealth,
         gameStatus: newHealth <= 0 ? "gameover" : state.gameStatus,
       };
@@ -188,6 +242,10 @@ export const useGameStore = create<GameState>((set) => ({
       selectedCharacterId: character.id,
       health: character.health,
       maxHealth: character.health,
+      shield: 0,
+      maxShield: 100,
+      round: 1,
+      roundStatus: "wave",
       score: 0,
       kills: 0,
       level: 1,

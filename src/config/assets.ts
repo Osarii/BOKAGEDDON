@@ -40,6 +40,12 @@ export const ASSETS = {
   pickups: {
     xpGem: "/assets/pickups/xp-gem.svg",
   },
+  items: {
+    medkitEmergency: "/assets/v2/items/medkit-emergency.webp",
+    medkitCase: "/assets/v2/items/medkit-case.webp",
+    shieldPotion: "/assets/v2/items/shield-potion.webp",
+    shieldBattery: "/assets/v2/items/shield-battery.webp",
+  },
   ui: {
     logo: "/assets/ui/bonkageddon-logo.svg",
   },
