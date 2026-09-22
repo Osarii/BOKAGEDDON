@@ -19,6 +19,10 @@ export const ASSETS = {
     brute: "/assets/enemies/brute.svg",
     shooter: "/assets/enemies/shooter.svg",
     bonklord: "/assets/enemies/bonklord.svg",
+    cindermaw: "/assets/enemies/cindermaw.webp",
+    stormcoil: "/assets/enemies/stormcoil.webp",
+    venomatrix: "/assets/enemies/venomatrix.webp",
+    cryovex: "/assets/enemies/cryovex.webp",
   },
   weapons: {
     hammer: "/assets/weapons/hammer.svg",
@@ -45,6 +49,10 @@ export const ASSETS = {
     medkitCase: "/assets/v2/items/medkit-case.webp",
     shieldPotion: "/assets/v2/items/shield-potion.webp",
     shieldBattery: "/assets/v2/items/shield-battery.webp",
+    overclockCore: "/assets/v2/items/overclock-core.webp",
+    teslaCell: "/assets/v2/items/tesla-cell.webp",
+    toxicRelic: "/assets/v2/items/toxic-relic.webp",
+    phoenixFragment: "/assets/v2/items/phoenix-fragment.webp",
   },
   ui: {
     logo: "/assets/ui/bonkageddon-logo.svg",
