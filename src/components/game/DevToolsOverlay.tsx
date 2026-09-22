@@ -22,6 +22,14 @@ import {
   unlockSecretRecipe,
   QA_CHARACTERS,
 } from "../../game/devTools";
+import {
+  getPerformanceSnapshot,
+  startScenarioBenchmark,
+  getLastScenarioReport,
+  getAllScenarioReports,
+  type PerformanceSnapshot,
+  type ScenarioReport,
+} from "../../game/devPerformance";
 import { WEAPON_CONFIGS } from "../../game/config";
 import { getActiveSynergies } from "../../game/weaponSynergies";
 import type { CharacterId, RecoveryPickupType, SpecialPickupType, WeaponType } from "../../types/game";
@@ -65,6 +73,8 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
   const [open, setOpen] = useState(false);
   const [tick, setTick] = useState(0);
   const [position, setPosition] = useState({ x: 16, y: 70 });
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditProgress, setAuditProgress] = useState<string | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
   const store = useGameStore();
@@ -82,10 +92,10 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !isAuditing) return;
     const id = window.setInterval(() => setTick((value) => value + 1), 250);
     return () => window.clearInterval(id);
-  }, [open]);
+  }, [open, isAuditing]);
 
   useEffect(() => {
     const onMove = (event: MouseEvent) => {
@@ -105,6 +115,16 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
       window.removeEventListener("mouseup", onUp);
     };
   }, []);
+
+  const perf: PerformanceSnapshot = useMemo(() => {
+    void tick;
+    return getPerformanceSnapshot();
+  }, [tick]);
+
+  const lastReport: ScenarioReport | null = useMemo(() => {
+    void tick;
+    return getLastScenarioReport();
+  }, [tick]);
 
   const stats = useMemo(() => {
     void tick;
@@ -173,17 +193,117 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
     };
   }, [store, tick]);
 
+  // Scenario runners
+  const runScenario1 = () => {
+    resetQaRun(runtime);
+    spawnNormalEnemies(runtime, 5);
+  };
+
+  const runScenario2 = () => {
+    resetQaRun(runtime);
+    spawnNormalEnemies(runtime, 25);
+  };
+
+  const runScenario3 = () => {
+    resetQaRun(runtime);
+    spawnNormalEnemies(runtime, 48);
+  };
+
+  const runScenario4 = () => {
+    resetQaRun(runtime);
+    spawnNormalEnemies(runtime, 48);
+    startFrenzy(runtime);
+  };
+
+  const runScenario5 = () => {
+    resetQaRun(runtime);
+    prepareBossRound(runtime, 20); // Cindermaw Fire Boss
+    spawnNormalEnemies(runtime, 20);
+  };
+
+  const runScenario6 = () => {
+    resetQaRun(runtime);
+    switchQaCharacter("lux");
+    maxAllUpgrades();
+    spawnNormalEnemies(runtime, 35);
+  };
+
+  const runScenario7 = () => {
+    resetQaRun(runtime);
+    const allP: Array<RecoveryPickupType | SpecialPickupType> = [
+      "overclock_core", "tesla_cell", "toxic_relic", "phoenix_fragment",
+      "aegis_capacitor", "apex_lens", "echo_prism", "gravity_seed",
+      "medkit_emergency", "medkit_case", "shield_potion", "shield_battery"
+    ];
+    for (let i = 0; i < 36; i++) {
+      spawnPickup(runtime, allP[i % allP.length]);
+    }
+  };
+
+  const runScenario8 = () => {
+    resetQaRun(runtime);
+    maxAllUpgrades();
+    unlockSecretRecipe("storm_engine");
+    unlockSecretRecipe("venom_singularity");
+    unlockSecretRecipe("radiant_bastion");
+    unlockSecretRecipe("apex_echo");
+    spawnNormalEnemies(runtime, 48);
+  };
+
+  const runFullSuite = async () => {
+    if (isAuditing) return;
+    setIsAuditing(true);
+    setOpen(true);
+
+    const scenarios = [
+      { name: "1. Normal Gameplay (Low Foes)", setup: runScenario1 },
+      { name: "2. Medium Pressure (~25 Foes)", setup: runScenario2 },
+      { name: "3. Enemy Hard-Cap Stress (~48)", setup: runScenario3 },
+      { name: "4. 48 Foes + Frenzy Horde", setup: runScenario4 },
+      { name: "5. Boss Pressure (Cindermaw + 20)", setup: runScenario5 },
+      { name: "6. Projectile-Heavy Combat (Lux Max)", setup: runScenario6 },
+      { name: "7. 35+ Pickups / Relic Billboards", setup: runScenario7 },
+      { name: "8. Late-Game Max Upgrades + Status VFX", setup: runScenario8 },
+    ];
+
+    for (let i = 0; i < scenarios.length; i++) {
+      const s = scenarios[i];
+      setAuditProgress(`[${i + 1}/${scenarios.length}] Running: ${s.name}...`);
+      s.setup();
+      // Wait 600ms for entities to spawn and physics to settle
+      await new Promise((r) => setTimeout(r, 600));
+      // Measure for 3.0 seconds
+      await startScenarioBenchmark(s.name, 3);
+    }
+
+    setAuditProgress("Audit suite complete! Check console or below.");
+    setIsAuditing(false);
+
+    // Format markdown report
+    const reports = getAllScenarioReports();
+    let md = `| Scenario | Avg FPS | 1% Low FPS | Avg Frame Time | Draw Calls | Triangles | Geometries | Textures | Enemies | Pickups | Particles | DPR | Heap MB |\n`;
+    md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
+    for (const r of reports) {
+      md += `| ${r.scenarioName} | **${r.avgFps}** | **${r.onePercentLowFps}** | ${r.avgFrameTimeMs} ms | ${r.drawCallsAvg} | ${r.trianglesAvg.toLocaleString()} | ${r.geometries} | ${r.textures} | ${r.enemiesAvg} | ${r.pickupsAvg} | ${r.particlesAvg} | ${r.dpr} | ${r.memoryMb ?? "N/A"} |\n`;
+    }
+    console.log("=== BONKAGEDDON PERFORMANCE AUDIT V1 RESULTS ===\n" + md);
+  };
+
   if (!open) return null;
 
-  const button = (label: string, action: () => void, highlight = false) => (
+  const button = (label: string, action: () => void, highlight = false, disabled = false) => (
     <button
+      key={label}
       type="button"
       onClick={action}
+      disabled={disabled}
       style={highlight ? { borderColor: "#00e5ff", background: "rgba(0, 229, 255, 0.18)" } : undefined}
     >
       {label}
     </button>
   );
+
+  const fpsColor = perf.avgFps >= 55 ? "#4ade80" : perf.avgFps >= 40 ? "#fbbf24" : "#f87171";
 
   return (
     <aside className="dev-tools" style={{ left: position.x, top: position.y }}>
@@ -195,9 +315,84 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
           };
         }}
       >
-        <strong>BONKAGEDDON DEV QA</strong>
+        <strong>BONKAGEDDON DEV QA & PERF AUDIT</strong>
         <span>F8</span>
       </header>
+
+      {/* PERFORMANCE INSTRUMENTATION V1 */}
+      <section className="perf-section">
+        <h3 style={{ color: "#00e5ff", display: "flex", justifyContent: "space-between" }}>
+          <span>Performance Probe (V1)</span>
+          <span style={{ color: fpsColor }}>{perf.fps} FPS</span>
+        </h3>
+        <div className="dev-tools-grid">
+          <span>FPS (Cur / Avg)</span>
+          <b>
+            <span style={{ color: fpsColor }}>{perf.fps}</span> / {perf.avgFps}
+          </b>
+          <span>1% Low FPS</span>
+          <b style={{ color: perf.onePercentLowFps >= 45 ? "#4ade80" : "#f87171" }}>
+            {perf.onePercentLowFps} FPS
+          </b>
+          <span>Frame Time</span>
+          <b>{perf.frameTimeMs} ms</b>
+          <span>Draw Calls</span>
+          <b>{perf.drawCalls}</b>
+          <span>Triangles</span>
+          <b>{perf.triangles.toLocaleString()}</b>
+          <span>Geometries / Textures</span>
+          <b>{perf.geometries} / {perf.textures}</b>
+          <span>Entities (E/P/K/VFX)</span>
+          <b>
+            E:{perf.enemies} P:{perf.projectiles} K:{perf.pickups} V:{perf.particles}
+          </b>
+          <span>DPR / Heap</span>
+          <b>{perf.dpr}x / {perf.memoryMb ? `${perf.memoryMb} MB` : "N/A (unexposed)"}</b>
+        </div>
+
+        <div style={{ marginTop: "0.55rem" }} className="dev-tools-buttons">
+          {button(
+            isAuditing ? "Auditing..." : "Run Full 8-Scenario Suite",
+            runFullSuite,
+            true,
+            isAuditing
+          )}
+          {button("Sample 3s (Current)", () => startScenarioBenchmark("Custom Snapshot", 3), false, isAuditing)}
+        </div>
+
+        {auditProgress && (
+          <div style={{ marginTop: "0.35rem", fontSize: "0.68rem", color: "#fbbf24" }}>
+            {auditProgress}
+          </div>
+        )}
+
+        {lastReport && (
+          <div className="perf-last-report">
+            <div style={{ fontWeight: 800, color: "#38bdf8" }}>Last: {lastReport.scenarioName}</div>
+            <div>
+              Avg FPS: <b>{lastReport.avgFps}</b> &bull; 1% Low: <b>{lastReport.onePercentLowFps}</b> &bull; Time: <b>{lastReport.avgFrameTimeMs}ms</b>
+            </div>
+            <div>
+              Calls: <b>{lastReport.drawCallsAvg}</b> &bull; Tris: <b>{lastReport.trianglesAvg}</b> &bull; Foes: <b>{lastReport.enemiesAvg}</b>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Reproducible Scenario Presets */}
+      <section>
+        <h3>Audit Scenario Presets</h3>
+        <div className="dev-tools-buttons">
+          {button("S1: Low Foes (5)", runScenario1)}
+          {button("S2: Med Foes (25)", runScenario2)}
+          {button("S3: Hard Cap (48)", runScenario3)}
+          {button("S4: 48 + Frenzy", runScenario4)}
+          {button("S5: Boss Pressure", runScenario5)}
+          {button("S6: Projectile Swarm", runScenario6)}
+          {button("S7: 35+ Pickups", runScenario7)}
+          {button("S8: Late Max Upgrades", runScenario8)}
+        </div>
+      </section>
 
       {/* Live Simulation & Session State */}
       <section className="dev-tools-grid">

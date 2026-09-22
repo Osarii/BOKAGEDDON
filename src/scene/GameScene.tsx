@@ -10,6 +10,7 @@ import { BossRenderer } from "./BossRenderer";
 import { StatusParticleManager } from "./StatusParticleManager";
 import { CombatManager } from "./CombatManager";
 import { PickupManager } from "./PickupManager";
+import { PerformanceProbe } from "./PerformanceProbe";
 import { useGameStore } from "../store/gameStore";
 import type { GameRuntime } from "../game/runtime";
 
@@ -89,6 +90,9 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
 
         {/* Throttled 1Hz timer updater */}
         <SimulationTimer runtimeRef={runtimeRef} />
+
+        {/* DEV-only performance instrumentation probe */}
+        {import.meta.env.DEV && <PerformanceProbe runtimeRef={runtimeRef} />}
       </Canvas>
     </div>
   );

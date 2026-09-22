@@ -74,3 +74,22 @@
   border-color: #00e5ff;
   background: rgba(0, 229, 255, 0.14);
 }
+
+.perf-section {
+  background: rgba(0, 229, 255, 0.04);
+  border-left: 3px solid #00e5ff;
+}
+
+.perf-last-report {
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.perf-last-report b {
+  color: #38bdf8;
+}
