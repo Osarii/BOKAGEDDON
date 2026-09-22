@@ -10,7 +10,7 @@ import type { WeaponType, CharacterId, EnemyType } from "../types/game";
 import { isBossType } from "../game/progression";
 import {
   findValidArenaPosition,
-  isArenaPositionValid,
+  isArenaProjectilePathBlocked,
   isArenaSegmentBlocked,
 } from "../game/arenaLayout";
 
@@ -1060,13 +1060,23 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     // =========================================================================
     for (let p = runtime.projectiles.length - 1; p >= 0; p--) {
       const proj = runtime.projectiles[p];
+      const prevX = proj.x;
+      const prevZ = proj.z;
       proj.x += proj.vx * delta;
       proj.z += proj.vz * delta;
       proj.lifetime += delta;
 
-      if (!isArenaPositionValid(proj.x, proj.z, proj.radius)) {
-        runtime.projectiles.splice(p, 1);
-        continue;
+      if (isArenaProjectilePathBlocked(prevX, prevZ, proj.x, proj.z, proj.radius)) {
+        if (proj.isRiftDisc && !proj.isReturning) {
+          proj.x = prevX;
+          proj.z = prevZ;
+          proj.isReturning = true;
+          proj.hitEnemyIds = [];
+          proj.pierce = 99;
+        } else {
+          runtime.projectiles.splice(p, 1);
+          continue;
+        }
       }
 
       // RIFT: Outbound disc reverses direction toward player at half lifetime

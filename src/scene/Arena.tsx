@@ -9,6 +9,7 @@ import { ARENA_V2_DECALS, ARENA_V2_OBSTACLES, type ArenaAssetKey } from "../game
 
 const PILLAR_COUNT = 12;
 const EMBER_COUNT = 36;
+type ArenaDecalAssetKey = "warningRingDecal" | "laneConnectorDecal";
 
 export const Arena: React.FC = () => {
   const embersRef = useRef<THREE.Points>(null);
@@ -63,6 +64,50 @@ export const Arena: React.FC = () => {
       laneConnectorDecal: arenaTextures[9],
     } satisfies Record<ArenaAssetKey | "warningRingDecal" | "laneConnectorDecal", THREE.Texture>;
   }, [arenaTextures]);
+
+  const obstacleBaseGeometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
+  const obstacleVisualGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  const decalGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  const obstacleBaseMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#111827", roughness: 0.72, metalness: 0.28 }),
+    []
+  );
+  const decalMaterials = useMemo(
+    () =>
+      ({
+        warningRingDecal: new THREE.MeshBasicMaterial({
+          map: textureByKey.warningRingDecal,
+          transparent: true,
+          opacity: 0.52,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+        laneConnectorDecal: new THREE.MeshBasicMaterial({
+          map: textureByKey.laneConnectorDecal,
+          transparent: true,
+          opacity: 0.42,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+      }) satisfies Record<ArenaDecalAssetKey, THREE.MeshBasicMaterial>,
+    [textureByKey]
+  );
+  const obstacleVisualMaterials = useMemo(() => {
+    return Object.fromEntries(
+      (Object.keys(textureByKey) as Array<ArenaAssetKey | ArenaDecalAssetKey>)
+        .filter((key): key is ArenaAssetKey => key !== "warningRingDecal" && key !== "laneConnectorDecal")
+        .map((key) => [
+          key,
+          new THREE.MeshBasicMaterial({
+            map: textureByKey[key],
+            transparent: true,
+            alphaTest: 0.08,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          }),
+        ])
+    ) as Record<ArenaAssetKey, THREE.MeshBasicMaterial>;
+  }, [textureByKey]);
 
   // Deterministic initial particle distribution
   const [emberPositions, initialData] = useMemo(() => {
@@ -347,36 +392,33 @@ export const Arena: React.FC = () => {
       {/* Arena V2 floor markings: central core, sectors, and open connector lanes */}
       {ARENA_V2_DECALS.map((decal) => (
         <group key={decal.id} position={[decal.x, 0.018, decal.z]} rotation={[0, decal.rotation, 0]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[decal.width, decal.depth]} />
-            <meshBasicMaterial
-              map={textureByKey[decal.asset]}
-              transparent
-              opacity={decal.asset === "warningRingDecal" ? 0.52 : 0.42}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
+          <mesh
+            geometry={decalGeometry}
+            material={decalMaterials[decal.asset]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            scale={[decal.width, decal.depth, 1]}
+          />
         </group>
       ))}
 
       {/* Arena V2 landmarks and blockers driven by shared gameplay obstacle data */}
       {ARENA_V2_OBSTACLES.map((obstacle) => (
         <group key={obstacle.id} position={[obstacle.x, 0, obstacle.z]} rotation={[0, obstacle.rotation, 0]}>
-          <mesh castShadow receiveShadow position={[0, Math.min(0.35, obstacle.height * 0.16), 0]}>
-            <boxGeometry args={[obstacle.width, Math.min(0.7, obstacle.height * 0.32), obstacle.depth]} />
-            <meshStandardMaterial color="#111827" roughness={0.72} metalness={0.28} />
-          </mesh>
-          <mesh castShadow position={[0, obstacle.height * 0.56, obstacle.depth / 2 + 0.035]}>
-            <planeGeometry args={[obstacle.width * 1.08, obstacle.height * 1.08]} />
-            <meshBasicMaterial
-              map={textureByKey[obstacle.asset]}
-              transparent
-              alphaTest={0.08}
-              side={THREE.DoubleSide}
-              depthWrite={false}
-            />
-          </mesh>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={obstacleBaseGeometry}
+            material={obstacleBaseMaterial}
+            position={[0, Math.min(0.35, obstacle.height * 0.16), 0]}
+            scale={[obstacle.width, Math.min(0.7, obstacle.height * 0.32), obstacle.depth]}
+          />
+          <mesh
+            castShadow
+            geometry={obstacleVisualGeometry}
+            material={obstacleVisualMaterials[obstacle.asset]}
+            position={[0, obstacle.height * 0.56, obstacle.depth / 2 + 0.035]}
+            scale={[obstacle.width * 1.08, obstacle.height * 1.08, 1]}
+          />
         </group>
       ))}
 

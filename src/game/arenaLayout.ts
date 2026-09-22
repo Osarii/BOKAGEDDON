@@ -105,6 +105,31 @@ export function isArenaPositionValid(x: number, z: number, radius = 0.6): boolea
   return !ARENA_V2_OBSTACLES.some((obstacle) => collidesObstacle(x, z, radius, obstacle));
 }
 
+export function isArenaProjectilePathBlocked(
+  x1: number,
+  z1: number,
+  x2: number,
+  z2: number,
+  radius = 0.2
+): boolean {
+  const length = Math.hypot(x2 - x1, z2 - z1);
+  const steps = Math.max(2, Math.ceil(length / 0.5));
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = x1 + (x2 - x1) * t;
+    const z = z1 + (z2 - z1) * t;
+    if (Math.hypot(x, z) > ARENA_BOUNDARY_LIMIT - radius) return true;
+    if (
+      ARENA_V2_OBSTACLES.some(
+        (obstacle) => obstacle.blocksProjectiles && collidesObstacle(x, z, radius, obstacle)
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function resolveArenaCollision(x: number, z: number, radius = 0.6): { x: number; z: number } {
   let nextX = x;
   let nextZ = z;
@@ -204,19 +229,5 @@ export function isArenaSegmentBlocked(
   z2: number,
   radius = 0.2
 ): boolean {
-  const length = Math.hypot(x2 - x1, z2 - z1);
-  const steps = Math.max(2, Math.ceil(length / 1.2));
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const x = x1 + (x2 - x1) * t;
-    const z = z1 + (z2 - z1) * t;
-    if (
-      ARENA_V2_OBSTACLES.some(
-        (obstacle) => obstacle.blocksProjectiles && collidesObstacle(x, z, radius, obstacle)
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return isArenaProjectilePathBlocked(x1, z1, x2, z2, radius);
 }
