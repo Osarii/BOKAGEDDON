@@ -5,24 +5,22 @@
 BONKAGEDDON is an original 3D survivor-like videogame built for an academic React Quiz.
 
 - **Core Gameplay Scope**:
-  - 5 playable characters: Bonk, Byte, Tank, Nova, Hex
-  - 1 circular arena (radius 30, boundary 28.8)
-  - 4 normal enemy archetypes: Slime, Runner, Brute, Shooter
-  - Rotating boss roster:
-    - Round 10: Bonklord
-    - Round 20: Cindermaw
-    - Round 30: Stormcoil
-    - Round 40: Venomatrix
-    - Round 50: Cryovex
-    - Roster repeats every 50 rounds at the next boss tier
-  - 5 starting weapons: Hammer, Energy Orb, Axe, Nova Burst, Hex Chain + Weapon Synergies
-  - 8 original/base upgrades plus 4 elemental upgrade paths (Fire, Poison, Shock, Frost)
-  - Permanent boss-exclusive special passives (Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment)
-  - Chest reward system (Common, Rare, Legendary)
-  - Frenzy runtime horde mode
-  - Shield absorption & recovery pickups system
-  - local JSON Server leaderboard
-  - Endless arcade survival loop
+  - Current implemented baseline:
+    - 5 playable characters: Bonk, Byte, Tank, Nova, Hex
+    - 5 starting weapons: Hammer, Energy Orb, Axe, Nova Burst, Hex Chain + Weapon Synergies
+    - 1 circular arena (radius 30, boundary 28.8)
+    - 4 normal enemy archetypes: Slime, Runner, Brute, Shooter
+    - Rotating boss roster: Round 10 Bonklord, Round 20 Cindermaw, Round 30 Stormcoil, Round 40 Venomatrix, Round 50 Cryovex (repeats every 50 rounds)
+    - 12 normal upgrades (8 base + 4 elemental)
+    - 4 boss-exclusive special passives (Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment)
+    - Chest reward system (Common, Rare, Legendary)
+    - Frenzy runtime horde mode
+    - Shield absorption & recovery pickups system
+    - local JSON Server leaderboard
+    - Endless arcade survival loop
+  - Approved active expansion:
+    - 3 new playable survivors: Rift, Fuse, Lux
+    - Target after completion: 8 playable survivors, 8 signature weapons, 8 signature weapon synergies, 20 normal upgrade paths, 8 special relics, 4 secret passive fusions.
 
 - **Original Identity**:
   All assets, characters, names, UI, and mechanics must remain original.
@@ -590,6 +588,13 @@ CURRENT_TASK.md
 
 docs/DECISIONS.md
 → durable architectural decisions.
+
+Specific Subsystem Contracts:
+- playable survivor work → docs/PLAYABLE_CHARACTER_CONTRACT.md
+- progression work → docs/PROGRESSION_CONTRACT.md
+- loot/relic work → docs/LOOT_RELIC_CONTRACT.md
+- balancing work → docs/BALANCE_CONTRACT.md
+- DEV QA work → docs/DEV_QA_CONTRACT.md
 
 Do not duplicate large amounts of information across all four documents.
 
