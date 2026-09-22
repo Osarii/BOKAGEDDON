@@ -57,10 +57,10 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
         shadows
         dpr={[1, 1.25]}
         camera={{
-          position: [0, 16.5, 14.5],
+          position: [0, 17.8, 15.8],
           fov: 48,
           near: 0.1,
-          far: 140,
+          far: 180,
         }}
         gl={{
           antialias: true,
@@ -68,7 +68,7 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
         }}
       >
         <color attach="background" args={["#080b12"]} />
-        <fog attach="fog" args={["#080b12", 36, 76]} />
+        <fog attach="fog" args={["#080b12", 48, 108]} />
 
         <Lighting />
 

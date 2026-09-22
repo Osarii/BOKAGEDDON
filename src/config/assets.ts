@@ -95,6 +95,18 @@ export const ASSETS = {
     radiantBastion: "/assets/v3/secret-passives/radiant-bastion.svg",
     apexEcho: "/assets/v3/secret-passives/apex-echo.svg",
   },
+  arenaV2: {
+    wallStraight: "/assets/arena-v2/wall-straight.webp",
+    wallCorner: "/assets/arena-v2/wall-corner.webp",
+    barricadeShort: "/assets/arena-v2/barricade-short.webp",
+    reactorBlock: "/assets/arena-v2/reactor-block.webp",
+    crystalCluster: "/assets/arena-v2/crystal-cluster.webp",
+    defensePlatform: "/assets/arena-v2/defense-platform.webp",
+    energyPylon: "/assets/arena-v2/energy-pylon.webp",
+    sectorBeacon: "/assets/arena-v2/sector-beacon.webp",
+    warningRingDecal: "/assets/arena-v2/warning-ring-decal.webp",
+    laneConnectorDecal: "/assets/arena-v2/lane-connector-decal.webp",
+  },
   ui: {
     logo: "/assets/ui/bonkageddon-logo.svg",
     relicVaultBanner: "/assets/v3/ui/relic-vault-banner.svg",

@@ -92,3 +92,22 @@ Source pack: `BONKAGEDDON_ASSET_PACK_V2_INTEGRATION_READY` (23 SVG assets).
 | `ASSETS.ui.relicVaultBanner` | `/assets/v3/ui/relic-vault-banner.svg` | Integrated: Legendary Relic Vault modal banner branding in ChestRewardOverlay |
 
 All 23 expansion SVG assets are verified with transparent backgrounds, centralized in `src/config/assets.ts`, and cleanly supersede previous temporary procedural/Lucide fallbacks without runtime `/public` path references.
+
+## Arena V2 Environmental Assets
+
+Source pack: `BONKAGEDDON_ARENA_V2_ASSET_PACK_READY` (10 WebP assets with transparency).
+
+| Key | Public path | Status |
+| --- | --- | --- |
+| `ASSETS.arenaV2.wallStraight` | `/assets/arena-v2/wall-straight.webp` | Integrated: Industrial/Reactor solid wall blockers |
+| `ASSETS.arenaV2.wallCorner` | `/assets/arena-v2/wall-corner.webp` | Integrated: Industrial ruins corner blocker |
+| `ASSETS.arenaV2.barricadeShort` | `/assets/arena-v2/barricade-short.webp` | Integrated: Industrial/Defense tactical blockers |
+| `ASSETS.arenaV2.reactorBlock` | `/assets/arena-v2/reactor-block.webp` | Integrated: Energy Reactor sector landmark blocker |
+| `ASSETS.arenaV2.crystalCluster` | `/assets/arena-v2/crystal-cluster.webp` | Integrated: Corrupted Crystal sector landmark blockers |
+| `ASSETS.arenaV2.defensePlatform` | `/assets/arena-v2/defense-platform.webp` | Integrated: Abandoned Defense sector landmark blocker |
+| `ASSETS.arenaV2.energyPylon` | `/assets/arena-v2/energy-pylon.webp` | Integrated: major navigation pylons |
+| `ASSETS.arenaV2.sectorBeacon` | `/assets/arena-v2/sector-beacon.webp` | Integrated: sector edge beacons |
+| `ASSETS.arenaV2.warningRingDecal` | `/assets/arena-v2/warning-ring-decal.webp` | Integrated: central/sector floor markings |
+| `ASSETS.arenaV2.laneConnectorDecal` | `/assets/arena-v2/lane-connector-decal.webp` | Integrated: open lane connector markings |
+
+Collision and spawn validation are driven by `src/game/arenaLayout.ts`; image transparency is visual-only.

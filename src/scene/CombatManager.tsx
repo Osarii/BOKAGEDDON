@@ -8,6 +8,11 @@ import { gameAudio } from "../audio/gameAudio";
 import { hasSynergy } from "../game/weaponSynergies";
 import type { WeaponType, CharacterId, EnemyType } from "../types/game";
 import { isBossType } from "../game/progression";
+import {
+  findValidArenaPosition,
+  isArenaPositionValid,
+  isArenaSegmentBlocked,
+} from "../game/arenaLayout";
 
 function calculateOutgoingDamage(
   baseHitDamage: number,
@@ -822,13 +827,16 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           for (let m = 0; m < multishotCount; m++) {
             const offsetDist = m === 0 ? 0 : 0.8 + m * 0.4;
             const angle = baseAngle + (m - (multishotCount - 1) / 2) * spreadArc;
-            const mx = targetX + Math.cos(angle) * offsetDist;
-            const mz = targetZ + Math.sin(angle) * offsetDist;
+            const minePos = findValidArenaPosition(
+              targetX + Math.cos(angle) * offsetDist,
+              targetZ + Math.sin(angle) * offsetDist,
+              0.75
+            );
 
             runtime.delayedBursts.push({
               id: runtime.nextEntityId++,
-              x: mx,
-              z: mz,
+              x: minePos.x,
+              z: minePos.z,
               delayTimer: 0.65,
               damage: Math.round(baseDmg * (isCrit ? baseCritMultiplier : 1)),
               radius: mineRadius,
@@ -841,9 +849,9 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               runtime.particles.push({
                 id: runtime.nextEntityId++,
                 type: "hit",
-                x: mx,
+                x: minePos.x,
                 y: 0.2,
-                z: mz,
+                z: minePos.z,
                 vx: 0,
                 vy: 0.8,
                 vz: 0,
@@ -864,6 +872,9 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             const e = runtime.enemies[i];
             const distSq = (e.x - targetX) ** 2 + (e.z - targetZ) ** 2;
             if (distSq < 0.3) {
+              if (isArenaSegmentBlocked(playerPos.x, playerPos.z, e.x, e.z, 0.2)) {
+                break;
+              }
               const baseDmg = weaponConfig.baseDamage * damageMultiplier;
               const hitDmg = calculateOutgoingDamage(baseDmg, e, isCrit, baseCritMultiplier, upgrades, passives, secretPassives);
               e.health -= hitDmg;
@@ -893,7 +904,10 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
                   if (o === i) continue;
                   const other = runtime.enemies[o];
                   const dSq = (other.x - e.x) ** 2 + (other.z - e.z) ** 2;
-                  if (dSq < secondTargetDistSq) {
+                  if (
+                    dSq < secondTargetDistSq &&
+                    !isArenaSegmentBlocked(e.x, e.z, other.x, other.z, 0.2)
+                  ) {
                     secondTargetDistSq = dSq;
                     secondIdx = o;
                   }
@@ -1011,7 +1025,10 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         for (let i = 0; i < runtime.enemies.length; i++) {
           const e = runtime.enemies[i];
           const distSq = (e.x - burst.x) ** 2 + (e.z - burst.z) ** 2;
-          if (distSq <= burstRadiusSq) {
+          if (
+            distSq <= burstRadiusSq &&
+            (!burst.isFuseMine || !isArenaSegmentBlocked(burst.x, burst.z, e.x, e.z, 0.25))
+          ) {
             e.health -= burst.damage;
             e.hitFlashTimer = 0.15;
             applyElementalOnHit(e, upgrades, passives, secretPassives, runtime);
@@ -1046,6 +1063,11 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
       proj.x += proj.vx * delta;
       proj.z += proj.vz * delta;
       proj.lifetime += delta;
+
+      if (!isArenaPositionValid(proj.x, proj.z, proj.radius)) {
+        runtime.projectiles.splice(p, 1);
+        continue;
+      }
 
       // RIFT: Outbound disc reverses direction toward player at half lifetime
       if (proj.isRiftDisc) {

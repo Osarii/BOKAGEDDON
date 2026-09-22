@@ -9,7 +9,7 @@ interface CameraControllerProps {
 }
 
 // Module-scoped reusable vector instances to avoid per-frame GC allocations
-const CAMERA_OFFSET = new THREE.Vector3(0, 16.5, 14.5);
+const CAMERA_OFFSET = new THREE.Vector3(0, 17.8, 15.8);
 const DESIRED_CAMERA_POS = new THREE.Vector3();
 const DESIRED_LOOK_TARGET = new THREE.Vector3();
 const CAMERA_FOLLOW_SPEED = 7.5;
