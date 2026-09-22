@@ -137,3 +137,32 @@
   2. Synchronize visible UI indicators (HUD banner notification) at low frequency rather than per-frame.
   3. Elevate enemy movement speed and spawn pacing during Frenzy intervals.
 - **Consequences**: High-intensity survival spikes at full 60 FPS without garbage collection or React thrashing.
+
+## ADR-025: Expanded Progression and Terminal Max-State Behavior
+- **Context**: Reaching maximum tiers on all normal upgrades previously resulted in an empty Level Up overlay loop, blocking game progression. In addition, 12 upgrade paths capped build variety prematurely around Round 18.
+- **Decision**:
+  1. Expand normal upgrade paths from 12 to 20 (MAX_UPGRADE_LEVEL = 5), adding Regeneration, Barrier Matrix, Area Amplifier, Field Medic, Boss Hunter, Execution Protocol, Critical Power, and Fortune.
+  2. Enforce continuous, uncapped numerical player leveling while preserving exact XP overflow.
+  3. When all available normal upgrades are maxed, clamp `pendingLevelUps = 0` and do not transition `gameStatus` to `"levelup"`.
+  4. Provide defensive cleanup in `LevelUpOverlay` so that any stale empty state clears cleanly upon resume.
+  5. Rebalance XP curve: `Math.round(85 * Math.pow(1.19, level - 1))`, shifting near-complete normal build targets to Rounds 35–50.
+- **Consequences**: Continuous endless progression, zero modal progression locks, and rich late-game build diversity.
+
+## ADR-026: Legendary Relic Vault and Secret Passive Fusion Architecture
+- **Context**: Legendary Chests previously offered standard upgrades, failing to differentiate late-game milestone rewards from normal level-ups. In addition, relic synergies were implicit rather than rewarded.
+- **Decision**:
+  1. Redesign Legendary Chests into dedicated Relic Vaults offering up to 3 non-maxed special relics (never normal upgrades) + grants +50 Shield, +35 HP, +500 Score.
+  2. Expand special relics from 4 to 8: add Aegis Capacitor, Apex Lens, Echo Prism, Gravity Seed (all max 5 stacks).
+  3. Add 4 binary Secret Passive Fusions (Storm Engine, Venom Singularity, Radiant Bastion, Apex Echo) evaluated in an event-driven manner when relic stacks change.
+  4. Keep locked recipes hidden from HUD; show prominent non-blocking unlock toasts and active icons once unlocked.
+  5. Provide automatic full-heal/shield/score fallback when all relics are maxed.
+- **Consequences**: Clear distinction between upgrades and relics, exciting emergent build combos, and robust terminal reward states.
+
+## ADR-027: Eight-Survivor Signature Weapon Roster
+- **Context**: A 5-character roster limited tactical diversity across survivor playstyles.
+- **Decision**:
+  1. Expand roster to 8 survivors by adding RIFT (Phase Disc Skirmisher / Rift Disc / Event Horizon), FUSE (Demolition Zone Controller / Pulse Mine / Chain Reaction), and LUX (Precision Light Striker / Light Lance / Solar Refraction).
+  2. Implement each weapon with distinct combat geometry: RIFT (piercing & returning disc), FUSE (delayed positional cluster mine), LUX (instant hitscan beam with critical refraction).
+  3. Render survivors with distinct procedural 3D silhouettes, attack anticipation, movement lean, and recovery animations.
+  4. Maintain designed Lucide React and CSS fallback presentations in `CharacterCard` and HUD until the final external art pass.
+- **Consequences**: 8 distinct gameplay identities with signature weapons and synergies, fully compatible with all 20 upgrades, 8 relics, and 4 secret passives.

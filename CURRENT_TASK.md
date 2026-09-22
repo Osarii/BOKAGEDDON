@@ -4,7 +4,7 @@
 Progression Expansion, Balance, Relics, Secret Passives & Roster Expansion.
 
 ## Status
-Implementation in progress.
+Implementation complete. Manual balance/runtime validation pending. Final external asset pass pending.
 
 ## Scope
 1. **Max-Upgrade Progression Lock Fix**:

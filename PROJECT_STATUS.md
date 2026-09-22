@@ -102,8 +102,19 @@ Post-Merge Integration Complete & Verified
   - Permanent special passives stored in `gameStore.passives` with up to 5 stacks: Overclock Core (+15% attack speed/stack), Tesla Cell (chain-lightning chance, 20% at stack 1, +10% per stack, cap 50%), Toxic Relic (enables poison, +25% poison DoT/stack), and Phoenix Fragment (stackable revive charges restoring 40% max HP with 2s temporary invulnerability).
   - Frenzy Mode: runtime horde mode featuring heightened spawn pressure and event-driven low-frequency HUD banner notifications.
 
+- **Workstream: Progression Expansion, Balance, Relics, Secret Passives & Roster Expansion**:
+  - Max-upgrade progression lock fixed: continuous uncapped player leveling, exact XP overflow preservation, safe clearing of impossible pending level-up selections, empty fallback defensive resume.
+  - Expanded normal upgrades from 12 to 20 paths (MAX_UPGRADE_LEVEL = 5): added `regeneration`, `barrier`, `area`, `recovery`, `boss_hunter`, `executioner`, `precision`, `fortune` with full math-to-UI synchronization.
+  - Redesigned Legendary Chests into dedicated Relic Vaults: offering up to 3 non-maxed special relics (never normal upgrades) + stat bonuses (+50 Shield, +35 HP, +500 Score). Automatic heal/shield/score fallback when all relics are maxed.
+  - Expanded special relics from 4 to 8: retained Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment; added Aegis Capacitor (+15 max shield/stack), Apex Lens (+6% boss damage/stack), Echo Prism (+0.10x crit damage/stack), Gravity Seed (+8% area, +10% magnet/stack). Max stack = 5.
+  - Secret passive fusions (4): event-driven binary unlocks with non-blocking toast notifications: Storm Engine, Venom Singularity, Radiant Bastion, Apex Echo.
+  - Expanded playable roster from 5 to 8 survivors: added `rift` (Rift Disc, synergy Event Horizon), `fuse` (Pulse Mine, synergy Chain Reaction), and `lux` (Light Lance, synergy Solar Refraction) with procedural 3D models, animation timing, and designed Lucide React fallback presentation.
+  - General balance pass: XP curve `Math.round(85 * Math.pow(1.19, level - 1))`, normal enemy HP scaling 9%/round, damage scaling +0.5/round, boss tier scaling 60% HP / 40% damage, Fortune-based chest drop scaling.
+  - Expanded F8 Developer QA harness: controls for max/clear upgrades, XP after max, chest spawning, 8 relics (+1/reset), 4 secret recipe triggers, 8-character roster quick switch, live combat math inspector, and clean run reset.
+
 ## Current
-- Playable Character Animation & Combat Presentation (Phase 2): Implementation complete; manual runtime visual validation is pending.
+- Progression Expansion, Balance, Relics, Secret Passives & Roster Expansion: Implementation complete; manual balance and runtime visual validation pending. Final external art asset pass deferred.
+
 
 ## Next
 - Full Integration, End-to-End Verification & Academic Rubric Audit

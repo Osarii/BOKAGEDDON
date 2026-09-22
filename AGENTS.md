@@ -5,22 +5,20 @@
 BONKAGEDDON is an original 3D survivor-like videogame built for an academic React Quiz.
 
 - **Core Gameplay Scope**:
-  - Current implemented baseline:
-    - 5 playable characters: Bonk, Byte, Tank, Nova, Hex
-    - 5 starting weapons: Hammer, Energy Orb, Axe, Nova Burst, Hex Chain + Weapon Synergies
-    - 1 circular arena (radius 30, boundary 28.8)
-    - 4 normal enemy archetypes: Slime, Runner, Brute, Shooter
-    - Rotating boss roster: Round 10 Bonklord, Round 20 Cindermaw, Round 30 Stormcoil, Round 40 Venomatrix, Round 50 Cryovex (repeats every 50 rounds)
-    - 12 normal upgrades (8 base + 4 elemental)
-    - 4 boss-exclusive special passives (Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment)
-    - Chest reward system (Common, Rare, Legendary)
-    - Frenzy runtime horde mode
-    - Shield absorption & recovery pickups system
-    - local JSON Server leaderboard
-    - Endless arcade survival loop
-  - Approved active expansion:
-    - 3 new playable survivors: Rift, Fuse, Lux
-    - Target after completion: 8 playable survivors, 8 signature weapons, 8 signature weapon synergies, 20 normal upgrade paths, 8 special relics, 4 secret passive fusions.
+  - 8 playable survivors: Bonk, Byte, Tank, Nova, Hex, Rift, Fuse, Lux
+  - 8 signature weapons: Hammer, Energy Orb, Axe, Nova Burst, Hex Chain, Rift Disc, Pulse Mine, Light Lance
+  - 8 signature weapon synergies: Meteor Slam, Prism Barrage, Cyclone Edge, Supernova, Hexstorm, Event Horizon, Chain Reaction, Solar Refraction
+  - 20 normal upgrades (MAX_UPGRADE_LEVEL = 5)
+  - 8 special relics: Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment, Aegis Capacitor, Apex Lens, Echo Prism, Gravity Seed
+  - 4 secret passive fusions: Storm Engine, Venom Singularity, Radiant Bastion, Apex Echo
+  - Chest reward system: Common / Rare normal-upgrade chests, Legendary Relic Vault
+  - 1 circular arena (radius 30, boundary 28.8)
+  - 4 normal enemy archetypes: Slime, Runner, Brute, Shooter
+  - Rotating boss roster: Round 10 Bonklord, Round 20 Cindermaw, Round 30 Stormcoil, Round 40 Venomatrix, Round 50 Cryovex (repeats every 50 rounds)
+  - Frenzy runtime horde mode
+  - Shield absorption & recovery pickups system
+  - local JSON Server leaderboard
+  - Endless arcade survival loop
 
 - **Original Identity**:
   All assets, characters, names, UI, and mechanics must remain original.

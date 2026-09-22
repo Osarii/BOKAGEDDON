@@ -8,12 +8,15 @@ Players choose a hero, navigate a hazardous circular arena, auto-cast weapon att
 
 ## Gameplay & Features
 
-- **5 Playable Characters & Weapons**:
-  - **BONK (Balanced Bruiser)**: Armed with the Hammer, triggering circular shockwave slams with area-of-effect damage and knockback.
-  - **BYTE (Fast Ranged Specialist)**: Armed with the Energy Orb, launching high-velocity homing projectiles with multi-shot spreads.
-  - **TANK (Slow Armored Juggernaut)**: Armed with dual Orbital Axes that continuously orbit and cleave contacting enemies.
-  - **NOVA (Astral Caster)**: Armed with Nova Burst, releasing radiating cosmic bursts that expand outward.
-  - **HEX (Void Controller)**: Armed with Hex Chain, unleashing arcing void chains that tether and damage enemy clusters.
+- **8 Playable Survivors & Signature Weapons**:
+  - **BONK (Balanced Bruiser)**: Armed with the Hammer, triggering circular shockwave slams with area-of-effect damage and knockback (Synergy: Meteor Slam).
+  - **BYTE (Fast Ranged Specialist)**: Armed with the Energy Orb, launching high-velocity homing projectiles with multi-shot spreads (Synergy: Prism Barrage).
+  - **TANK (Slow Armored Juggernaut)**: Armed with dual Orbital Axes that continuously orbit and cleave contacting enemies (Synergy: Cyclone Edge).
+  - **NOVA (Astral Caster)**: Armed with Nova Burst, releasing radiating cosmic bursts that expand outward (Synergy: Supernova).
+  - **HEX (Void Controller)**: Armed with Hex Chain, unleashing arcing void chains that tether and damage enemy clusters (Synergy: Hexstorm).
+  - **RIFT (Phase Disc Skirmisher)**: Armed with Rift Disc, throwing a piercing dimensional disc that tears through enemies before returning to the player (Synergy: Event Horizon).
+  - **FUSE (Demolition Zone Controller)**: Armed with Pulse Mine, planting delayed area-denial mines that detonate across enemy clusters (Synergy: Chain Reaction).
+  - **LUX (Precision Light Striker)**: Armed with Light Lance, firing instantaneous precision beams that cut directly through priority targets (Synergy: Solar Refraction).
 - **4 Normal Enemy Archetypes + 5 Rotating Bosses**:
   - **Slime Bot**: Bouncy purple dome with organic squash-and-stretch wobble and official face decal.
   - **Runner Drone**: Supersonic orange stealth dart with swept wings, top fin, and jet exhaust.
@@ -26,12 +29,14 @@ Players choose a hero, navigate a hazardous circular arena, auto-cast weapon att
     - **Round 40 — VENOMATRIX**: Acidic arachnid launching toxic projectile volleys and corrosive pools.
     - **Round 50 — CRYOVEX**: Glacial colossus summoning frost novae, homing ice shards, and blizzard zones.
     - *Boss cycle repeats every 50 rounds at incremented boss tiers with scaled HP and damage.*
-- **Progressive Upgrades, Elemental Paths & Permanent Passives**:
-  - **12 Total Upgrade Paths**: 8 base upgrades (Damage, Haste, Speed, Vitality, Armor, Magnet, Critical, Multishot) plus 4 elemental paths (Fire, Poison, Shock, Frost) with visual status effects.
-  - **Permanent Boss-Exclusive Passives**: Boss defeats drop loot from `BOSS_LOOT_TABLE` which can yield permanent passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`) stacking up to 5 times in `gameStore.passives`.
-  - **Chest Reward System**: Tiered reward chests (Common, Rare, Legendary) drop from boss defeats (guaranteed Legendary) and normal enemies (2.5% chance or every 20 kills), granting upgrade choice selections and rarity bonuses.
+- **Progressive Upgrades, Elemental Paths, Relics & Secret Passives**:
+  - **20 Total Normal Upgrade Paths**: 8 base upgrades (Damage, Haste, Speed, Vitality, Armor, Magnet, Critical, Multishot), 4 elemental paths (Fire, Poison, Shock, Frost), and 8 advanced paths (Regeneration, Barrier Matrix, Area Amplifier, Field Medic, Boss Hunter, Execution Protocol, Critical Power, Fortune). Max tier is 5 for all paths (up to 100 tiers total).
+  - **8 Stackable Special Relics**: Permanent run modifiers stacking up to 5 times (Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment, Aegis Capacitor, Apex Lens, Echo Prism, Gravity Seed).
+  - **4 Secret Passive Fusions**: Event-driven recipe unlocks: Storm Engine (Overclock Core >= 2 + Tesla Cell >= 2), Venom Singularity (Toxic Relic >= 2 + Gravity Seed >= 2), Radiant Bastion (Phoenix Fragment >= 1 + Aegis Capacitor >= 2), and Apex Echo (Apex Lens >= 2 + Echo Prism >= 2).
+  - **Chest Reward System & Legendary Relic Vault**: Common and Rare chests offer valid normal upgrade choices (Rare adds +25 Shield). Legendary Chest is a dedicated Relic Vault offering a choice of up to 3 non-maxed relics (+50 Shield, +35 HP, +500 Score) with automatic heal/shield/score fallback when all relics are maxed.
   - **Frenzy Mode**: High-intensity horde mode with increased enemy pressure and a dedicated HUD timer.
-  - **Exact XP Overflow Preservation**: Surplus XP bridges level thresholds cleanly and queues multiple upgrade choices one selection at a time without experience loss.
+  - **Exact XP Overflow & Continuous Leveling**: Surplus XP bridges level thresholds cleanly. Uncapped numerical player leveling continues even after maxing all 20 normal upgrades without empty level-up modal locks.
+  - *Note: Procedural 3D, CSS, and Lucide React fallbacks are used for newly introduced survivors and items; final external art asset pass is deferred.*
 - **Procedural Web Audio API Sound Effects**:
   - 100% lightweight procedural synthesizers (hammer slams, energy orbs, axe swings, enemy hits, enemy deaths, boss spawn/death, player damage, level-up fanfares).
   - Built-in volume slider and instant mute toggle persisted to `localStorage`. Zero external audio assets.
