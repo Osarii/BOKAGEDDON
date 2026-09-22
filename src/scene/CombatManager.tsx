@@ -63,6 +63,8 @@ const tempPosition = new THREE.Vector3();
 const tempScale = new THREE.Vector3();
 const tempRotation = new THREE.Euler();
 const tempQuaternion = new THREE.Quaternion();
+const tempDir = new THREE.Vector3();
+const upVector = new THREE.Vector3(0, 1, 0);
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
 const tempColor = new THREE.Color();
 
@@ -264,6 +266,8 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
   const hostileProjectileMeshRef = useRef<THREE.InstancedMesh>(null);
   const shockwaveMeshRef = useRef<THREE.InstancedMesh>(null);
   const axesGroupRef = useRef<THREE.Group>(null);
+  const lanceBeamGroupRef = useRef<THREE.Group>(null);
+  const lanceBeamsRef = useRef<{ x1: number; y1: number; z1: number; x2: number; y2: number; z2: number; color: string; life: number; maxLife: number; width: number }[]>([]);
 
   // Instanced projectile geometry and material with computed bounds
   const projGeometry = useMemo(() => {
@@ -376,6 +380,12 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         ? "nova-burst"
         : selectedCharacterId === "hex"
         ? "hex-chain"
+        : selectedCharacterId === "rift"
+        ? "rift-disc"
+        : selectedCharacterId === "fuse"
+        ? "pulse-mine"
+        : selectedCharacterId === "lux"
+        ? "light-lance"
         : "hammer";
 
     const weaponConfig = WEAPON_CONFIGS[weaponType];
@@ -402,6 +412,9 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     const hasCycloneEdge = hasSynergy("cyclone-edge", selectedCharacterId, upgrades);
     const hasSupernova = hasSynergy("supernova", selectedCharacterId, upgrades);
     const hasHexstorm = hasSynergy("hexstorm", selectedCharacterId, upgrades);
+    const hasEventHorizon = hasSynergy("event-horizon", selectedCharacterId, upgrades);
+    const hasChainReaction = hasSynergy("chain-reaction", selectedCharacterId, upgrades);
+    const hasSolarRefraction = hasSynergy("solar-refraction", selectedCharacterId, upgrades);
 
     const playerPos = runtime.playerPosition;
 
@@ -437,6 +450,8 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             ? "hammer"
             : weaponType === "axe"
             ? "axe"
+            : weaponType === "energy-orb" || weaponType === "rift-disc"
+            ? "energyOrb"
             : "energyOrb";
         gameAudio.play(sfx);
 
@@ -734,6 +749,182 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             });
           }
         }
+
+        // ---------------------------------------------------------------------
+        // RIFT: Dimensional Phase Disc + EVENT HORIZON synergy
+        // ---------------------------------------------------------------------
+        else if (weaponType === "rift-disc") {
+          const baseDx = targetX - playerPos.x;
+          const baseDz = targetZ - playerPos.z;
+          const baseAngle = Math.atan2(baseDz, baseDx);
+          const projSpeed = 16.0;
+
+          if (runtime.particles.length < 250) {
+            const elemColor = getStrongestElementalColor(upgrades, "#8b5cf6");
+            for (let k = 0; k < 4; k++) {
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "hit",
+                x: playerPos.x + (Math.random() - 0.5) * 0.4,
+                y: 0.8,
+                z: playerPos.z + (Math.random() - 0.5) * 0.4,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: Math.random() * 1.2,
+                vz: (Math.random() - 0.5) * 1.5,
+                color: elemColor,
+                size: 0.16,
+                life: 0,
+                maxLife: 0.35,
+              });
+            }
+          }
+
+          const spreadArc = 0.22;
+          const startAngle = baseAngle - ((multishotCount - 1) * spreadArc) / 2;
+          const discRadius = (weaponConfig.areaRadius * areaMultiplier) * (hasEventHorizon ? 1.25 : 1.0);
+          const basePierce = (hasEventHorizon ? 3 : 2) + Math.floor((upgrades.multishot || 0) / 2);
+
+          for (let m = 0; m < multishotCount; m++) {
+            if (runtime.projectiles.length >= MAX_PROJECTILES) break;
+            const angle = startAngle + m * spreadArc;
+            runtime.projectiles.push({
+              id: runtime.nextEntityId++,
+              x: playerPos.x,
+              y: 0.8,
+              z: playerPos.z,
+              vx: Math.cos(angle) * projSpeed,
+              vz: Math.sin(angle) * projSpeed,
+              damage: weaponConfig.baseDamage * damageMultiplier,
+              radius: discRadius,
+              color: "#8B5CF6",
+              lifetime: 0,
+              maxLifetime: 1.4,
+              isEnemy: false,
+              pierce: basePierce,
+              isCrit: isCrit,
+              isRiftDisc: true,
+              isReturning: false,
+              returnDamageBonus: hasEventHorizon ? 0.25 : 0,
+              hitEnemyIds: [],
+            });
+          }
+        }
+
+        // ---------------------------------------------------------------------
+        // FUSE: Pulse Mine Area Controller + CHAIN REACTION synergy
+        // ---------------------------------------------------------------------
+        else if (weaponType === "pulse-mine") {
+          const mineRadius = weaponConfig.areaRadius * areaMultiplier;
+          const baseDmg = weaponConfig.baseDamage * damageMultiplier;
+          const spreadArc = 0.35;
+          const baseAngle = Math.atan2(targetZ - playerPos.z, targetX - playerPos.x);
+
+          for (let m = 0; m < multishotCount; m++) {
+            const offsetDist = m === 0 ? 0 : 0.8 + m * 0.4;
+            const angle = baseAngle + (m - (multishotCount - 1) / 2) * spreadArc;
+            const mx = targetX + Math.cos(angle) * offsetDist;
+            const mz = targetZ + Math.sin(angle) * offsetDist;
+
+            runtime.delayedBursts.push({
+              id: runtime.nextEntityId++,
+              x: mx,
+              z: mz,
+              delayTimer: 0.65,
+              damage: Math.round(baseDmg * (isCrit ? baseCritMultiplier : 1)),
+              radius: mineRadius,
+              color: isCrit ? "#ff9800" : "#f59e0b",
+              isFuseMine: true,
+              secondaryOnDetonate: hasChainReaction,
+            });
+
+            if (runtime.particles.length < 250) {
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "hit",
+                x: mx,
+                y: 0.2,
+                z: mz,
+                vx: 0,
+                vy: 0.8,
+                vz: 0,
+                color: "#f59e0b",
+                size: 0.22,
+                life: 0,
+                maxLife: 0.65,
+              });
+            }
+          }
+        }
+
+        // ---------------------------------------------------------------------
+        // LUX: Instant Precision Light Lance + SOLAR REFRACTION synergy
+        // ---------------------------------------------------------------------
+        else if (weaponType === "light-lance") {
+          for (let i = 0; i < runtime.enemies.length; i++) {
+            const e = runtime.enemies[i];
+            const distSq = (e.x - targetX) ** 2 + (e.z - targetZ) ** 2;
+            if (distSq < 0.3) {
+              const baseDmg = weaponConfig.baseDamage * damageMultiplier;
+              const hitDmg = calculateOutgoingDamage(baseDmg, e, isCrit, baseCritMultiplier, upgrades, passives, secretPassives);
+              e.health -= hitDmg;
+              e.hitFlashTimer = 0.15;
+              applyElementalOnHit(e, upgrades, passives, secretPassives, runtime);
+              gameAudio.play("enemyHit");
+
+              if (lanceBeamsRef.current.length < 8) {
+                lanceBeamsRef.current.push({
+                  x1: playerPos.x,
+                  y1: 0.8,
+                  z1: playerPos.z,
+                  x2: e.x,
+                  y2: 0.6,
+                  z2: e.z,
+                  color: isCrit ? "#ffffff" : "#fde68a",
+                  life: 0.12,
+                  maxLife: 0.12,
+                  width: 0.08 * (1 + (upgrades.multishot || 0) * 0.2),
+                });
+              }
+
+              if (isCrit && hasSolarRefraction) {
+                let secondTargetDistSq = 5.5 * 5.5;
+                let secondIdx = -1;
+                for (let o = 0; o < runtime.enemies.length; o++) {
+                  if (o === i) continue;
+                  const other = runtime.enemies[o];
+                  const dSq = (other.x - e.x) ** 2 + (other.z - e.z) ** 2;
+                  if (dSq < secondTargetDistSq) {
+                    secondTargetDistSq = dSq;
+                    secondIdx = o;
+                  }
+                }
+                if (secondIdx >= 0) {
+                  const secondEnemy = runtime.enemies[secondIdx];
+                  const secondDmg = Math.max(1, Math.round(hitDmg * 0.60));
+                  secondEnemy.health -= secondDmg;
+                  secondEnemy.hitFlashTimer = 0.15;
+                  applyElementalOnHit(secondEnemy, upgrades, passives, secretPassives, runtime);
+
+                  if (lanceBeamsRef.current.length < 8) {
+                    lanceBeamsRef.current.push({
+                      x1: e.x,
+                      y1: 0.6,
+                      z1: e.z,
+                      x2: secondEnemy.x,
+                      y2: 0.6,
+                      z2: secondEnemy.z,
+                      color: "#fef08a",
+                      life: 0.12,
+                      maxLife: 0.12,
+                      width: 0.06,
+                    });
+                  }
+                }
+              }
+              break;
+            }
+          }
+        }
       }
     }
 
@@ -828,6 +1019,21 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           }
         }
 
+        // FUSE CHAIN REACTION: Detonations trigger secondary shockwave after 0.28s
+        if (burst.secondaryOnDetonate) {
+          runtime.delayedBursts.push({
+            id: runtime.nextEntityId++,
+            x: burst.x + (Math.random() - 0.5) * 0.4,
+            z: burst.z + (Math.random() - 0.5) * 0.4,
+            delayTimer: 0.28,
+            damage: Math.round(burst.damage * 0.45),
+            radius: burst.radius * 0.70,
+            color: "#f59e0b",
+            isFuseMine: true,
+            secondaryOnDetonate: false,
+          });
+        }
+
         runtime.delayedBursts.splice(b, 1);
       }
     }
@@ -841,8 +1047,28 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
       proj.z += proj.vz * delta;
       proj.lifetime += delta;
 
+      // RIFT: Outbound disc reverses direction toward player at half lifetime
+      if (proj.isRiftDisc) {
+        if (!proj.isReturning && (proj.lifetime >= proj.maxLifetime * 0.5 || proj.pierce <= 0)) {
+          proj.isReturning = true;
+          proj.hitEnemyIds = [];
+          proj.pierce = 99;
+        }
+        if (proj.isReturning) {
+          const rdx = playerPos.x - proj.x;
+          const rdz = playerPos.z - proj.z;
+          const rdist = Math.hypot(rdx, rdz) || 1;
+          if (rdist < 1.0) {
+            runtime.projectiles.splice(p, 1);
+            continue;
+          }
+          proj.vx = (rdx / rdist) * 16.0;
+          proj.vz = (rdz / rdist) * 16.0;
+        }
+      }
+
       // Expired lifetime
-      if (proj.lifetime >= proj.maxLifetime || proj.pierce <= 0) {
+      if (proj.lifetime >= proj.maxLifetime || (!proj.isReturning && proj.pierce <= 0)) {
         runtime.projectiles.splice(p, 1);
         continue;
       }
@@ -904,12 +1130,20 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
 
           const distSq = (enemy.x - proj.x) ** 2 + (enemy.z - proj.z) ** 2;
           if (distSq < (proj.radius + enemy.radius) ** 2) {
-            const projDmg = calculateOutgoingDamage(proj.damage, enemy, Boolean(proj.isCrit), baseCritMultiplier, upgrades, passives, secretPassives);
+            let hitBase = proj.damage;
+            if (proj.isRiftDisc && proj.isReturning && proj.returnDamageBonus) {
+              hitBase *= (1 + proj.returnDamageBonus);
+            }
+            const projDmg = calculateOutgoingDamage(hitBase, enemy, Boolean(proj.isCrit), baseCritMultiplier, upgrades, passives, secretPassives);
             enemy.health -= projDmg;
             enemy.hitFlashTimer = 0.15;
             applyElementalOnHit(enemy, upgrades, passives, secretPassives, runtime);
             gameAudio.play("enemyHit");
-            proj.pierce -= 1;
+            if (!proj.isReturning) {
+              proj.pierce -= 1;
+            }
+            if (!proj.hitEnemyIds) proj.hitEnemyIds = [];
+            proj.hitEnemyIds.push(enemy.id);
 
             // Handle HEX chain jump
             if (proj.chainRemaining && proj.chainRemaining > 0) {
@@ -1062,6 +1296,9 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         if (proj.isEnemy) {
           tempColor.set(proj.color || "#ef4444");
           projectileMeshRef.current.setColorAt(count, tempColor);
+        } else if (proj.isRiftDisc) {
+          tempColor.set(proj.color || "#8B5CF6");
+          projectileMeshRef.current.setColorAt(count, tempColor);
         } else if (proj.isPrism) {
           projectileMeshRef.current.setColorAt(count, prismProjColor);
         } else if (proj.color === "#22c55e" || upgrades.poison > 0) {
@@ -1095,6 +1332,45 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         hostileProjectileMeshRef.current.instanceMatrix.needsUpdate = true;
       }
     }
+    // LUX: Update light lance beams lifetime and visual transforms
+    for (let b = lanceBeamsRef.current.length - 1; b >= 0; b--) {
+      lanceBeamsRef.current[b].life -= delta;
+      if (lanceBeamsRef.current[b].life <= 0) {
+        lanceBeamsRef.current.splice(b, 1);
+      }
+    }
+
+    if (lanceBeamGroupRef.current) {
+      const group = lanceBeamGroupRef.current;
+      const beams = lanceBeamsRef.current;
+      for (let i = 0; i < group.children.length; i++) {
+        const mesh = group.children[i] as THREE.Mesh;
+        if (i < beams.length) {
+          const b = beams[i];
+          mesh.visible = true;
+          const midX = (b.x1 + b.x2) / 2;
+          const midY = (b.y1 + b.y2) / 2;
+          const midZ = (b.z1 + b.z2) / 2;
+          mesh.position.set(midX, midY, midZ);
+          const dx = b.x2 - b.x1;
+          const dy = b.y2 - b.y1;
+          const dz = b.z2 - b.z1;
+          const len = Math.hypot(dx, dy, dz) || 0.1;
+          mesh.scale.set(b.width, len, b.width);
+          tempDir.set(dx, dy, dz).normalize();
+          tempQuaternion.setFromUnitVectors(upVector, tempDir);
+          mesh.quaternion.copy(tempQuaternion);
+          const mat = mesh.material as THREE.MeshStandardMaterial;
+          mat.color.set(b.color);
+          mat.emissive.set(b.color);
+          mat.opacity = b.life / b.maxLife;
+          mat.transparent = true;
+        } else {
+          mesh.visible = false;
+        }
+      }
+    }
+
   });
 
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
@@ -1125,6 +1401,21 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         args={[shockGeometry, shockMaterial, MAX_SHOCKWAVES]}
         frustumCulled={false}
       />
+
+      {/* LUX: Procedural Light Lance Beams */}
+      <group ref={lanceBeamGroupRef}>
+        {Array.from({ length: 4 }).map((_, idx) => (
+          <mesh key={idx} visible={false}>
+            <cylinderGeometry args={[0.06, 0.06, 1, 8]} />
+            <meshStandardMaterial
+              color="#fde68a"
+              emissive="#fde68a"
+              emissiveIntensity={2.5}
+              roughness={0.1}
+            />
+          </mesh>
+        ))}
+      </group>
 
       {/* Visual Orbital Axes for TANK (enhanced with CYCLONE EDGE) */}
       {selectedCharacterId === "tank" && (

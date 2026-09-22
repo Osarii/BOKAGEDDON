@@ -22,6 +22,9 @@ export const CHARACTER_BASE_SPEEDS: Record<CharacterId, number> = {
   tank: 4.0,
   nova: 6.1,
   hex: 5.7,
+  rift: 6.3,
+  fuse: 4.9,
+  lux: 6.7,
 };
 
 export const MAX_UPGRADE_LEVEL = 5;
@@ -270,6 +273,33 @@ export const WEAPON_CONFIGS: Record<WeaponType, WeaponConfig> = {
     range: 11.0,
     areaRadius: 0.6,
     color: "#22c55e",
+  },
+  "rift-disc": {
+    type: "rift-disc",
+    name: "Rift Disc",
+    baseDamage: 24,
+    baseCooldown: 0.80,
+    range: 10.5,
+    areaRadius: 0.65,
+    color: "#8B5CF6",
+  },
+  "pulse-mine": {
+    type: "pulse-mine",
+    name: "Pulse Mine",
+    baseDamage: 36,
+    baseCooldown: 1.20,
+    range: 9.0,
+    areaRadius: 3.2,
+    color: "#F59E0B",
+  },
+  "light-lance": {
+    type: "light-lance",
+    name: "Light Lance",
+    baseDamage: 16,
+    baseCooldown: 0.50,
+    range: 13.0,
+    areaRadius: 0.35,
+    color: "#FDE68A",
   },
 };
 

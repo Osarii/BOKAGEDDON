@@ -3,7 +3,7 @@ import type { Character } from "../../types/game";
 import { ASSETS } from "../../config/assets";
 import { UPGRADE_DETAILS } from "../../game/config";
 import { WEAPON_SYNERGIES } from "../../game/weaponSynergies";
-import { Heart, Zap, Swords, Clock, ArrowRight, ShieldCheck } from "lucide-react";
+import { Heart, Zap, Swords, Clock, ArrowRight, ShieldCheck, Disc, Bomb, Sun } from "lucide-react";
 
 interface CharacterCardProps {
   character: Character;
@@ -27,9 +27,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const portraitUrl =
     character.id in ASSETS.portraits
       ? ASSETS.portraits[character.id as keyof typeof ASSETS.portraits]
-      : ASSETS.portraits.bonk;
+      : null;
 
-  const weaponIcon = WEAPON_ASSET_MAP[character.weapon] || ASSETS.weapons.hammer;
+  const weaponIcon = WEAPON_ASSET_MAP[character.weapon] || null;
   const synergy = Object.values(WEAPON_SYNERGIES).find((item) => item.characterId === character.id);
   const synergyRequirements = synergy
     ? Object.entries(synergy.requiredUpgrades)
@@ -63,7 +63,16 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
 
       <div className="character-card-top">
         <div className="character-portrait-box">
-          <img src={portraitUrl} alt={`${character.name} portrait`} loading="lazy" />
+          {portraitUrl ? (
+            <img src={portraitUrl} alt={`${character.name} portrait`} loading="lazy" />
+          ) : (
+            <div className="character-portrait-fallback" style={{ color: character.color }}>
+              {character.id === "rift" && <Disc size={38} className="char-fallback-glyph" />}
+              {character.id === "fuse" && <Bomb size={38} className="char-fallback-glyph" />}
+              {character.id === "lux" && <Sun size={38} className="char-fallback-glyph" />}
+              {!["rift", "fuse", "lux"].includes(character.id) && <Swords size={38} className="char-fallback-glyph" />}
+            </div>
+          )}
         </div>
         <div className="character-meta-info">
           <h3 className="character-name-title">{character.name}</h3>
@@ -107,7 +116,16 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
       <div className="character-weapon-row">
         <span>Weapon:</span>
         <div className="weapon-icon-wrap">
-          <img src={weaponIcon} alt={character.weapon} />
+          {weaponIcon ? (
+            <img src={weaponIcon} alt={character.weapon} />
+          ) : (
+            <span className="weapon-fallback-icon" style={{ color: character.color }}>
+              {character.weapon === "rift-disc" && <Disc size={20} />}
+              {character.weapon === "pulse-mine" && <Bomb size={20} />}
+              {character.weapon === "light-lance" && <Sun size={20} />}
+              {!["rift-disc", "pulse-mine", "light-lance"].includes(character.weapon) && <Swords size={20} />}
+            </span>
+          )}
         </div>
         <span className="weapon-name-display">{character.weapon.replace("-", " ")}</span>
       </div>

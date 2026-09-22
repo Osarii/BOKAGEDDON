@@ -59,6 +59,42 @@
       "weapon": "hex-chain",
       "description": "Void controller releasing seeking projectiles that jump between targets.",
       "color": "#22C55E"
+    },
+    {
+      "id": "rift",
+      "name": "RIFT",
+      "role": "Phase Disc Skirmisher",
+      "health": 90,
+      "speed": 6.3,
+      "damage": 24,
+      "attackCooldown": 0.8,
+      "weapon": "rift-disc",
+      "description": "Agile phase skirmisher throwing a dimensional disc that tears through enemies before returning.",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "fuse",
+      "name": "FUSE",
+      "role": "Demolition Zone Controller",
+      "health": 115,
+      "speed": 4.9,
+      "damage": 36,
+      "attackCooldown": 1.2,
+      "weapon": "pulse-mine",
+      "description": "Demolition specialist planting unstable pulse mines that detonate across enemy clusters.",
+      "color": "#F59E0B"
+    },
+    {
+      "id": "lux",
+      "name": "LUX",
+      "role": "Precision Light Striker",
+      "health": 75,
+      "speed": 6.7,
+      "damage": 16,
+      "attackCooldown": 0.5,
+      "weapon": "light-lance",
+      "description": "High-speed light striker firing precision lances that cut directly through priority targets.",
+      "color": "#FDE68A"
     }
   ],
   "upgrades": [

@@ -5,7 +5,10 @@ export type SynergyId =
   | "prism-barrage"
   | "cyclone-edge"
   | "supernova"
-  | "hexstorm";
+  | "hexstorm"
+  | "event-horizon"
+  | "chain-reaction"
+  | "solar-refraction";
 
 export interface WeaponSynergy {
   id: SynergyId;
@@ -50,6 +53,27 @@ export const WEAPON_SYNERGIES: Record<SynergyId, WeaponSynergy> = {
     characterId: "hex",
     requiredUpgrades: { critical: 2, multishot: 2 },
     description: "Seeking void projectile can jump to an additional enemy.",
+  },
+  "event-horizon": {
+    id: "event-horizon",
+    name: "EVENT HORIZON",
+    characterId: "rift",
+    requiredUpgrades: { area: 2, critical: 2 },
+    description: "Disc size +25%, +1 outbound pierce, return hits deal +25% damage with a violet dimensional trail.",
+  },
+  "chain-reaction": {
+    id: "chain-reaction",
+    name: "CHAIN REACTION",
+    characterId: "fuse",
+    requiredUpgrades: { damage: 2, area: 2 },
+    description: "Detonations trigger a secondary shockwave after 0.28s dealing 45% damage over 70% radius.",
+  },
+  "solar-refraction": {
+    id: "solar-refraction",
+    name: "SOLAR REFRACTION",
+    characterId: "lux",
+    requiredUpgrades: { critical: 2, precision: 2 },
+    description: "Critical hits refract to a secondary enemy within 5.5 units dealing 60% damage.",
   },
 };
 

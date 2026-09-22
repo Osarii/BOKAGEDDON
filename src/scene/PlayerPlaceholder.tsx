@@ -22,6 +22,9 @@ const ATTACK_TIMINGS: Record<string, { anticipation: number; release: number; re
   tank: { anticipation: 0.20, release: 0.15, recovery: 0.22 },
   nova: { anticipation: 0.20, release: 0.16, recovery: 0.22 },
   hex: { anticipation: 0.18, release: 0.14, recovery: 0.20 },
+  rift: { anticipation: 0.16, release: 0.12, recovery: 0.18 },
+  fuse: { anticipation: 0.24, release: 0.18, recovery: 0.26 },
+  lux: { anticipation: 0.08, release: 0.06, recovery: 0.08 },
 };
 
 export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
@@ -39,6 +42,9 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   const tankCleaveGroupRef = useRef<THREE.Group>(null);
   const novaRingGroupRef = useRef<THREE.Group>(null);
   const hexTrailGroupRef = useRef<THREE.Group>(null);
+  const riftArcGroupRef = useRef<THREE.Group>(null);
+  const fuseDeployGroupRef = useRef<THREE.Group>(null);
+  const luxFlashGroupRef = useRef<THREE.Group>(null);
 
   // References for dynamic hit-flash material tints
   const flashMaterialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
@@ -237,6 +243,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         ? "nova-burst"
         : selectedCharacterId === "hex"
         ? "hex-chain"
+        : selectedCharacterId === "rift"
+        ? "rift-disc"
+        : selectedCharacterId === "fuse"
+        ? "pulse-mine"
+        : selectedCharacterId === "lux"
+        ? "light-lance"
         : "hammer";
 
     const weaponConfig = WEAPON_CONFIGS[weaponType];
@@ -717,6 +729,51 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         }
       } else {
         hexTrailGroupRef.current.visible = false;
+      }
+    }
+
+    // 6. RIFT: Violet Release Arc
+    if (riftArcGroupRef.current) {
+      if (selectedCharacterId === "rift" && isRelease) {
+        riftArcGroupRef.current.visible = true;
+        const scale = 0.8 + phaseProgress * 1.5;
+        riftArcGroupRef.current.scale.set(scale, scale, scale);
+        const mesh = riftArcGroupRef.current.children[0] as THREE.Mesh;
+        if (mesh && mesh.material) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - phaseProgress);
+        }
+      } else {
+        riftArcGroupRef.current.visible = false;
+      }
+    }
+
+    // 7. FUSE: Amber Blast Deploy
+    if (fuseDeployGroupRef.current) {
+      if (selectedCharacterId === "fuse" && isRelease) {
+        fuseDeployGroupRef.current.visible = true;
+        const scale = 0.6 + phaseProgress * 2.0;
+        fuseDeployGroupRef.current.scale.set(scale, scale, scale);
+        const mesh = fuseDeployGroupRef.current.children[0] as THREE.Mesh;
+        if (mesh && mesh.material) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - phaseProgress);
+        }
+      } else {
+        fuseDeployGroupRef.current.visible = false;
+      }
+    }
+
+    // 8. LUX: Golden Solar Flash
+    if (luxFlashGroupRef.current) {
+      if (selectedCharacterId === "lux" && isRelease) {
+        luxFlashGroupRef.current.visible = true;
+        const scale = 0.5 + phaseProgress * 1.4;
+        luxFlashGroupRef.current.scale.set(scale, scale, scale);
+        const mesh = luxFlashGroupRef.current.children[0] as THREE.Mesh;
+        if (mesh && mesh.material) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.95 * (1 - phaseProgress);
+        }
+      } else {
+        luxFlashGroupRef.current.visible = false;
       }
     }
 

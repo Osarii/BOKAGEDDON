@@ -14,7 +14,7 @@ import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { createGameRuntime, type GameRuntime } from "../game/runtime";
 import type { Character, CharacterId } from "../types/game";
 
-const VALID_CHARACTER_IDS: CharacterId[] = ["bonk", "byte", "tank", "nova", "hex"];
+const VALID_CHARACTER_IDS: CharacterId[] = ["bonk", "byte", "tank", "nova", "hex", "rift", "fuse", "lux"];
 type DevToolsComponent = React.ComponentType<{ runtimeRef: React.RefObject<GameRuntime> }>;
 
 export const Game: React.FC = () => {

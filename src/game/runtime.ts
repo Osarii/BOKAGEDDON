@@ -57,6 +57,9 @@ export interface ProjectileEntity {
   hitEnemyIds?: number[];
   isPrism?: boolean;
   isCrit?: boolean;
+  isRiftDisc?: boolean;
+  isReturning?: boolean;
+  returnDamageBonus?: number;
   effectType?: ElementalEffectType;
 }
 
@@ -100,6 +103,8 @@ export interface DelayedBurstEffect {
   damage: number;
   radius: number;
   color: string;
+  isFuseMine?: boolean;
+  secondaryOnDetonate?: boolean;
 }
 
 export interface HazardZone {
