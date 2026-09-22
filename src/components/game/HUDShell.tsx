@@ -268,7 +268,7 @@ export const HUDShell: React.FC = () => {
                 boxShadow: "0 0 14px rgba(239, 68, 68, 0.35)",
                 fontWeight: 800,
               }}
-              title={`Boss Wave: Bonklord Tier ${Math.floor(round / 10)}`}
+              title={`Boss Wave: ${bossName} Tier ${bossTier}`}
             >
               <Flame size={16} />
               <span>RND {round} [BOSS]</span>
