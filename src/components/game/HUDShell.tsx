@@ -7,7 +7,24 @@ import { WEAPON_SYNERGIES, getActiveSynergies } from "../../game/weaponSynergies
 import { isBossRound } from "../../game/progression";
 import { AudioControl } from "./AudioControl";
 import type { UpgradeId } from "../../types/game";
-import { Heart, Skull, Trophy, Sparkles, ChevronLeft, Clock, Flame, Shield, Zap, Snowflake } from "lucide-react";
+import {
+  Heart,
+  Skull,
+  Trophy,
+  Sparkles,
+  ChevronLeft,
+  Clock,
+  Flame,
+  Shield,
+  Zap,
+  Snowflake,
+  Maximize2,
+  PlusCircle,
+  Crosshair,
+  Orbit,
+} from "lucide-react";
+import { SECRET_PASSIVES } from "../../game/secretPassives";
+import type { SecretPassiveId, SpecialPickupType } from "../../types/game";
 
 export const HUDShell: React.FC = () => {
   const health = useGameStore((s) => s.health);
@@ -30,6 +47,7 @@ export const HUDShell: React.FC = () => {
   const bossAccentColor = useGameStore((s) => s.bossAccentColor) || "#e11d48";
   const upgrades = useGameStore((s) => s.upgrades);
   const passives = useGameStore((s) => s.passives);
+  const secretPassives = useGameStore((s) => s.secretPassives);
   const frenzyActive = useGameStore((s) => s.frenzyActive);
   const frenzyTimer = useGameStore((s) => s.frenzyTimer);
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
@@ -54,9 +72,25 @@ export const HUDShell: React.FC = () => {
         return <Zap size={14} color="#00e5ff" />;
       case "frost":
         return <Snowflake size={14} color="#38bdf8" />;
+      case "regeneration":
+        return <Heart size={14} color="#10b981" />;
+      case "barrier":
+        return <Shield size={14} color="#38bdf8" />;
+      case "area":
+        return <Maximize2 size={14} color="#a855f7" />;
+      case "recovery":
+        return <PlusCircle size={14} color="#34d399" />;
+      case "boss_hunter":
+        return <Crosshair size={14} color="#f43f5e" />;
+      case "executioner":
+        return <Skull size={14} color="#fbbf24" />;
+      case "precision":
+        return <Zap size={14} color="#f59e0b" />;
+      case "fortune":
+        return <Sparkles size={14} color="#eab308" />;
       default: {
         const iconSrc = (ASSETS.upgrades as Record<string, string>)[id];
-        return iconSrc ? <img src={iconSrc} alt={id} style={{ width: 16, height: 16 }} /> : null;
+        return iconSrc ? <img src={iconSrc} alt={id} style={{ width: 16, height: 16 }} /> : <Sparkles size={14} color="#23d5ff" />;
       }
     }
   };
@@ -370,32 +404,62 @@ export const HUDShell: React.FC = () => {
         </div>
       )}
 
-      {Object.values(passives).some((count) => count > 0) && (
+      {(Object.values(passives).some((count) => count > 0) || (secretPassives && Object.values(secretPassives).some(Boolean))) && (
         <div
           style={{
             position: "absolute",
-            top: activeUpgrades.length > 0 ? "5rem" : "5rem",
-            left: activeUpgrades.length > 0 ? "4.6rem" : "1.25rem",
+            top: "5rem",
+            left: activeUpgrades.length > 0 ? "4.8rem" : "1.25rem",
             display: "flex",
             flexDirection: "column",
             gap: "0.4rem",
             pointerEvents: "auto",
+            maxHeight: "calc(100vh - 12rem)",
+            overflowY: "auto",
           }}
         >
+          {/* Secret Passives */}
+          {secretPassives &&
+            (Object.keys(SECRET_PASSIVES) as SecretPassiveId[]).map((id) =>
+              secretPassives[id] ? (
+                <div
+                  key={id}
+                  className="hud-pill"
+                  style={{
+                    padding: "0.25rem 0.6rem",
+                    gap: "0.35rem",
+                    fontSize: "0.75rem",
+                    borderColor: "rgba(251, 191, 36, 0.75)",
+                    background: "rgba(35, 26, 8, 0.85)",
+                    boxShadow: "0 0 12px rgba(251, 191, 36, 0.3)",
+                  }}
+                  title={`${SECRET_PASSIVES[id].name}: ${SECRET_PASSIVES[id].effectDescription}`}
+                >
+                  <Sparkles size={15} color="#fbbf24" />
+                  <span style={{ color: "#fbbf24", fontWeight: 700 }}>{SECRET_PASSIVES[id].name}</span>
+                </div>
+              ) : null
+            )}
+
+          {/* Relics */}
           {([
-            ["overclock_core", ASSETS.items.overclockCore, "Overclock Core"],
-            ["tesla_cell", ASSETS.items.teslaCell, "Tesla Cell"],
-            ["toxic_relic", ASSETS.items.toxicRelic, "Toxic Relic"],
-            ["phoenix_fragment", ASSETS.items.phoenixFragment, "Phoenix Charges"],
-          ] as const).map(([id, src, label]) =>
-            passives[id] > 0 ? (
+            ["overclock_core", "Overclock Core", <img key="oc" src={ASSETS.items.overclockCore} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
+            ["tesla_cell", "Tesla Cell", <img key="tc" src={ASSETS.items.teslaCell} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
+            ["toxic_relic", "Toxic Relic", <img key="tr" src={ASSETS.items.toxicRelic} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
+            ["phoenix_fragment", "Phoenix Charges", <img key="pf" src={ASSETS.items.phoenixFragment} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
+            ["aegis_capacitor", "Aegis Capacitor", <Shield key="ac" size={16} color="#06b6d4" />],
+            ["apex_lens", "Apex Lens", <Crosshair key="al" size={16} color="#f59e0b" />],
+            ["echo_prism", "Echo Prism", <Sparkles key="ep" size={16} color="#a855f7" />],
+            ["gravity_seed", "Gravity Seed", <Orbit key="gs" size={16} color="#6366f1" />],
+          ] as Array<[SpecialPickupType, string, React.ReactNode]>).map(([id, label, iconNode]) =>
+            (passives[id] || 0) > 0 ? (
               <div
                 key={id}
                 className="hud-pill"
                 style={{ padding: "0.25rem 0.55rem", gap: "0.35rem", fontSize: "0.75rem" }}
                 title={`${label}: ${passives[id]}`}
               >
-                <img src={src} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                {iconNode}
                 <span>x{passives[id]}</span>
               </div>
             ) : null

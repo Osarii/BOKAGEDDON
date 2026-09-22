@@ -43,7 +43,7 @@ Object.values(itemTextures).forEach((t) => {
 });
 
 // Shared textures loaded once at module scope for Special pickups
-const specialTextures: Record<SpecialPickupType, THREE.Texture> = {
+const specialTextures: Partial<Record<SpecialPickupType, THREE.Texture>> = {
   overclock_core: textureLoader.load(ASSETS.items.overclockCore),
   tesla_cell: textureLoader.load(ASSETS.items.teslaCell),
   toxic_relic: textureLoader.load(ASSETS.items.toxicRelic),
@@ -63,12 +63,39 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
   const shieldPotionRef = useRef<THREE.InstancedMesh>(null);
   const shieldBatteryRef = useRef<THREE.InstancedMesh>(null);
 
-  // InstancedMeshes for the 4 Procedural Special Pickups
+  // InstancedMeshes for the 8 Special Relics
   const overclockMeshRef = useRef<THREE.InstancedMesh>(null);
   const teslaMeshRef = useRef<THREE.InstancedMesh>(null);
   const toxicMeshRef = useRef<THREE.InstancedMesh>(null);
   const phoenixMeshRef = useRef<THREE.InstancedMesh>(null);
+  const aegisMeshRef = useRef<THREE.InstancedMesh>(null);
+  const apexMeshRef = useRef<THREE.InstancedMesh>(null);
+  const echoMeshRef = useRef<THREE.InstancedMesh>(null);
+  const gravityMeshRef = useRef<THREE.InstancedMesh>(null);
   const chestMeshRef = useRef<THREE.InstancedMesh>(null);
+
+  // Procedural geometries for the 4 new relics
+  const aegisGeometry = useMemo(() => new THREE.CylinderGeometry(0.28, 0.28, 0.45, 12), []);
+  const apexGeometry = useMemo(() => new THREE.TorusGeometry(0.32, 0.1, 12, 24), []);
+  const echoGeometry = useMemo(() => new THREE.ConeGeometry(0.3, 0.5, 4), []);
+  const gravityGeometry = useMemo(() => new THREE.IcosahedronGeometry(0.32), []);
+
+  const aegisMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#06b6d4", emissive: "#22d3ee", emissiveIntensity: 0.6, roughness: 0.3 }),
+    []
+  );
+  const apexMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#f59e0b", emissive: "#ef4444", emissiveIntensity: 0.6, roughness: 0.3 }),
+    []
+  );
+  const echoMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#a855f7", emissive: "#8b5cf6", emissiveIntensity: 0.6, roughness: 0.2 }),
+    []
+  );
+  const gravityMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#6366f1", emissive: "#4338ca", emissiveIntensity: 0.7, roughness: 0.4 }),
+    []
+  );
 
   // Emerald gem geometry & material with computed bounds
   const gemGeometry = useMemo(() => {
@@ -220,6 +247,10 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       teslaMeshRef,
       toxicMeshRef,
       phoenixMeshRef,
+      aegisMeshRef,
+      apexMeshRef,
+      echoMeshRef,
+      gravityMeshRef,
     ];
     specialRefs.forEach((ref) => {
       if (ref.current) {
@@ -248,7 +279,8 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     if (gameStatus !== "playing") return;
 
     const magnetTier = useGameStore.getState().upgrades.magnet || 0;
-    const magnetRadius = GAME_CONFIG.basePickupRadius * (1 + magnetTier * 0.4);
+    const gravityStacks = useGameStore.getState().passives.gravity_seed || 0;
+    const magnetRadius = GAME_CONFIG.basePickupRadius * (1 + magnetTier * 0.30) * (1 + gravityStacks * 0.10);
     const playerPos = runtime.playerPosition;
     const health = useGameStore.getState().health;
     const maxHealth = useGameStore.getState().maxHealth;
@@ -292,31 +324,39 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         pickup.type === "overclock_core" ||
         pickup.type === "tesla_cell" ||
         pickup.type === "toxic_relic" ||
-        pickup.type === "phoenix_fragment"
+        pickup.type === "phoenix_fragment" ||
+        pickup.type === "aegis_capacitor" ||
+        pickup.type === "apex_lens" ||
+        pickup.type === "echo_prism" ||
+        pickup.type === "gravity_seed"
       ) {
-        // Special Procedural Pickups: Collected strictly on contact
+        // Special Relic Pickups: Collected strictly on contact
         if (dist < 0.9) {
-          useGameStore.getState().addPassive(pickup.type);
+          useGameStore.getState().addPassive(pickup.type as SpecialPickupType);
           gameAudio.play("ui");
           runtime.pickups.splice(i, 1);
         }
       } else {
-        // Recovery Items: Collected strictly by contact (no vacuum magnet attraction)
+        // Recovery Items: Enhanced by Field Medic (recovery upgrade)
         const isHealing = pickup.type === "medkit_emergency" || pickup.type === "medkit_case";
         const isShield = pickup.type === "shield_potion" || pickup.type === "shield_battery";
+
+        const recoveryTier = useGameStore.getState().upgrades.recovery || 0;
+        const recoveryMult = 1 + recoveryTier * 0.12;
+        const effectiveLootValue = Math.round(pickup.value * recoveryMult);
 
         if (dist < 0.85) {
           if (isHealing) {
             // A full HP player must not consume healing
             if (health < maxHealth) {
-              useGameStore.getState().heal(pickup.value);
+              useGameStore.getState().heal(effectiveLootValue);
               gameAudio.play("ui");
               runtime.pickups.splice(i, 1);
             }
           } else if (isShield) {
             // A full shield player must not consume shield recovery
             if (shield < maxShield) {
-              useGameStore.getState().addShield(pickup.value);
+              useGameStore.getState().addShield(effectiveLootValue);
               gameAudio.play("ui");
               runtime.pickups.splice(i, 1);
             }
@@ -396,6 +436,10 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       tesla_cell: 0,
       toxic_relic: 0,
       phoenix_fragment: 0,
+      aegis_capacitor: 0,
+      apex_lens: 0,
+      echo_prism: 0,
+      gravity_seed: 0,
     };
 
     const specialRefs: Record<SpecialPickupType, React.RefObject<THREE.InstancedMesh | null>> = {
@@ -403,6 +447,10 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       tesla_cell: teslaMeshRef,
       toxic_relic: toxicMeshRef,
       phoenix_fragment: phoenixMeshRef,
+      aegis_capacitor: aegisMeshRef,
+      apex_lens: apexMeshRef,
+      echo_prism: echoMeshRef,
+      gravity_seed: gravityMeshRef,
     };
 
     for (let i = 0; i < runtime.pickups.length; i++) {
@@ -413,7 +461,11 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         p.type === "overclock_core" ||
         p.type === "tesla_cell" ||
         p.type === "toxic_relic" ||
-        p.type === "phoenix_fragment"
+        p.type === "phoenix_fragment" ||
+        p.type === "aegis_capacitor" ||
+        p.type === "apex_lens" ||
+        p.type === "echo_prism" ||
+        p.type === "gravity_seed"
       ) {
         const type = p.type as SpecialPickupType;
         const count = specialCounts[type];
@@ -422,9 +474,19 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         if (meshRef.current && count < MAX_SPECIAL_INSTANCES) {
           const bob = Math.sin(time * 4.5 + i * 0.9) * 0.12;
           tempPosition.set(p.x, 0.55 + bob, p.z);
-          // Billboard facing the camera directly for clear registered asset display
-          tempQuaternion.copy(state.camera.quaternion);
-          // Legendary boss loot pulsing scale
+          // 2D image assets billboard facing camera; 3D procedural relics rotate
+          const isProcedural =
+            type === "aegis_capacitor" ||
+            type === "apex_lens" ||
+            type === "echo_prism" ||
+            type === "gravity_seed";
+
+          if (isProcedural) {
+            tempQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), time * 2.5 + i);
+          } else {
+            tempQuaternion.copy(state.camera.quaternion);
+          }
+
           const pulse = 1.25 + Math.sin(time * 5 + i) * 0.1;
           tempScale.set(pulse, pulse, pulse);
 
@@ -567,6 +629,34 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       <instancedMesh
         ref={phoenixMeshRef}
         args={[itemPlaneGeometry, specialMaterials.phoenix_fragment, MAX_SPECIAL_INSTANCES]}
+        frustumCulled={false}
+      />
+
+      {/* Aegis Capacitor */}
+      <instancedMesh
+        ref={aegisMeshRef}
+        args={[aegisGeometry, aegisMaterial, MAX_SPECIAL_INSTANCES]}
+        frustumCulled={false}
+      />
+
+      {/* Apex Lens */}
+      <instancedMesh
+        ref={apexMeshRef}
+        args={[apexGeometry, apexMaterial, MAX_SPECIAL_INSTANCES]}
+        frustumCulled={false}
+      />
+
+      {/* Echo Prism */}
+      <instancedMesh
+        ref={echoMeshRef}
+        args={[echoGeometry, echoMaterial, MAX_SPECIAL_INSTANCES]}
+        frustumCulled={false}
+      />
+
+      {/* Gravity Seed */}
+      <instancedMesh
+        ref={gravityMeshRef}
+        args={[gravityGeometry, gravityMaterial, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 

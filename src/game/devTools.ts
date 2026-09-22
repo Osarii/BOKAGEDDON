@@ -8,6 +8,10 @@ const PASSIVE_ZERO: Record<SpecialPickupType, number> = {
   tesla_cell: 0,
   toxic_relic: 0,
   phoenix_fragment: 0,
+  aegis_capacitor: 0,
+  apex_lens: 0,
+  echo_prism: 0,
+  gravity_seed: 0,
 };
 
 function nearPlayer(runtime: GameRuntime, distance = 1.4) {

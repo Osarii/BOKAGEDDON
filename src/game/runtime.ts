@@ -241,7 +241,11 @@ export function damagePlayer(runtime: GameRuntime, amount: number, invulnerableS
   useGameStore.getState().takeDamage(amount);
   const afterPhoenix = useGameStore.getState().passives.phoenix_fragment;
   const revived = afterPhoenix < beforePhoenix;
-  runtime.playerInvulnerableTimer = Math.max(runtime.playerInvulnerableTimer, revived ? 2 : invulnerableSeconds);
+  const hasRadiantBastion = Boolean(useGameStore.getState().secretPassives?.radiant_bastion);
+  runtime.playerInvulnerableTimer = Math.max(
+    runtime.playerInvulnerableTimer,
+    revived ? (hasRadiantBastion ? 3.5 : 2.0) : invulnerableSeconds
+  );
 
   if (revived) {
     const p = runtime.playerPosition;

@@ -4,7 +4,19 @@ import { ASSETS } from "../../config/assets";
 import { UPGRADE_DETAILS, MAX_UPGRADE_LEVEL } from "../../game/config";
 import { WEAPON_SYNERGIES } from "../../game/weaponSynergies";
 import type { UpgradeId } from "../../types/game";
-import { Sparkles, ArrowUpRight, Flame, Skull, Zap, Snowflake } from "lucide-react";
+import {
+  Sparkles,
+  ArrowUpRight,
+  Flame,
+  Skull,
+  Zap,
+  Snowflake,
+  Heart,
+  Shield,
+  Maximize2,
+  PlusCircle,
+  Crosshair,
+} from "lucide-react";
 
 export const LevelUpOverlay: React.FC = () => {
   const gameStatus = useGameStore((s) => s.gameStatus);
@@ -41,9 +53,25 @@ export const LevelUpOverlay: React.FC = () => {
         return <Zap size={size} color="#00e5ff" />;
       case "frost":
         return <Snowflake size={size} color="#38bdf8" />;
+      case "regeneration":
+        return <Heart size={size} color="#10b981" />;
+      case "barrier":
+        return <Shield size={size} color="#38bdf8" />;
+      case "area":
+        return <Maximize2 size={size} color="#a855f7" />;
+      case "recovery":
+        return <PlusCircle size={size} color="#34d399" />;
+      case "boss_hunter":
+        return <Crosshair size={size} color="#f43f5e" />;
+      case "executioner":
+        return <Skull size={size} color="#fbbf24" />;
+      case "precision":
+        return <Zap size={size} color="#f59e0b" />;
+      case "fortune":
+        return <Sparkles size={size} color="#eab308" />;
       default: {
         const src = (ASSETS.upgrades as Record<string, string>)[id];
-        return src ? <img src={src} alt={id} style={{ width: size, height: size, objectFit: "contain" }} /> : null;
+        return src ? <img src={src} alt={id} style={{ width: size, height: size, objectFit: "contain" }} /> : <Sparkles size={size} color="#23d5ff" />;
       }
     }
   };

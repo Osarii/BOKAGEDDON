@@ -818,12 +818,10 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         const bCfg = BOSS_CONFIGS[bossType];
 
         // Boss attack timer
-        if (enemy.bossAttackTimer === undefined) {
-          enemy.bossAttackTimer = bCfg.attackCooldown;
-        }
-        enemy.bossAttackTimer -= delta;
+        const currentTimer = (enemy.bossAttackTimer ?? bCfg.attackCooldown) - delta;
+        enemy.bossAttackTimer = currentTimer;
 
-        if (enemy.bossAttackTimer <= 0) {
+        if (currentTimer <= 0) {
           enemy.bossAttackTimer = bCfg.attackCooldown;
 
           if (bossType === "bonklord") {

@@ -33,6 +33,15 @@ const SimulationTimer: React.FC<{ runtimeRef: React.RefObject<GameRuntime> }> = 
     if (currentSecond > runtime.lastSecondLogged) {
       runtime.lastSecondLogged = currentSecond;
       useGameStore.getState().setTimeSurvived(currentSecond);
+
+      // Low-frequency health regeneration
+      const regenTier = useGameStore.getState().upgrades.regeneration || 0;
+      if (regenTier > 0) {
+        const stateStore = useGameStore.getState();
+        if (stateStore.health < stateStore.maxHealth) {
+          stateStore.heal(regenTier * 0.30);
+        }
+      }
     }
   });
 

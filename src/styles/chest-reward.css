@@ -103,3 +103,71 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Legendary Relic Vault presentation */
+.chest-reward-panel.legendary {
+  border-color: rgba(251, 191, 36, 0.95);
+  background: radial-gradient(circle at 50% 0%, rgba(45, 32, 10, 0.98), rgba(13, 17, 26, 0.98));
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.8), 0 0 45px rgba(251, 191, 36, 0.35);
+}
+
+.relic-vault-header {
+  color: #fbbf24;
+  text-shadow: 0 0 16px rgba(251, 191, 36, 0.5);
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}
+
+.relic-vault-sparkle {
+  color: #fbbf24;
+  animation: pulse-glow 1.5s ease-in-out infinite alternate;
+}
+
+.chest-reward-card.relic-vault-card {
+  background: rgba(251, 191, 36, 0.06);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+.chest-reward-card.relic-vault-card:hover {
+  transform: translateY(-4px);
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  box-shadow: 0 8px 30px rgba(251, 191, 36, 0.28);
+}
+
+.relic-icon-wrapper,
+.upgrade-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 0.25rem;
+}
+
+.relic-stack-tag,
+.upgrade-tier-tag {
+  margin-top: auto;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  padding-top: 0.4rem;
+  text-align: center;
+}
+
+.relic-stack-tag b,
+.upgrade-tier-tag b {
+  color: var(--accent-warm);
+}
+
+@keyframes pulse-glow {
+  from {
+    transform: scale(0.95);
+    filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.4));
+  }
+  to {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
+  }
+}

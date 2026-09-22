@@ -1,5 +1,6 @@
 import type {
   BossType,
+  ChestRarity,
   CharacterId,
   EnemyType,
   RecoveryPickupType,
@@ -282,7 +283,7 @@ export const UPGRADE_DETAILS: Record<
 > = {
   damage: {
     name: "Damage Boost",
-    description: (t) => `+${t * 20}% attack damage to all weapons`,
+    description: (t) => `+${t * 15}% attack damage to all weapons`,
     type: "offense",
   },
   haste: {
@@ -292,52 +293,92 @@ export const UPGRADE_DETAILS: Record<
   },
   speed: {
     name: "Speed Surge",
-    description: (t) => `Increases movement speed by +${t * 15}%`,
+    description: (t) => `Increases movement speed by +${t * 10}%`,
     type: "mobility",
   },
   vitality: {
     name: "Vitality",
-    description: (t) => `+${t * 30} Max HP and restores +30 HP immediately`,
+    description: (t) => `+${t * 25} Max HP and restores +25 HP immediately`,
     type: "defense",
   },
   armor: {
     name: "Reinforced Armor",
-    description: (t) => `Reduces incoming enemy damage by ${t * 15}%`,
+    description: (t) => `Reduces incoming enemy damage by ${Math.min(50, t * 10)}%`,
     type: "defense",
   },
   magnet: {
     name: "XP Magnet",
-    description: (t) => `Increases XP gem pickup range by +${t * 40}%`,
+    description: (t) => `Increases XP gem pickup range by +${t * 30}%`,
     type: "utility",
   },
   critical: {
     name: "Critical Strike",
-    description: (t) => `+${t * 20}% chance to deal 2x critical damage`,
+    description: (t) => `+${t * 10}% chance to deal critical damage`,
     type: "offense",
   },
   multishot: {
     name: "Multishot",
-    description: (t) => `Fires +${t} additional projectile / cleaving strike`,
+    description: (t) => `Fires +${t >= 5 ? 3 : t >= 3 ? 2 : 1} additional projectile / cleaving strike`,
     type: "offense",
   },
   fire: {
     name: "Inferno (Fire)",
-    description: (t) => `Attacks ignite foes for ${t * 8} burn dmg/s for ${2 + t * 0.5}s`,
+    description: (t) => `Attacks ignite foes for ~${t * 6} burn dmg/s for ${2 + t * 0.5}s`,
     type: "offense",
   },
   poison: {
     name: "Venom (Poison)",
-    description: (t) => `Attacks poison foes for ${4 + t * 4} dmg/s for ${3 + t}s`,
+    description: (t) => `Attacks poison foes for ${4 + t * 3} dmg/s for ${3 + t}s`,
     type: "offense",
   },
   shock: {
     name: "Volt (Shock)",
-    description: (t) => `${20 + t * 15}% chance on hit to arc ${t * 12} electric dmg to nearby foes`,
+    description: (t) => `${12 + t * 8}% chance on hit to arc electric damage to nearby foes`,
     type: "offense",
   },
   frost: {
     name: "Glacier (Frost)",
-    description: (t) => `Chills enemies, slowing movement by ${15 + t * 10}% for ${2 + t * 0.5}s`,
+    description: (t) => `Chills enemies, slowing movement by ${12 + t * 7}% for ${2 + t * 0.5}s`,
+    type: "utility",
+  },
+  regeneration: {
+    name: "Regeneration",
+    description: (t) => `+${(t * 0.30).toFixed(2)} HP/sec health regeneration while playing`,
+    type: "defense",
+  },
+  barrier: {
+    name: "Barrier Matrix",
+    description: (t) => `+${t * 15} Max Shield and restores +15 Shield immediately`,
+    type: "defense",
+  },
+  area: {
+    name: "Area Amplifier",
+    description: (t) => `+${t * 7}% effective attack area and blast radius`,
+    type: "offense",
+  },
+  recovery: {
+    name: "Field Medic",
+    description: (t) => `+${t * 12}% HP and Shield recovery from world pickups`,
+    type: "defense",
+  },
+  boss_hunter: {
+    name: "Boss Hunter",
+    description: (t) => `+${t * 7}% outgoing damage against boss adversaries`,
+    type: "offense",
+  },
+  executioner: {
+    name: "Execution Protocol",
+    description: (t) => `+${t * 6}% direct damage to enemies at or below 35% HP`,
+    type: "offense",
+  },
+  precision: {
+    name: "Critical Power",
+    description: (t) => `+${(t * 0.15).toFixed(2)}x critical damage multiplier (base 2.0x)`,
+    type: "offense",
+  },
+  fortune: {
+    name: "Fortune",
+    description: (t) => `+${(t * 0.30).toFixed(2)}% chest drop chance and shifts chest rarity higher`,
     type: "utility",
   },
 };
@@ -349,28 +390,47 @@ export const SPECIAL_PICKUP_CONFIG = {
   maxStacks: 5,
   visuals: {
     overclock_core: { name: "Overclock Core", subtitle: "+15% permanent attack speed per stack", color: "#ffb020", emissive: "#f59e0b" },
-    tesla_cell: { name: "Tesla Cell", subtitle: "Permanent chain-lightning chance", color: "#00e5ff", emissive: "#06b6d4" },
-    toxic_relic: { name: "Toxic Relic", subtitle: "Permanent poison attacks", color: "#22c55e", emissive: "#10b981" },
+    tesla_cell: { name: "Tesla Cell", subtitle: "Permanent chain-lightning chance & damage", color: "#00e5ff", emissive: "#06b6d4" },
+    toxic_relic: { name: "Toxic Relic", subtitle: "+20% poison DoT damage & duration", color: "#22c55e", emissive: "#10b981" },
     phoenix_fragment: { name: "Phoenix Fragment", subtitle: "Permanent revive charge", color: "#f43f5e", emissive: "#e11d48" },
+    aegis_capacitor: { name: "Aegis Capacitor", subtitle: "+15 Max Shield & +15 Shield immediately", color: "#06b6d4", emissive: "#22d3ee" },
+    apex_lens: { name: "Apex Lens", subtitle: "+6% damage to bosses per stack", color: "#f59e0b", emissive: "#ef4444" },
+    echo_prism: { name: "Echo Prism", subtitle: "+0.10x critical damage multiplier", color: "#a855f7", emissive: "#8b5cf6" },
+    gravity_seed: { name: "Gravity Seed", subtitle: "+8% attack area & +10% pickup radius", color: "#6366f1", emissive: "#4338ca" },
   },
 } as const;
 
 export const CHEST_CONFIG = {
-  normalDropChance: 0.025,
-  guaranteedNormalKills: 20,
+  normalDropChance: 0.015,
+  guaranteedNormalKills: 30,
   maxActiveChests: 10,
   weights: {
-    common: 70,
-    rare: 25,
-    legendary: 5,
+    common: 75,
+    rare: 22,
+    legendary: 3,
   },
 } as const;
 
-export function rollChestRarity(): "common" | "rare" | "legendary" {
+export function getFortuneChestDropChance(fortuneTier: number = 0): number {
+  return 0.015 + Math.min(5, Math.max(0, fortuneTier)) * 0.003;
+}
+
+export function rollChestRarityWithFortune(fortuneTier: number = 0): ChestRarity {
+  const t = Math.min(5, Math.max(0, fortuneTier));
+  // At T0: Common 75, Rare 22, Legendary 3
+  // At T5: Common 69, Rare 25, Legendary 6
+  const legendaryWeight = 3 + t * 0.6;
+  const rareWeight = 22 + t * 0.6;
+  const commonWeight = 100 - legendaryWeight - rareWeight;
+
   const roll = Math.random() * 100;
-  if (roll < CHEST_CONFIG.weights.common) return "common";
-  if (roll < CHEST_CONFIG.weights.common + CHEST_CONFIG.weights.rare) return "rare";
+  if (roll < commonWeight) return "common";
+  if (roll < commonWeight + rareWeight) return "rare";
   return "legendary";
+}
+
+export function rollChestRarity(): ChestRarity {
+  return rollChestRarityWithFortune(0);
 }
 
 /**
@@ -381,14 +441,18 @@ export const BOSS_LOOT_TABLE: Array<{
   type: RecoveryPickupType | SpecialPickupType;
   weight: number;
 }> = [
-  { type: "medkit_emergency", weight: 15 },
-  { type: "medkit_case", weight: 15 },
-  { type: "shield_potion", weight: 15 },
-  { type: "shield_battery", weight: 15 },
+  { type: "medkit_emergency", weight: 5 },
+  { type: "medkit_case", weight: 5 },
+  { type: "shield_potion", weight: 5 },
+  { type: "shield_battery", weight: 5 },
   { type: "overclock_core", weight: 10 },
   { type: "tesla_cell", weight: 10 },
   { type: "toxic_relic", weight: 10 },
   { type: "phoenix_fragment", weight: 10 },
+  { type: "aegis_capacitor", weight: 10 },
+  { type: "apex_lens", weight: 10 },
+  { type: "echo_prism", weight: 10 },
+  { type: "gravity_seed", weight: 10 },
 ];
 
 export function rollBossLoot(): RecoveryPickupType | SpecialPickupType {

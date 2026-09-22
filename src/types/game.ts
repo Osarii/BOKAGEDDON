@@ -30,7 +30,15 @@ export type UpgradeId =
   | "fire"
   | "poison"
   | "shock"
-  | "frost";
+  | "frost"
+  | "regeneration"
+  | "barrier"
+  | "area"
+  | "recovery"
+  | "boss_hunter"
+  | "executioner"
+  | "precision"
+  | "fortune";
 
 export type UpgradeType = "offense" | "defense" | "utility" | "mobility";
 
@@ -93,7 +101,31 @@ export type SpecialPickupType =
   | "overclock_core"
   | "tesla_cell"
   | "toxic_relic"
-  | "phoenix_fragment";
+  | "phoenix_fragment"
+  | "aegis_capacitor"
+  | "apex_lens"
+  | "echo_prism"
+  | "gravity_seed";
+
+export type SecretPassiveId =
+  | "storm_engine"
+  | "venom_singularity"
+  | "radiant_bastion"
+  | "apex_echo";
+
+export interface PendingNormalChestReward {
+  type: "upgrade";
+  rarity: "common" | "rare";
+  choices: UpgradeId[];
+}
+
+export interface PendingLegendaryChestReward {
+  type: "relic";
+  rarity: "legendary";
+  choices: SpecialPickupType[];
+}
+
+export type PendingChestReward = PendingNormalChestReward | PendingLegendaryChestReward;
 
 export type PickupType = "xp" | RecoveryPickupType | SpecialPickupType;
 

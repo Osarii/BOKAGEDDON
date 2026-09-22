@@ -1,14 +1,22 @@
 import { create } from "zustand";
-import type { BossType, Character, CharacterId, ChestRarity, GameStatus, RoundStatus, SpecialPickupType, UpgradeId } from "../types/game";
+import type {
+  BossType,
+  Character,
+  CharacterId,
+  ChestRarity,
+  GameStatus,
+  PendingChestReward,
+  RoundStatus,
+  SecretPassiveId,
+  SpecialPickupType,
+  UpgradeId,
+} from "../types/game";
 import { getXpRequiredForLevel, hasAvailableUpgrades } from "../game/progression";
 import { MAX_UPGRADE_LEVEL, SPECIAL_PICKUP_CONFIG } from "../game/config";
+import { checkSecretPassiveUnlocks, SECRET_PASSIVES } from "../game/secretPassives";
 
-type PassiveStacks = Record<SpecialPickupType, number>;
-
-interface PendingChestReward {
-  rarity: ChestRarity;
-  choices: UpgradeId[];
-}
+export type PassiveStacks = Record<SpecialPickupType, number>;
+export type SecretPassiveState = Record<SecretPassiveId, boolean>;
 
 interface GameState {
   selectedCharacterId: CharacterId | null;
@@ -34,6 +42,7 @@ interface GameState {
   bossAccentColor: string;
   upgrades: Record<UpgradeId, number>;
   passives: PassiveStacks;
+  secretPassives: SecretPassiveState;
   pendingChestReward: PendingChestReward | null;
   frenzyActive: boolean;
   frenzyTimer: number;
@@ -63,7 +72,7 @@ interface GameState {
   addXp: (amount: number) => void;
   applyUpgrade: (upgradeId: UpgradeId) => void;
   openChestReward: (rarity: ChestRarity) => void;
-  claimChestReward: (upgradeId: UpgradeId) => void;
+  claimChestReward: (choice: UpgradeId | SpecialPickupType) => void;
   addPassive: (type: SpecialPickupType) => void;
   setFrenzyState: (state: {
     active: boolean;
@@ -96,6 +105,14 @@ const INITIAL_UPGRADES: Record<UpgradeId, number> = {
   poison: 0,
   shock: 0,
   frost: 0,
+  regeneration: 0,
+  barrier: 0,
+  area: 0,
+  recovery: 0,
+  boss_hunter: 0,
+  executioner: 0,
+  precision: 0,
+  fortune: 0,
 };
 
 const INITIAL_PASSIVES: PassiveStacks = {
@@ -103,6 +120,17 @@ const INITIAL_PASSIVES: PassiveStacks = {
   tesla_cell: 0,
   toxic_relic: 0,
   phoenix_fragment: 0,
+  aegis_capacitor: 0,
+  apex_lens: 0,
+  echo_prism: 0,
+  gravity_seed: 0,
+};
+
+const INITIAL_SECRET_PASSIVES: SecretPassiveState = {
+  storm_engine: false,
+  venom_singularity: false,
+  radiant_bastion: false,
+  apex_echo: false,
 };
 
 const INITIAL_RUN_STATE = {
@@ -128,6 +156,7 @@ const INITIAL_RUN_STATE = {
   bossAccentColor: "#e11d48",
   upgrades: INITIAL_UPGRADES,
   passives: INITIAL_PASSIVES,
+  secretPassives: INITIAL_SECRET_PASSIVES,
   pendingChestReward: null,
   frenzyActive: false,
   frenzyTimer: 0,
@@ -196,9 +225,9 @@ export const useGameStore = create<GameState>((set) => ({
 
   takeDamage: (amount) =>
     set((state) => {
-      // Armor reduces damage received by 15% per tier, up to 75% max
+      // Armor reduces damage received by 10% per tier, up to 50% max
       const armorTier = state.upgrades.armor || 0;
-      const reduction = Math.min(0.75, armorTier * 0.15);
+      const reduction = Math.min(0.50, armorTier * 0.10);
       const mitigatedDamage = Math.max(1, Math.round(amount * (1 - reduction)));
 
       let newShield = state.shield;
@@ -216,18 +245,28 @@ export const useGameStore = create<GameState>((set) => ({
         newHealth = Math.max(0, newHealth - mitigatedDamage);
       }
 
+      const isReviving = newHealth <= 0 && state.passives.phoenix_fragment > 0;
+      if (isReviving) {
+        const hasRadiantBastion = Boolean(state.secretPassives?.radiant_bastion);
+        const reviveHp = hasRadiantBastion ? Math.ceil(state.maxHealth * 0.6) : Math.ceil(state.maxHealth * 0.4);
+        const reviveShield = hasRadiantBastion ? Math.min(state.maxShield, newShield + 50) : newShield;
+        return {
+          shield: reviveShield,
+          health: reviveHp,
+          passives: { ...state.passives, phoenix_fragment: state.passives.phoenix_fragment - 1 },
+          notification: {
+            title: hasRadiantBastion ? "RADIANT BASTION REVIVE" : "PHOENIX REVIVE",
+            subtitle: hasRadiantBastion ? "Revived at 60% HP + 50 Shield + 3.5s Invulnerability" : "Revived at 40% HP + 2s Invulnerability",
+            timestamp: Date.now(),
+          },
+          gameStatus: state.gameStatus,
+        };
+      }
+
       return {
         shield: newShield,
-        health: newHealth <= 0 && state.passives.phoenix_fragment > 0 ? Math.ceil(state.maxHealth * 0.4) : newHealth,
-        passives:
-          newHealth <= 0 && state.passives.phoenix_fragment > 0
-            ? { ...state.passives, phoenix_fragment: state.passives.phoenix_fragment - 1 }
-            : state.passives,
-        notification:
-          newHealth <= 0 && state.passives.phoenix_fragment > 0
-            ? { title: "PHOENIX REVIVE", subtitle: "Revived at 40% HP", timestamp: Date.now() }
-            : state.notification,
-        gameStatus: newHealth <= 0 && state.passives.phoenix_fragment <= 0 ? "gameover" : state.gameStatus,
+        health: newHealth,
+        gameStatus: newHealth <= 0 ? "gameover" : state.gameStatus,
       };
     }),
 
@@ -298,10 +337,18 @@ export const useGameStore = create<GameState>((set) => ({
       let newMaxHealth = state.maxHealth;
       let newHealth = state.health;
 
-      // Vitality instantly boosts and heals
+      // Vitality instantly boosts max HP and heals (+25)
       if (upgradeId === "vitality") {
-        newMaxHealth += 30;
-        newHealth = Math.min(newMaxHealth, newHealth + 30);
+        newMaxHealth += 25;
+        newHealth = Math.min(newMaxHealth, newHealth + 25);
+      }
+
+      // Barrier Matrix instantly boosts max Shield and restores (+15)
+      let newMaxShield = state.maxShield;
+      let newShield = state.shield;
+      if (upgradeId === "barrier") {
+        newMaxShield += 15;
+        newShield = Math.min(newMaxShield, newShield + 15);
       }
 
       // Check if any upgrade choices remain across the pool
@@ -314,6 +361,8 @@ export const useGameStore = create<GameState>((set) => ({
           upgrades: newUpgrades,
           maxHealth: newMaxHealth,
           health: newHealth,
+          maxShield: newMaxShield,
+          shield: newShield,
           pendingLevelUps: 0,
           gameStatus: "playing",
         };
@@ -327,6 +376,8 @@ export const useGameStore = create<GameState>((set) => ({
         upgrades: newUpgrades,
         maxHealth: newMaxHealth,
         health: newHealth,
+        maxShield: newMaxShield,
+        shield: newShield,
         pendingLevelUps: remainingPending,
         gameStatus: nextStatus,
       };
@@ -338,41 +389,145 @@ export const useGameStore = create<GameState>((set) => ({
         return state;
       }
 
+      // 1. LEGENDARY CHEST: Relic Vault (special relics only, never normal upgrades)
+      if (rarity === "legendary") {
+        const allRelicKeys = Object.keys(SPECIAL_PICKUP_CONFIG.visuals) as SpecialPickupType[];
+        const validRelics = allRelicKeys
+          .filter((id) => (state.passives[id] || 0) < SPECIAL_PICKUP_CONFIG.maxStacks)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3);
+
+        if (validRelics.length === 0) {
+          // All relics maxed: convert automatically to full HP/Shield + 1000 score
+          return {
+            health: state.maxHealth,
+            shield: state.maxShield,
+            score: state.score + 1000,
+            notification: {
+              title: "RELIC VAULT MASTERY",
+              subtitle: "All relics maxed: Full HP + Full Shield + 1000 Score",
+              timestamp: Date.now(),
+            },
+            gameStatus: state.pendingLevelUps > 0 ? "levelup" : "playing",
+            pendingChestReward: null,
+          };
+        }
+
+        return {
+          pendingChestReward: {
+            type: "relic",
+            rarity: "legendary",
+            choices: validRelics,
+          },
+          gameStatus: "chest",
+        };
+      }
+
+      // 2. COMMON & RARE CHESTS: Normal Upgrade choices
       const choices = (Object.keys(state.upgrades) as UpgradeId[])
-        .filter((id) => state.upgrades[id] < MAX_UPGRADE_LEVEL)
+        .filter((id) => (state.upgrades[id] || 0) < MAX_UPGRADE_LEVEL)
         .sort(() => Math.random() - 0.5)
         .slice(0, 3);
 
       if (choices.length === 0) {
         return {
-          health: Math.min(state.maxHealth, state.health + (rarity === "legendary" ? 35 : 20)),
-          shield: Math.min(state.maxShield, state.shield + (rarity === "common" ? 15 : rarity === "rare" ? 25 : 50)),
-          score: state.score + (rarity === "legendary" ? 500 : rarity === "rare" ? 200 : 100),
-          notification: { title: "CHEST CONVERTED", subtitle: "All upgrades maxed: recovery + score", timestamp: Date.now() },
+          health: Math.min(state.maxHealth, state.health + 20),
+          shield: Math.min(state.maxShield, state.shield + (rarity === "rare" ? 25 : 15)),
+          score: state.score + (rarity === "rare" ? 200 : 100),
+          notification: {
+            title: "CHEST CONVERTED",
+            subtitle: "All upgrades maxed: recovery + score",
+            timestamp: Date.now(),
+          },
           gameStatus: state.pendingLevelUps > 0 ? "levelup" : "playing",
           pendingChestReward: null,
         };
       }
 
       return {
-        pendingChestReward: { rarity, choices },
+        pendingChestReward: {
+          type: "upgrade",
+          rarity,
+          choices,
+        },
         gameStatus: "chest",
       };
     }),
 
-  claimChestReward: (upgradeId) =>
+  claimChestReward: (choice) =>
     set((state) => {
       if (!state.pendingChestReward) return state;
+
+      // Handle Legendary Relic Vault choice
+      if (state.pendingChestReward.type === "relic") {
+        const relicId = choice as SpecialPickupType;
+        const nextCount = Math.min(SPECIAL_PICKUP_CONFIG.maxStacks, (state.passives[relicId] || 0) + 1);
+        const newPassives = { ...state.passives, [relicId]: nextCount };
+
+        let newMaxShield = state.maxShield;
+        let newShield = state.shield;
+        if (relicId === "aegis_capacitor") {
+          newMaxShield += 15;
+          newShield = Math.min(newMaxShield, newShield + 15);
+        }
+
+        // Relic Vault rewards: +50 Shield, +35 HP, +500 Score
+        newShield = Math.min(newMaxShield, newShield + 50);
+        const newHealth = Math.min(state.maxHealth, state.health + 35);
+        const newScore = state.score + 500;
+
+        // Evaluate secret passives
+        const { updatedSecrets, newlyUnlocked } = checkSecretPassiveUnlocks(newPassives, state.secretPassives);
+        let notif = state.notification;
+        if (newlyUnlocked.length > 0) {
+          const secretName = SECRET_PASSIVES[newlyUnlocked[0]].name;
+          notif = {
+            title: "SECRET PASSIVE UNLOCKED",
+            subtitle: `${secretName}: ${SECRET_PASSIVES[newlyUnlocked[0]].effectDescription}`,
+            timestamp: Date.now(),
+          };
+        }
+
+        return {
+          passives: newPassives,
+          maxShield: newMaxShield,
+          shield: newShield,
+          health: newHealth,
+          score: newScore,
+          secretPassives: updatedSecrets,
+          notification: notif,
+          pendingChestReward: null,
+          gameStatus: state.pendingLevelUps > 0 ? "levelup" : "playing",
+        };
+      }
+
+      // Handle Normal Upgrade Chest choice (Common / Rare)
+      const upgradeId = choice as UpgradeId;
       const rarity = state.pendingChestReward.rarity;
       const currentTier = state.upgrades[upgradeId] || 0;
       const newUpgrades = {
         ...state.upgrades,
         [upgradeId]: Math.min(MAX_UPGRADE_LEVEL, currentTier + 1),
       };
-      const vitalityHp = upgradeId === "vitality" ? 30 : 0;
-      const rarityHp = rarity === "legendary" ? 35 : 0;
-      const rarityShield = rarity === "legendary" ? 50 : rarity === "rare" ? 25 : 0;
-      const newMaxHealth = state.maxHealth + vitalityHp;
+
+      let newMaxHealth = state.maxHealth;
+      let newHealth = state.health;
+      if (upgradeId === "vitality") {
+        newMaxHealth += 25;
+        newHealth = Math.min(newMaxHealth, newHealth + 25);
+      }
+
+      let newMaxShield = state.maxShield;
+      let newShield = state.shield;
+      if (upgradeId === "barrier") {
+        newMaxShield += 15;
+        newShield = Math.min(newMaxShield, newShield + 15);
+      }
+
+      // Rare chest grants +25 Shield
+      if (rarity === "rare") {
+        newShield = Math.min(newMaxShield, newShield + 25);
+      }
 
       const canUpgrade = hasAvailableUpgrades(newUpgrades);
       const remainingPending = canUpgrade ? state.pendingLevelUps : 0;
@@ -380,9 +535,10 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         upgrades: newUpgrades,
         maxHealth: newMaxHealth,
-        health: Math.min(newMaxHealth, state.health + vitalityHp + rarityHp),
-        shield: Math.min(state.maxShield, state.shield + rarityShield),
-        score: state.score + (rarity === "legendary" ? 500 : 0),
+        health: newHealth,
+        maxShield: newMaxShield,
+        shield: newShield,
+        score: state.score,
         pendingChestReward: null,
         pendingLevelUps: remainingPending,
         gameStatus: remainingPending > 0 ? "levelup" : "playing",
@@ -391,15 +547,41 @@ export const useGameStore = create<GameState>((set) => ({
 
   addPassive: (type) =>
     set((state) => {
-      const nextCount = Math.min(SPECIAL_PICKUP_CONFIG.maxStacks, state.passives[type] + 1);
+      const nextCount = Math.min(SPECIAL_PICKUP_CONFIG.maxStacks, (state.passives[type] || 0) + 1);
+      const newPassives = { ...state.passives, [type]: nextCount };
       const visual = SPECIAL_PICKUP_CONFIG.visuals[type];
-      return {
-        passives: { ...state.passives, [type]: nextCount },
-        notification: {
-          title: visual.name.toUpperCase(),
-          subtitle: `${visual.subtitle} · Stack ${nextCount}/${SPECIAL_PICKUP_CONFIG.maxStacks}`,
+
+      let newMaxShield = state.maxShield;
+      let newShield = state.shield;
+      if (type === "aegis_capacitor") {
+        newMaxShield += 15;
+        newShield = Math.min(newMaxShield, newShield + 15);
+      }
+
+      // Evaluate secret passives event-driven on relic change
+      const { updatedSecrets, newlyUnlocked } = checkSecretPassiveUnlocks(newPassives, state.secretPassives);
+
+      let notif = {
+        title: visual.name.toUpperCase(),
+        subtitle: `${visual.subtitle} · Stack ${nextCount}/${SPECIAL_PICKUP_CONFIG.maxStacks}`,
+        timestamp: Date.now(),
+      };
+
+      if (newlyUnlocked.length > 0) {
+        const secretName = SECRET_PASSIVES[newlyUnlocked[0]].name;
+        notif = {
+          title: "SECRET PASSIVE UNLOCKED",
+          subtitle: `${secretName}: ${SECRET_PASSIVES[newlyUnlocked[0]].effectDescription}`,
           timestamp: Date.now(),
-        },
+        };
+      }
+
+      return {
+        passives: newPassives,
+        maxShield: newMaxShield,
+        shield: newShield,
+        secretPassives: updatedSecrets,
+        notification: notif,
       };
     }),
 
@@ -451,6 +633,7 @@ export const useGameStore = create<GameState>((set) => ({
       selectedCharacterId: state.selectedCharacterId,
       upgrades: { ...INITIAL_UPGRADES },
       passives: { ...INITIAL_PASSIVES },
+      secretPassives: { ...INITIAL_SECRET_PASSIVES },
       gameStatus: "playing",
     })),
 
@@ -479,6 +662,7 @@ export const useGameStore = create<GameState>((set) => ({
       bossAccentColor: "#e11d48",
       upgrades: { ...INITIAL_UPGRADES },
       passives: { ...INITIAL_PASSIVES },
+      secretPassives: { ...INITIAL_SECRET_PASSIVES },
       pendingChestReward: null,
       frenzyActive: false,
       frenzyTimer: 0,
