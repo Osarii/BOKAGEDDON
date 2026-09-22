@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import type { GameRuntime } from "../game/runtime";
+import { damagePlayer, type GameRuntime } from "../game/runtime";
 import { WEAPON_CONFIGS } from "../game/config";
 import { useGameStore } from "../store/gameStore";
 import { gameAudio } from "../audio/gameAudio";
@@ -25,7 +25,6 @@ const tempColor = new THREE.Color();
 // Pre-defined palette colors for instanced rendering
 const defaultProjColor = new THREE.Color("#23d5ff");
 const critProjColor = new THREE.Color("#a8ff60");
-const enemyProjColor = new THREE.Color("#ef4444"); // Clearly visible hostile red
 const prismProjColor = new THREE.Color("#f43f5e");
 const fireProjColor = new THREE.Color("#ff5722");
 const frostProjColor = new THREE.Color("#38bdf8");
@@ -54,6 +53,7 @@ function getStrongestElementalColor(upgrades: Record<string, number>, fallback: 
 function applyElementalOnHit(
   enemy: { id: number; x: number; z: number; health: number; hitFlashTimer: number; burnTimer?: number; burnDps?: number; poisonTimer?: number; poisonDps?: number; frostTimer?: number; frostSlowPercent?: number },
   upgrades: Record<string, number>,
+  passives: Record<string, number>,
   runtime: GameRuntime
 ) {
   // Generic impact spark
@@ -100,12 +100,12 @@ function applyElementalOnHit(
     }
   }
 
-  // 2. POISON (Sustained DoT, boosted 2x by Toxic Relic)
-  if (upgrades.poison > 0) {
-    const tier = upgrades.poison;
-    const isAmped = runtime.toxicRelicTimer > 0;
+  // 2. POISON (Sustained DoT, enabled by Poison upgrade or Toxic Relic)
+  if (upgrades.poison > 0 || passives.toxic_relic > 0) {
+    const tier = upgrades.poison || 1;
+    const toxicStacks = passives.toxic_relic || 0;
     enemy.poisonTimer = Math.max(enemy.poisonTimer || 0, 3.0 + tier * 1.0);
-    enemy.poisonDps = Math.max(enemy.poisonDps || 0, (4 + tier * 4) * (isAmped ? 2.0 : 1.0));
+    enemy.poisonDps = Math.max(enemy.poisonDps || 0, (4 + tier * 4) * (1 + toxicStacks * 0.25));
     // Poison splash bubbles
     if (runtime.particles.length < 250) {
       for (let k = 0; k < 2; k++) {
@@ -119,9 +119,9 @@ function applyElementalOnHit(
           vy: Math.random() * 0.8 + 0.2,
           vz: (Math.random() - 0.5) * 0.8,
           color: "#22c55e",
-          size: 0.12,
+          size: 0.24,
           life: 0,
-          maxLife: 0.4,
+          maxLife: 0.65,
         });
       }
     }
@@ -154,11 +154,12 @@ function applyElementalOnHit(
   }
 
   // 4. SHOCK (Chain electrical arcs, guaranteed by Tesla Cell)
-  const isTeslaActive = runtime.teslaTimer > 0;
-  const shockChance = isTeslaActive ? 0.9 : (upgrades.shock > 0 ? 0.20 + upgrades.shock * 0.15 : 0);
+  const teslaStacks = passives.tesla_cell || 0;
+  const teslaChance = teslaStacks > 0 ? Math.min(0.5, 0.2 + (teslaStacks - 1) * 0.1) : 0;
+  const shockChance = Math.max(teslaChance, upgrades.shock > 0 ? 0.20 + upgrades.shock * 0.15 : 0);
 
   if (shockChance > 0 && Math.random() < shockChance) {
-    const shockDmg = (upgrades.shock || 1) * 12 * (isTeslaActive ? 1.5 : 1.0);
+    const shockDmg = (upgrades.shock || 1) * 12;
     const rangeSq = (5.0 + (upgrades.shock || 0) * 1.5) ** 2;
 
     for (let i = 0; i < runtime.enemies.length; i++) {
@@ -207,6 +208,7 @@ function applyElementalOnHit(
 
 export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
   const projectileMeshRef = useRef<THREE.InstancedMesh>(null);
+  const hostileProjectileMeshRef = useRef<THREE.InstancedMesh>(null);
   const shockwaveMeshRef = useRef<THREE.InstancedMesh>(null);
   const axesGroupRef = useRef<THREE.Group>(null);
 
@@ -223,9 +225,20 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     () =>
       new THREE.MeshStandardMaterial({
         color: "#ffffff",
-        emissive: "#23d5ff",
-        emissiveIntensity: 0.8,
+        emissive: "#ffffff",
+        emissiveIntensity: 0.65,
         roughness: 0.2,
+      }),
+    []
+  );
+
+  const hostileProjMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ef4444",
+        emissive: "#ef4444",
+        emissiveIntensity: 1.4,
+        roughness: 0.18,
       }),
     []
   );
@@ -265,6 +278,14 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
       projectileMeshRef.current.instanceColor.needsUpdate = true;
     }
 
+    if (hostileProjectileMeshRef.current) {
+      hostileProjectileMeshRef.current.count = 0;
+      for (let i = 0; i < MAX_PROJECTILES; i++) {
+        hostileProjectileMeshRef.current.setMatrixAt(i, hiddenMatrix);
+      }
+      hostileProjectileMeshRef.current.instanceMatrix.needsUpdate = true;
+    }
+
     if (shockwaveMeshRef.current) {
       shockwaveMeshRef.current.count = 0;
       const colors = new Float32Array(MAX_SHOCKWAVES * 3);
@@ -289,6 +310,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
 
     const selectedCharacterId = (useGameStore.getState().selectedCharacterId || "bonk") as CharacterId;
     const upgrades = useGameStore.getState().upgrades;
+    const passives = useGameStore.getState().passives;
 
     // Determine weapon type based on character
     const weaponType: WeaponType =
@@ -304,17 +326,9 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
 
     const weaponConfig = WEAPON_CONFIGS[weaponType];
 
-    // Decrement temporary special item buff timers during active gameplay
-    if (runtime.overclockTimer > 0) runtime.overclockTimer = Math.max(0, runtime.overclockTimer - delta);
-    if (runtime.teslaTimer > 0) runtime.teslaTimer = Math.max(0, runtime.teslaTimer - delta);
-    if (runtime.toxicRelicTimer > 0) runtime.toxicRelicTimer = Math.max(0, runtime.toxicRelicTimer - delta);
-    if (runtime.phoenixTimer > 0) runtime.phoenixTimer = Math.max(0, runtime.phoenixTimer - delta);
-
     // Compute active upgrade bonuses and special item multipliers
-    const isOverclocked = runtime.overclockTimer > 0;
-    const isPhoenixBuffed = runtime.phoenixTimer > 0;
-    const damageMultiplier = (1 + (upgrades.damage || 0) * 0.2) * (isPhoenixBuffed ? 1.4 : 1.0);
-    const hasteMultiplier = (1 + (upgrades.haste || 0) * 0.15) * (isOverclocked ? 1.5 : 1.0);
+    const damageMultiplier = 1 + (upgrades.damage || 0) * 0.2;
+    const hasteMultiplier = (1 + (upgrades.haste || 0) * 0.15) * (1 + (passives.overclock_core || 0) * 0.15);
     const effectiveCooldown = weaponConfig.baseCooldown / hasteMultiplier;
     const critChance = (upgrades.critical || 0) * 0.2;
     const multishotCount = 1 + (upgrades.multishot || 0);
@@ -432,7 +446,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               const bonusCritDamage = isCrit && hasMeteorSlam ? Math.round(totalDamage * 0.35) : 0;
               e.health -= totalDamage + bonusCritDamage;
               e.hitFlashTimer = 0.15;
-              applyElementalOnHit(e, upgrades, runtime);
+              applyElementalOnHit(e, upgrades, passives, runtime);
               gameAudio.play("enemyHit");
               const dist = Math.sqrt(distSq) || 1;
               e.x += ((e.x - playerPos.x) / dist) * 1.5;
@@ -567,7 +581,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             if (distSq <= burstRadiusSq) {
               e.health -= totalDamage;
               e.hitFlashTimer = 0.15;
-              applyElementalOnHit(e, upgrades, runtime);
+              applyElementalOnHit(e, upgrades, passives, runtime);
               gameAudio.play("enemyHit");
               const dist = Math.sqrt(distSq) || 1;
               e.x += ((e.x - playerPos.x) / dist) * 1.2;
@@ -676,7 +690,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq < hitDistance * hitDistance) {
             e.health -= Math.max(1, Math.round(totalDamage * 0.22));
             e.hitFlashTimer = 0.08;
-            applyElementalOnHit(e, upgrades, runtime);
+            applyElementalOnHit(e, upgrades, passives, runtime);
             gameAudio.play("enemyHit");
 
             // TANK Combat Polish: metallic sparks & heavier cleave impact
@@ -736,7 +750,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq <= burstRadiusSq) {
             e.health -= burst.damage;
             e.hitFlashTimer = 0.15;
-            applyElementalOnHit(e, upgrades, runtime);
+            applyElementalOnHit(e, upgrades, passives, runtime);
             gameAudio.play("enemyHit");
           }
         }
@@ -765,9 +779,8 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         const distToPlayer = Math.hypot(proj.x - playerPos.x, proj.z - playerPos.z);
         if (distToPlayer < proj.radius + 0.45) {
           if (runtime.playerInvulnerableTimer <= 0) {
-            useGameStore.getState().takeDamage(proj.damage);
+            damagePlayer(runtime, proj.damage, 0.6);
             gameAudio.play("playerDamage");
-            runtime.playerInvulnerableTimer = 0.6;
 
             // Handle Cryovex frost chill slow
             if (proj.effectType === "frost") {
@@ -820,7 +833,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq < (proj.radius + enemy.radius) ** 2) {
             enemy.health -= proj.damage;
             enemy.hitFlashTimer = 0.15;
-            applyElementalOnHit(enemy, upgrades, runtime);
+            applyElementalOnHit(enemy, upgrades, passives, runtime);
             gameAudio.play("enemyHit");
             proj.pierce -= 1;
 
@@ -884,8 +897,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
       if (distSq < hz.radius * hz.radius) {
         if (hz.type === "fire" || hz.type === "poison") {
           if (runtime.playerInvulnerableTimer <= 0) {
-            useGameStore.getState().takeDamage(Math.round(hz.damagePerSec * 0.4));
-            runtime.playerInvulnerableTimer = 0.4;
+            damagePlayer(runtime, Math.round(hz.damagePerSec * 0.4), 0.4);
             gameAudio.play("playerDamage");
           }
         } else if (hz.type === "frost") {
@@ -949,35 +961,54 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     // 5. Instanced Projectiles Rendering
     // =========================================================================
     if (projectileMeshRef.current) {
-      const count = Math.min(runtime.projectiles.length, MAX_PROJECTILES);
-      projectileMeshRef.current.count = count;
+      let count = 0;
+      let hostileCount = 0;
 
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < runtime.projectiles.length && count < MAX_PROJECTILES; i++) {
         const proj = runtime.projectiles[i];
+        if (proj.isEnemy && !proj.effectType) {
+          if (hostileProjectileMeshRef.current && hostileCount < MAX_PROJECTILES) {
+            tempPosition.set(proj.x, proj.y, proj.z);
+            tempScale.set(proj.radius * 2.25, proj.radius * 2.25, proj.radius * 2.25);
+            tempMatrix.makeTranslation(proj.x, proj.y, proj.z);
+            tempMatrix.scale(tempScale);
+            hostileProjectileMeshRef.current.setMatrixAt(hostileCount, tempMatrix);
+            hostileCount++;
+          }
+          continue;
+        }
+
         tempPosition.set(proj.x, proj.y, proj.z);
         const scale = proj.radius * 2;
         tempScale.set(scale, scale, scale);
         tempMatrix.makeTranslation(proj.x, proj.y, proj.z);
         tempMatrix.scale(tempScale);
-        projectileMeshRef.current.setMatrixAt(i, tempMatrix);
+        projectileMeshRef.current.setMatrixAt(count, tempMatrix);
 
         if (proj.isEnemy) {
-          projectileMeshRef.current.setColorAt(i, enemyProjColor);
+          tempColor.set(proj.color || "#ef4444");
+          projectileMeshRef.current.setColorAt(count, tempColor);
         } else if (proj.isPrism) {
-          projectileMeshRef.current.setColorAt(i, prismProjColor);
+          projectileMeshRef.current.setColorAt(count, prismProjColor);
         } else if (proj.color === "#22c55e" || upgrades.poison > 0) {
-          projectileMeshRef.current.setColorAt(i, poisonProjColor);
+          projectileMeshRef.current.setColorAt(count, poisonProjColor);
         } else if (upgrades.fire > 0) {
-          projectileMeshRef.current.setColorAt(i, fireProjColor);
+          projectileMeshRef.current.setColorAt(count, fireProjColor);
         } else if (upgrades.frost > 0) {
-          projectileMeshRef.current.setColorAt(i, frostProjColor);
+          projectileMeshRef.current.setColorAt(count, frostProjColor);
         } else if (upgrades.shock > 0) {
-          projectileMeshRef.current.setColorAt(i, shockProjColor);
+          projectileMeshRef.current.setColorAt(count, shockProjColor);
         } else if (proj.color === "#a8ff60") {
-          projectileMeshRef.current.setColorAt(i, critProjColor);
+          projectileMeshRef.current.setColorAt(count, critProjColor);
         } else {
-          projectileMeshRef.current.setColorAt(i, defaultProjColor);
+          projectileMeshRef.current.setColorAt(count, defaultProjColor);
         }
+        count++;
+      }
+
+      projectileMeshRef.current.count = count;
+      if (hostileProjectileMeshRef.current) {
+        hostileProjectileMeshRef.current.count = hostileCount;
       }
 
       if (count > 0) {
@@ -985,6 +1016,9 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         if (projectileMeshRef.current.instanceColor) {
           projectileMeshRef.current.instanceColor.needsUpdate = true;
         }
+      }
+      if (hostileProjectileMeshRef.current && hostileCount > 0) {
+        hostileProjectileMeshRef.current.instanceMatrix.needsUpdate = true;
       }
     }
   });
@@ -1002,6 +1036,12 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
       <instancedMesh
         ref={projectileMeshRef}
         args={[projGeometry, projMaterial, MAX_PROJECTILES]}
+        frustumCulled={false}
+      />
+
+      <instancedMesh
+        ref={hostileProjectileMeshRef}
+        args={[projGeometry, hostileProjMaterial, MAX_PROJECTILES]}
         frustumCulled={false}
       />
 

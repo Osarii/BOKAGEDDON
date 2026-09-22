@@ -2,11 +2,11 @@ import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { GameRuntime } from "../game/runtime";
-import { GAME_CONFIG, SPECIAL_PICKUP_CONFIG } from "../game/config";
+import { GAME_CONFIG, RECOVERY_CONFIG } from "../game/config";
 import { useGameStore } from "../store/gameStore";
 import { gameAudio } from "../audio/gameAudio";
 import { ASSETS } from "../config/assets";
-import type { RecoveryPickupType, SpecialPickupType } from "../types/game";
+import type { ChestRarity, RecoveryPickupType, SpecialPickupType } from "../types/game";
 
 interface PickupManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -15,6 +15,7 @@ interface PickupManagerProps {
 const MAX_XP_PICKUPS = 120;
 const MAX_ITEM_INSTANCES = 24;
 const MAX_SPECIAL_INSTANCES = 8;
+const MAX_CHEST_INSTANCES = 10;
 
 // Reusable scratch objects to avoid per-frame GC allocations
 const tempMatrix = new THREE.Matrix4();
@@ -23,6 +24,11 @@ const tempScale = new THREE.Vector3();
 const tempQuaternion = new THREE.Quaternion();
 const tempRotation = new THREE.Euler();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
+const chestColors: Record<ChestRarity, THREE.Color> = {
+  common: new THREE.Color("#94a3b8"),
+  rare: new THREE.Color("#00e5ff"),
+  legendary: new THREE.Color("#fbbf24"),
+};
 
 // Shared textures loaded once at module scope strictly for Recovery pickups
 const textureLoader = new THREE.TextureLoader();
@@ -62,6 +68,7 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
   const teslaMeshRef = useRef<THREE.InstancedMesh>(null);
   const toxicMeshRef = useRef<THREE.InstancedMesh>(null);
   const phoenixMeshRef = useRef<THREE.InstancedMesh>(null);
+  const chestMeshRef = useRef<THREE.InstancedMesh>(null);
 
   // Emerald gem geometry & material with computed bounds
   const gemGeometry = useMemo(() => {
@@ -92,6 +99,25 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     geo.computeVertexNormals();
     return geo;
   }, []);
+
+  const chestGeometry = useMemo(() => {
+    const base = new THREE.BoxGeometry(0.9, 0.5, 0.6).translate(0, 0.25, 0);
+    base.computeBoundingSphere();
+    base.computeBoundingBox();
+    return base;
+  }, []);
+
+  const chestMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ffffff",
+        emissive: "#ffffff",
+        emissiveIntensity: 0.45,
+        roughness: 0.35,
+        metalness: 0.45,
+      }),
+    []
+  );
 
   // Dedicated basic materials for each recovery item archetype
   const itemMaterials = useMemo(
@@ -204,6 +230,14 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         ref.current.instanceMatrix.needsUpdate = true;
       }
     });
+
+    if (chestMeshRef.current) {
+      chestMeshRef.current.count = 0;
+      for (let i = 0; i < MAX_CHEST_INSTANCES; i++) {
+        chestMeshRef.current.setMatrixAt(i, hiddenMatrix);
+      }
+      chestMeshRef.current.instanceMatrix.needsUpdate = true;
+    }
   }, []);
 
   useFrame((state, delta) => {
@@ -230,6 +264,13 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
 
     for (let i = runtime.pickups.length - 1; i >= 0; i--) {
       const pickup = runtime.pickups[i];
+      if (pickup.lifetime !== undefined) {
+        pickup.lifetime -= delta;
+        if (pickup.lifetime <= 0) {
+          runtime.pickups.splice(i, 1);
+          continue;
+        }
+      }
       const dx = playerPos.x - pickup.x;
       const dz = playerPos.z - pickup.z;
       const dist = Math.hypot(dx, dz);
@@ -255,32 +296,7 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       ) {
         // Special Procedural Pickups: Collected strictly on contact
         if (dist < 0.9) {
-          if (pickup.type === "overclock_core") {
-            runtime.overclockTimer = SPECIAL_PICKUP_CONFIG.buffDurations.overclock_core;
-            useGameStore.getState().setNotification({
-              title: "¡SOBRERELOJ ACTIVADO!",
-              subtitle: "+50% Velocidad de Ataque (8s)",
-            });
-          } else if (pickup.type === "tesla_cell") {
-            runtime.teslaTimer = SPECIAL_PICKUP_CONFIG.buffDurations.tesla_cell;
-            useGameStore.getState().setNotification({
-              title: "¡SOBRECARGA TESLA!",
-              subtitle: "Arcos Eléctricos Continuos (10s)",
-            });
-          } else if (pickup.type === "toxic_relic") {
-            runtime.toxicRelicTimer = SPECIAL_PICKUP_CONFIG.buffDurations.toxic_relic;
-            useGameStore.getState().setNotification({
-              title: "¡RELIQUIA TÓXICA!",
-              subtitle: "Daño de Veneno Duplicado (10s)",
-            });
-          } else if (pickup.type === "phoenix_fragment") {
-            runtime.phoenixTimer = SPECIAL_PICKUP_CONFIG.buffDurations.phoenix_fragment;
-            useGameStore.getState().heal(50);
-            useGameStore.getState().setNotification({
-              title: "¡FRAGMENTO DE FÉNIX!",
-              subtitle: "+50 HP Curados & +40% Daño Ígneo (8s)",
-            });
-          }
+          useGameStore.getState().addPassive(pickup.type);
           gameAudio.play("ui");
           runtime.pickups.splice(i, 1);
         }
@@ -314,6 +330,15 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       const previousLevel = useGameStore.getState().level;
       useGameStore.getState().addXp(collectedXp);
       gameAudio.play(useGameStore.getState().level > previousLevel ? "levelUp" : "xpPickup");
+    }
+
+    for (let i = runtime.chests.length - 1; i >= 0; i--) {
+      const chest = runtime.chests[i];
+      if (Math.hypot(playerPos.x - chest.x, playerPos.z - chest.z) < chest.radius + 0.45) {
+        useGameStore.getState().openChestReward(chest.rarity);
+        gameAudio.play("ui");
+        runtime.chests.splice(i, 1);
+      }
     }
 
     // =========================================================================
@@ -419,7 +444,11 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
 
           // Major pickups are slightly larger
           const scale = type === "medkit_case" || type === "shield_battery" ? 1.15 : 0.95;
-          tempScale.set(scale, scale, scale);
+          const warn =
+            p.lifetime !== undefined &&
+            p.lifetime <= RECOVERY_CONFIG.warningSec &&
+            Math.sin(time * 18) > 0;
+          tempScale.set(scale * (warn ? 0.65 : 1), scale * (warn ? 0.65 : 1), scale * (warn ? 0.65 : 1));
 
           tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
           meshRef.current.setMatrixAt(count, tempMatrix);
@@ -449,6 +478,27 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         }
       }
     });
+
+    if (chestMeshRef.current) {
+      const count = Math.min(runtime.chests.length, MAX_CHEST_INSTANCES);
+      chestMeshRef.current.count = count;
+      for (let i = 0; i < count; i++) {
+        const chest = runtime.chests[i];
+        const bob = Math.sin(time * 3 + i) * 0.12;
+        tempPosition.set(chest.x, chest.y + bob, chest.z);
+        tempRotation.set(0, time * 1.5 + i, 0);
+        tempQuaternion.setFromEuler(tempRotation);
+        const pulse = 1 + Math.sin(time * 5 + i) * 0.08;
+        tempScale.set(pulse, pulse, pulse);
+        tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+        chestMeshRef.current.setMatrixAt(i, tempMatrix);
+        chestMeshRef.current.setColorAt(i, chestColors[chest.rarity]);
+      }
+      if (count > 0) {
+        chestMeshRef.current.instanceMatrix.needsUpdate = true;
+        if (chestMeshRef.current.instanceColor) chestMeshRef.current.instanceColor.needsUpdate = true;
+      }
+    }
   });
 
   return (
@@ -514,6 +564,12 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       <instancedMesh
         ref={phoenixMeshRef}
         args={[itemPlaneGeometry, specialMaterials.phoenix_fragment, MAX_SPECIAL_INSTANCES]}
+        frustumCulled={false}
+      />
+
+      <instancedMesh
+        ref={chestMeshRef}
+        args={[chestGeometry, chestMaterial, MAX_CHEST_INSTANCES]}
         frustumCulled={false}
       />
     </group>

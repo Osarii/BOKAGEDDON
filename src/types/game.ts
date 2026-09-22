@@ -58,6 +58,7 @@ export type GameStatus =
   | "ready"
   | "playing"
   | "paused"
+  | "chest"
   | "levelup"
   | "gameover"
   | "victory";
@@ -96,3 +97,4 @@ export type SpecialPickupType =
 
 export type PickupType = "xp" | RecoveryPickupType | SpecialPickupType;
 
+export type ChestRarity = "common" | "rare" | "legendary";

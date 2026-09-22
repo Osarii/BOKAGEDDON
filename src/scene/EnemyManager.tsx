@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import type { GameRuntime, EnemyEntity } from "../game/runtime";
+import { damagePlayer, type GameRuntime, type EnemyEntity } from "../game/runtime";
 import {
   ENEMY_CONFIGS,
   BOSS_CONFIGS,
@@ -10,14 +10,14 @@ import {
   ARENA_BOUNDARY_LIMIT,
   GAME_CONFIG,
   RECOVERY_CONFIG,
-  SPECIAL_PICKUP_CONFIG,
+  CHEST_CONFIG,
+  rollChestRarity,
   rollBossLoot,
 } from "../game/config";
 import {
   getRoundEnemyCap,
   getRoundEnemyQuota,
   isBossRound,
-  getBossStats,
   getBossTypeForRound,
   getBossCycleTier,
   isBossType,
@@ -32,7 +32,7 @@ import {
 import { useGameStore } from "../store/gameStore";
 import { ASSETS } from "../config/assets";
 import { gameAudio } from "../audio/gameAudio";
-import type { EnemyType, BossType, RecoveryPickupType } from "../types/game";
+import type { ChestRarity, EnemyType, BossType, RecoveryPickupType } from "../types/game";
 
 interface EnemyManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -50,6 +50,7 @@ interface DeathRing {
 }
 
 const MAX_DEATH_RINGS = 32;
+const FRENZY_DURATION = 90;
 
 // Shared SVG Textures loaded once at module scope
 const textureLoader = new THREE.TextureLoader();
@@ -101,6 +102,28 @@ function safeMerge(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
   merged.computeBoundingBox();
   merged.computeVertexNormals();
   return merged;
+}
+
+function getConfiguredBossStats(tier: number, bossType: BossType) {
+  const safeTier = Math.max(1, Math.floor(tier));
+  const boss = BOSS_CONFIGS[bossType];
+  return {
+    health: Math.round(boss.baseHp * (1 + (safeTier - 1) * 0.55)),
+    damage: Math.round(boss.baseDamage * (1 + (safeTier - 1) * 0.35)),
+    speed: Math.min(4.0, boss.speed + (safeTier - 1) * 0.12),
+  };
+}
+
+function spawnChest(runtime: GameRuntime, x: number, z: number, rarity: ChestRarity) {
+  if (runtime.chests.length >= CHEST_CONFIG.maxActiveChests) return;
+  runtime.chests.push({
+    id: runtime.nextEntityId++,
+    rarity,
+    x,
+    y: 0.45,
+    z,
+    radius: 0.85,
+  });
 }
 
 export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
@@ -322,6 +345,28 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     const roundStatus = useGameStore.getState().roundStatus;
     const time = state.clock.elapsedTime;
 
+    if (runtime.frenzyActive) {
+      runtime.frenzyTimer = Math.max(0, runtime.frenzyTimer - delta);
+      if (runtime.frenzyTimer <= 0) {
+        runtime.frenzyActive = false;
+        if (runtime.normalEnemyKillsForFrenzy >= runtime.nextFrenzyKillThreshold) {
+          runtime.frenzyActive = true;
+          runtime.frenzyTimer = FRENZY_DURATION;
+          runtime.nextFrenzyKillThreshold += 75;
+          useGameStore.getState().setNotification({
+            title: "FRENZY MODE",
+            subtitle: "Enemy horde enraged for 90 seconds",
+          });
+        }
+      }
+    }
+    useGameStore.getState().setFrenzyState({
+      active: runtime.frenzyActive,
+      timer: runtime.frenzyTimer,
+      kills: runtime.normalEnemyKillsForFrenzy,
+      nextThreshold: runtime.nextFrenzyKillThreshold,
+    });
+
     // Player contact damage cooldown
     if (runtime.playerInvulnerableTimer > 0) {
       runtime.playerInvulnerableTimer -= delta;
@@ -363,7 +408,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           const spawnDist = ARENA_BOUNDARY_LIMIT - 3.0;
           const bossType = getBossTypeForRound(round);
           const bossTier = getBossCycleTier(round);
-          const bossStats = getBossStats(bossTier, bossType);
+          const bossStats = getConfiguredBossStats(bossTier, bossType);
           const bossConfig = BOSS_CONFIGS[bossType];
           const enemyConfig = ENEMY_CONFIGS[bossType];
 
@@ -410,7 +455,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
         if (remainingQuota > 0) {
           runtime.spawnTimer += delta;
-          const spawnIntervalSec = getSpawnInterval(round) / 1000;
+          const spawnIntervalSec = (getSpawnInterval(round) / 1000) * (runtime.frenzyActive ? 0.8 : 1);
 
           if (runtime.spawnTimer >= spawnIntervalSec) {
             runtime.spawnTimer = 0;
@@ -507,6 +552,19 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       }
 
       let currentSpeed = enemy.speed;
+      const isFrenziedNormal = runtime.frenzyActive && !isBossType(enemy.type);
+      if (isFrenziedNormal && !enemy.frenzyHpBonus) {
+        enemy.frenzyHpBonus = Math.round(enemy.maxHealth * 0.3);
+        enemy.maxHealth += enemy.frenzyHpBonus;
+        enemy.health += enemy.frenzyHpBonus;
+      } else if (!runtime.frenzyActive && enemy.frenzyHpBonus) {
+        enemy.maxHealth -= enemy.frenzyHpBonus;
+        enemy.health = Math.min(enemy.health, enemy.maxHealth);
+        enemy.frenzyHpBonus = 0;
+      }
+      if (isFrenziedNormal) {
+        currentSpeed *= 1.35;
+      }
       if (enemy.frostTimer && enemy.frostTimer > 0) {
         enemy.frostTimer -= delta;
         currentSpeed *= (1 - (enemy.frostSlowPercent || 0.3));
@@ -550,17 +608,15 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
           // Exactly one item dropped per boss defeat using ONE weighted roll (100% total)
           const bossLoot = rollBossLoot();
-          const isSpecial =
-            bossLoot === "overclock_core" ||
-            bossLoot === "tesla_cell" ||
-            bossLoot === "toxic_relic" ||
-            bossLoot === "phoenix_fragment";
-
-          const lootValue = isSpecial
-            ? SPECIAL_PICKUP_CONFIG.buffDurations[bossLoot]
-            : (RECOVERY_CONFIG.pickupEffects as Record<string, { hp: number; shield: number }>)[bossLoot]?.hp ||
+          const lootValue =
+            (RECOVERY_CONFIG.pickupEffects as Record<string, { hp: number; shield: number }>)[bossLoot]?.hp ||
               (RECOVERY_CONFIG.pickupEffects as Record<string, { hp: number; shield: number }>)[bossLoot]?.shield ||
-              35;
+              1;
+          const isRecoveryLoot =
+            bossLoot === "medkit_emergency" ||
+            bossLoot === "medkit_case" ||
+            bossLoot === "shield_potion" ||
+            bossLoot === "shield_battery";
 
           runtime.pickups.push({
             id: runtime.nextEntityId++,
@@ -570,13 +626,35 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             z: enemy.z,
             value: lootValue,
             radius: 0.8,
+            lifetime: isRecoveryLoot ? RECOVERY_CONFIG.lifetimeSec : undefined,
+            maxLifetime: isRecoveryLoot ? RECOVERY_CONFIG.lifetimeSec : undefined,
           });
+
+          spawnChest(runtime, enemy.x + 1.1, enemy.z, "legendary");
 
           // Boss round complete! Enter intermission to advance to next round
           runtime.intermissionTimer = 0;
           useGameStore.getState().setRoundStatus("intermission");
         } else {
           gameAudio.play("enemyDeath");
+          runtime.normalEnemyKillsForChest++;
+          runtime.normalEnemyKillsForFrenzy++;
+
+          if (!runtime.frenzyActive && runtime.normalEnemyKillsForFrenzy >= runtime.nextFrenzyKillThreshold) {
+            runtime.frenzyActive = true;
+            runtime.frenzyTimer = FRENZY_DURATION;
+            runtime.nextFrenzyKillThreshold += 75;
+            useGameStore.getState().setNotification({
+              title: "FRENZY MODE",
+              subtitle: "Enemy horde enraged for 90 seconds",
+            });
+          }
+
+          if (runtime.normalEnemyKillsForChest % CHEST_CONFIG.guaranteedNormalKills === 0) {
+            spawnChest(runtime, enemy.x + 0.7, enemy.z, "common");
+          } else if (Math.random() < CHEST_CONFIG.normalDropChance) {
+            spawnChest(runtime, enemy.x + 0.7, enemy.z, rollChestRarity());
+          }
 
           // Normal enemies ONLY drop recovery items (can NEVER drop SpecialPickupType items)
           const activeRecoveryCount = runtime.pickups.filter((p) =>
@@ -616,6 +694,8 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
               z: enemy.z,
               value: dropVal,
               radius: 0.5,
+              lifetime: RECOVERY_CONFIG.lifetimeSec,
+              maxLifetime: RECOVERY_CONFIG.lifetimeSec,
             });
           }
         }
@@ -644,7 +724,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
         // Shoot hostile projectile (clearly visible red identity)
         if (enemy.shootCooldown !== undefined) {
-          enemy.shootCooldown -= delta;
+          enemy.shootCooldown -= delta * (runtime.frenzyActive ? 1.5 : 1);
 
           // Visible charge-up particle feedback before firing
           if (enemy.shootCooldown <= 0.45 && enemy.shootCooldown > 0 && Math.random() < 0.25) {
@@ -668,7 +748,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
           if (enemy.shootCooldown <= 0) {
             enemy.shootCooldown = 2.4;
-            const projSpeed = 7.0;
+            const projSpeed = 7.0 * (runtime.frenzyActive ? 1.2 : 1);
             runtime.projectiles.push({
               id: runtime.nextEntityId++,
               x: enemy.x,
@@ -676,7 +756,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
               z: enemy.z,
               vx: (dx / distToPlayer) * projSpeed,
               vz: (dz / distToPlayer) * projSpeed,
-              damage: enemy.damage,
+              damage: Math.round(enemy.damage * (isFrenziedNormal ? 1.35 : 1)),
               radius: 0.28,
               color: "#ef4444",
               lifetime: 0,
@@ -738,8 +818,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
               maxLifetime: 1.2,
             });
             if (distToPlayer < 4.2 && runtime.playerInvulnerableTimer <= 0) {
-              useGameStore.getState().takeDamage(15);
-              runtime.playerInvulnerableTimer = GAME_CONFIG.playerInvulnerableDuration;
+              damagePlayer(runtime, Math.round(enemy.damage * 0.65), GAME_CONFIG.playerInvulnerableDuration);
               gameAudio.play("playerDamage");
             }
           } else if (bossType === "cindermaw") {
@@ -766,8 +845,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
               damagePerSec: 14,
             });
             if (distToPlayer < 3.8 && runtime.playerInvulnerableTimer <= 0) {
-              useGameStore.getState().takeDamage(14);
-              runtime.playerInvulnerableTimer = GAME_CONFIG.playerInvulnerableDuration;
+              damagePlayer(runtime, Math.round(enemy.damage * 0.6), GAME_CONFIG.playerInvulnerableDuration);
               gameAudio.play("playerDamage");
             }
           } else if (bossType === "stormcoil") {
@@ -908,8 +986,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       // Check contact damage with player
       if (distToPlayer < playerRadius + enemy.radius) {
         if (runtime.playerInvulnerableTimer <= 0) {
-          useGameStore.getState().takeDamage(enemy.damage);
-          runtime.playerInvulnerableTimer = GAME_CONFIG.playerInvulnerableDuration;
+          damagePlayer(runtime, Math.round(enemy.damage * (isFrenziedNormal ? 1.35 : 1)), GAME_CONFIG.playerInvulnerableDuration);
           gameAudio.play("playerDamage");
         }
       }

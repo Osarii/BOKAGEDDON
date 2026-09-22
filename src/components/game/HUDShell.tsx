@@ -29,6 +29,9 @@ export const HUDShell: React.FC = () => {
   const bossTier = useGameStore((s) => s.bossTier) || 1;
   const bossAccentColor = useGameStore((s) => s.bossAccentColor) || "#e11d48";
   const upgrades = useGameStore((s) => s.upgrades);
+  const passives = useGameStore((s) => s.passives);
+  const frenzyActive = useGameStore((s) => s.frenzyActive);
+  const frenzyTimer = useGameStore((s) => s.frenzyTimer);
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
   const notification = useGameStore((s) => s.notification);
 
@@ -68,6 +71,7 @@ export const HUDShell: React.FC = () => {
   const minutes = Math.floor(timeSurvivedSeconds / 60);
   const seconds = timeSurvivedSeconds % 60;
   const timeFormatted = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  const frenzyFormatted = `${Math.floor(frenzyTimer / 60)}:${Math.ceil(frenzyTimer % 60).toString().padStart(2, "0")}`;
 
   const portrait =
     selectedCharacterId && selectedCharacterId in ASSETS.characters
@@ -299,6 +303,23 @@ export const HUDShell: React.FC = () => {
             </div>
           )}
 
+          {frenzyActive && (
+            <div
+              className="hud-pill"
+              style={{
+                color: "#fb923c",
+                borderColor: "rgba(249, 115, 22, 0.75)",
+                boxShadow: "0 0 20px rgba(249, 115, 22, 0.45)",
+                fontWeight: 900,
+                animation: frenzyTimer <= 10 ? "frenzy-pulse 0.5s ease-in-out infinite" : undefined,
+              }}
+              title="Frenzy Mode active"
+            >
+              <Flame size={16} />
+              <span>FRENZY {frenzyFormatted}</span>
+            </div>
+          )}
+
           <div className="hud-pill" style={{ color: "var(--accent-warm)" }}>
             <Trophy size={16} />
             <span>{score.toLocaleString()}</span>
@@ -346,6 +367,39 @@ export const HUDShell: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {Object.values(passives).some((count) => count > 0) && (
+        <div
+          style={{
+            position: "absolute",
+            top: activeUpgrades.length > 0 ? "5rem" : "5rem",
+            left: activeUpgrades.length > 0 ? "4.6rem" : "1.25rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.4rem",
+            pointerEvents: "auto",
+          }}
+        >
+          {([
+            ["overclock_core", ASSETS.items.overclockCore, "Overclock Core"],
+            ["tesla_cell", ASSETS.items.teslaCell, "Tesla Cell"],
+            ["toxic_relic", ASSETS.items.toxicRelic, "Toxic Relic"],
+            ["phoenix_fragment", ASSETS.items.phoenixFragment, "Phoenix Charges"],
+          ] as const).map(([id, src, label]) =>
+            passives[id] > 0 ? (
+              <div
+                key={id}
+                className="hud-pill"
+                style={{ padding: "0.25rem 0.55rem", gap: "0.35rem", fontSize: "0.75rem" }}
+                title={`${label}: ${passives[id]}`}
+              >
+                <img src={src} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                <span>x{passives[id]}</span>
+              </div>
+            ) : null
+          )}
         </div>
       )}
 
@@ -421,6 +475,13 @@ export const HUDShell: React.FC = () => {
           WASD / Arrow Keys — Move &bull; Attacks Automatic &bull; Stack upgrades to unlock weapon synergies
         </div>
       </div>
+
+      <style>{`
+        @keyframes frenzy-pulse {
+          0%, 100% { transform: scale(1); filter: brightness(1); }
+          50% { transform: scale(1.08); filter: brightness(1.45); }
+        }
+      `}</style>
     </div>
   );
 };
