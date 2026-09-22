@@ -1,4 +1,4 @@
-import { BASE_ENEMY_CAP, ENEMIES_PER_LEVEL, HARD_ENEMY_CAP } from "./config";
+import { BASE_ENEMY_CAP, ENEMIES_PER_LEVEL, HARD_ENEMY_CAP, MAX_UPGRADE_LEVEL } from "./config";
 import type { BossType } from "../types/game";
 
 export const BOSS_ROSTER: BossType[] = [
@@ -129,4 +129,17 @@ export function getRoundEnemyQuota(round: number): number {
 export function getXpRequiredForLevel(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));
   return Math.round(75 * Math.pow(1.18, safeLevel - 1));
+}
+
+/**
+ * Checks whether any upgrade in the upgrades map is still below max level.
+ * If all tracked upgrades have reached max level, returns false.
+ */
+export function hasAvailableUpgrades(
+  upgrades: Record<string, number>,
+  maxLevel: number = MAX_UPGRADE_LEVEL
+): boolean {
+  const ids = Object.keys(upgrades);
+  if (ids.length === 0) return true;
+  return ids.some((id) => (upgrades[id] || 0) < maxLevel);
 }

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { BossType, Character, CharacterId, ChestRarity, GameStatus, RoundStatus, SpecialPickupType, UpgradeId } from "../types/game";
-import { getXpRequiredForLevel } from "../game/progression";
+import { getXpRequiredForLevel, hasAvailableUpgrades } from "../game/progression";
 import { MAX_UPGRADE_LEVEL, SPECIAL_PICKUP_CONFIG } from "../game/config";
 
 type PassiveStacks = Record<SpecialPickupType, number>;
@@ -261,6 +261,21 @@ export const useGameStore = create<GameState>((set) => ({
         pending += 1;
       }
 
+      const canUpgrade = hasAvailableUpgrades(state.upgrades);
+
+      // If all upgrades are maxed:
+      // pendingLevelUps = 0
+      // XP must not set gameStatus = "levelup"
+      if (!canUpgrade) {
+        return {
+          xp: currentXp,
+          level: currentLevel,
+          xpRequired: req,
+          pendingLevelUps: 0,
+          gameStatus: state.gameStatus === "levelup" ? "playing" : state.gameStatus,
+        };
+      }
+
       const shouldLevelUp = pending > 0 && state.gameStatus === "playing";
 
       return {
@@ -287,6 +302,21 @@ export const useGameStore = create<GameState>((set) => ({
       if (upgradeId === "vitality") {
         newMaxHealth += 30;
         newHealth = Math.min(newMaxHealth, newHealth + 30);
+      }
+
+      // Check if any upgrade choices remain across the pool
+      const canUpgrade = hasAvailableUpgrades(newUpgrades);
+
+      // If selecting the final available upgrade leaves queued pending level-ups:
+      // clear impossible pending selections, resume gameplay immediately
+      if (!canUpgrade) {
+        return {
+          upgrades: newUpgrades,
+          maxHealth: newMaxHealth,
+          health: newHealth,
+          pendingLevelUps: 0,
+          gameStatus: "playing",
+        };
       }
 
       // Check if pending level ups remain
@@ -344,6 +374,9 @@ export const useGameStore = create<GameState>((set) => ({
       const rarityShield = rarity === "legendary" ? 50 : rarity === "rare" ? 25 : 0;
       const newMaxHealth = state.maxHealth + vitalityHp;
 
+      const canUpgrade = hasAvailableUpgrades(newUpgrades);
+      const remainingPending = canUpgrade ? state.pendingLevelUps : 0;
+
       return {
         upgrades: newUpgrades,
         maxHealth: newMaxHealth,
@@ -351,7 +384,8 @@ export const useGameStore = create<GameState>((set) => ({
         shield: Math.min(state.maxShield, state.shield + rarityShield),
         score: state.score + (rarity === "legendary" ? 500 : 0),
         pendingChestReward: null,
-        gameStatus: state.pendingLevelUps > 0 ? "levelup" : "playing",
+        pendingLevelUps: remainingPending,
+        gameStatus: remainingPending > 0 ? "levelup" : "playing",
       };
     }),
 
@@ -393,12 +427,23 @@ export const useGameStore = create<GameState>((set) => ({
     })),
 
   levelUp: () =>
-    set((state) => ({
-      level: state.level + 1,
-      xpRequired: getXpRequiredForLevel(state.level + 1),
-      pendingLevelUps: state.pendingLevelUps + 1,
-      gameStatus: "levelup",
-    })),
+    set((state) => {
+      const nextLevel = state.level + 1;
+      const canUpgrade = hasAvailableUpgrades(state.upgrades);
+      if (!canUpgrade) {
+        return {
+          level: nextLevel,
+          xpRequired: getXpRequiredForLevel(nextLevel),
+          pendingLevelUps: 0,
+        };
+      }
+      return {
+        level: nextLevel,
+        xpRequired: getXpRequiredForLevel(nextLevel),
+        pendingLevelUps: state.pendingLevelUps + 1,
+        gameStatus: state.gameStatus === "playing" ? "levelup" : state.gameStatus,
+      };
+    }),
 
   resetRun: () =>
     set((state) => ({

@@ -111,7 +111,9 @@ export const LevelUpOverlay: React.FC = () => {
               type="button"
               className="btn btn-primary"
               style={{ marginTop: "1.5rem" }}
-              onClick={() => useGameStore.getState().setGameStatus("playing")}
+              onClick={() => {
+                useGameStore.setState({ pendingLevelUps: 0, gameStatus: "playing" });
+              }}
             >
               Resume Battle
             </button>
