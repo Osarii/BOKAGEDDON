@@ -119,6 +119,19 @@ function nearPlayer(runtime: GameRuntime, distance = 1.4) {
   return { x: p.x + distance, z: p.z };
 }
 
+export function triggerBossSpawn(runtime: GameRuntime, round = 20) {
+  runtime.currentRound = round;
+  runtime.bossSpawned = false;
+  useGameStore.setState({
+    round,
+    roundStatus: "wave",
+    bossActive: false,
+    bossHealth: 0,
+    bossMaxHealth: 0,
+    bossType: null,
+  });
+}
+
 export function prepareBossRound(runtime: GameRuntime, round: number) {
   runtime.enemies = [];
   runtime.projectiles = [];
@@ -227,7 +240,7 @@ export function applyDamage(runtime: GameRuntime, amount: number) {
   damagePlayer(runtime, amount, 0.6);
 }
 
-export function spawnNormalEnemies(runtime: GameRuntime, count: number) {
+export function spawnNormalEnemies(runtime: GameRuntime, count: number, durable = false) {
   const available = Math.max(0, HARD_ENEMY_CAP - runtime.enemies.length);
   const total = Math.min(count, available);
   const types: EnemyType[] = ["slime", "runner", "brute", "shooter"];
@@ -238,6 +251,7 @@ export function spawnNormalEnemies(runtime: GameRuntime, count: number) {
     const cfg = ENEMY_CONFIGS[type];
     const angle = (i / Math.max(1, total)) * Math.PI * 2;
     const distance = 5 + (i % 5) * 0.8;
+    const hp = durable ? 200000 : cfg.health;
     const enemy: EnemyEntity = {
       id: runtime.nextEntityId++,
       type,
@@ -246,8 +260,8 @@ export function spawnNormalEnemies(runtime: GameRuntime, count: number) {
       z: p.z + Math.sin(angle) * distance,
       vx: 0,
       vz: 0,
-      health: cfg.health,
-      maxHealth: cfg.health,
+      health: hp,
+      maxHealth: hp,
       speed: cfg.speed,
       damage: cfg.damage,
       radius: cfg.radius,
@@ -360,4 +374,5 @@ export function resetQaRun(runtime: GameRuntime) {
   const currentChar = useGameStore.getState().selectedCharacterId;
   const char = QA_CHARACTERS[currentChar || "bonk"] || QA_CHARACTERS.bonk;
   useGameStore.getState().initializeCharacterRun(char);
+  useGameStore.setState({ health: 999999, maxHealth: 999999 });
 }

@@ -1,5 +1,7 @@
 import type * as THREE from "three";
 import type { GameRuntime } from "./runtime";
+import { isBossType } from "./progression";
+import { spawnNormalEnemies } from "./devTools";
 
 export interface PerformanceSnapshot {
   fps: number;
@@ -34,6 +36,12 @@ export interface ScenarioSample {
   memoryMb: number | null;
 }
 
+export interface BenchmarkOptions {
+  targetEnemies?: number;
+  onEvent?: (runtime: GameRuntime) => void;
+  eventDelayMs?: number;
+}
+
 export interface ScenarioReport {
   scenarioName: string;
   durationMs: number;
@@ -44,11 +52,15 @@ export interface ScenarioReport {
   maxFps: number;
   avgFrameTimeMs: number;
   maxFrameTimeMs: number;
+  eventHitchMs?: number;
   drawCallsAvg: number;
   trianglesAvg: number;
   geometries: number;
   textures: number;
+  targetEnemies: number;
   enemiesAvg: number;
+  enemiesMin: number;
+  enemiesMax: number;
   projectilesAvg: number;
   pickupsAvg: number;
   particlesAvg: number;
@@ -86,6 +98,12 @@ interface ActiveBenchmark {
   scenarioName: string;
   targetDurationMs: number;
   startTime: number;
+  targetEnemies?: number;
+  onEvent?: (runtime: GameRuntime) => void;
+  eventDelayMs?: number;
+  eventTriggered?: boolean;
+  eventSampleIndex?: number;
+  eventHitchMs?: number;
   samples: ScenarioSample[];
   resolve: (report: ScenarioReport) => void;
 }
@@ -172,6 +190,36 @@ export function updatePerformanceFrame(
 
   // Handle active benchmark recording
   if (activeBenchmark) {
+    const elapsed = now - activeBenchmark.startTime;
+
+    // Trigger scheduled mid-benchmark event (e.g. Frenzy activation or Boss spawn)
+    if (
+      activeBenchmark.onEvent &&
+      !activeBenchmark.eventTriggered &&
+      runtime &&
+      elapsed >= (activeBenchmark.eventDelayMs ?? 1000)
+    ) {
+      activeBenchmark.eventTriggered = true;
+      activeBenchmark.eventSampleIndex = activeBenchmark.samples.length;
+      activeBenchmark.onEvent(runtime);
+    } else if (
+      activeBenchmark.eventSampleIndex != null &&
+      activeBenchmark.samples.length === activeBenchmark.eventSampleIndex + 1 &&
+      activeBenchmark.eventHitchMs == null
+    ) {
+      // The frame delta immediately reflecting the event execution
+      activeBenchmark.eventHitchMs = Math.round(dtMs * 100) / 100;
+    }
+
+    // Benchmark load stabilizer: maintain target normal enemy count throughout measurement
+    if (activeBenchmark.targetEnemies != null && activeBenchmark.targetEnemies > 0 && runtime) {
+      const normalEnemies = runtime.enemies.filter((e) => !isBossType(e.type)).length;
+      const deficit = activeBenchmark.targetEnemies - normalEnemies;
+      if (deficit > 0) {
+        spawnNormalEnemies(runtime, deficit, true);
+      }
+    }
+
     activeBenchmark.samples.push({
       dtMs,
       fps: currentFps,
@@ -216,7 +264,10 @@ function finalizeBenchmark(b: ActiveBenchmark): ScenarioReport {
       trianglesAvg: 0,
       geometries: 0,
       textures: 0,
+      targetEnemies: b.targetEnemies ?? 0,
       enemiesAvg: 0,
+      enemiesMin: 0,
+      enemiesMax: 0,
       projectilesAvg: 0,
       pickupsAvg: 0,
       particlesAvg: 0,
@@ -233,6 +284,8 @@ function finalizeBenchmark(b: ActiveBenchmark): ScenarioReport {
   let totalCalls = 0;
   let totalTriangles = 0;
   let totalEnemies = 0;
+  let minEnemies = Infinity;
+  let maxEnemies = 0;
   let totalProjectiles = 0;
   let totalPickups = 0;
   let totalParticles = 0;
@@ -247,6 +300,8 @@ function finalizeBenchmark(b: ActiveBenchmark): ScenarioReport {
     totalCalls += s.drawCalls;
     totalTriangles += s.triangles;
     totalEnemies += s.enemies;
+    if (s.enemies < minEnemies) minEnemies = s.enemies;
+    if (s.enemies > maxEnemies) maxEnemies = s.enemies;
     totalProjectiles += s.projectiles;
     totalPickups += s.pickups;
     totalParticles += s.particles;
@@ -277,7 +332,11 @@ function finalizeBenchmark(b: ActiveBenchmark): ScenarioReport {
     trianglesAvg: Math.round(totalTriangles / count),
     geometries: lastSample.geometries,
     textures: lastSample.textures,
-    enemiesAvg: Math.round(totalEnemies / count),
+    targetEnemies: b.targetEnemies ?? 0,
+    enemiesAvg: Math.round((totalEnemies / count) * 10) / 10,
+    enemiesMin: minEnemies === Infinity ? 0 : minEnemies,
+    enemiesMax: maxEnemies,
+    eventHitchMs: b.eventHitchMs,
     projectilesAvg: Math.round(totalProjectiles / count),
     pickupsAvg: Math.round(totalPickups / count),
     particlesAvg: Math.round(totalParticles / count),
@@ -293,13 +352,17 @@ export function getPerformanceSnapshot(): PerformanceSnapshot {
 
 export function startScenarioBenchmark(
   scenarioName: string,
-  durationSec = 3
+  durationSec = 3,
+  options?: BenchmarkOptions
 ): Promise<ScenarioReport> {
   return new Promise((resolve) => {
     activeBenchmark = {
       scenarioName,
       targetDurationMs: durationSec * 1000,
       startTime: performance.now(),
+      targetEnemies: options?.targetEnemies,
+      onEvent: options?.onEvent,
+      eventDelayMs: options?.eventDelayMs,
       samples: [],
       resolve,
     };

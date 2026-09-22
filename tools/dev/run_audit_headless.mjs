@@ -1,5 +1,5 @@
 /**
- * BONKAGEDDON — Headless Performance Audit Harness (v1.2)
+ * BONKAGEDDON — Headless Performance Audit Harness (v1.3)
  *
  * Connects to Brave/Chromium via CDP, navigates to the game (/game/bonk?qa=1),
  * queries hardware-accelerated WebGL info, triggers the QA performance suite,
@@ -178,12 +178,12 @@ async function main() {
   }
 
   // Print markdown table
-  console.log("\n=== BONKAGEDDON PERFORMANCE AUDIT V1.2 RESULTS ===\n");
-  console.log("| Scenario | Avg FPS | p99/1%-low eq FPS | Avg Frame Time | Max Frame Time | Draw Calls | Triangles | Enemies | Particles | DPR | Heap MB |");
-  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  console.log("\n=== BONKAGEDDON PERFORMANCE AUDIT V1.3 RESULTS ===\n");
+  console.log("| Scenario | Target Foes | Avg Foes | Min Foes | Max Foes | Avg FPS | p99/1%-low eq FPS | Avg Frame Time | Max Frame Time | Event Hitch | Draw Calls | Triangles | Particles | DPR | Heap MB |");
+  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const r of reports) {
     console.log(
-      `| ${r.scenarioName} | **${r.avgFps}** | **${r.onePercentLowFps}** | ${r.avgFrameTimeMs} ms | ${r.maxFrameTimeMs} ms | ${r.drawCallsAvg} | ${Number(r.trianglesAvg).toLocaleString()} | ${r.enemiesAvg} | ${r.particlesAvg} | ${r.dpr} | ${r.memoryMb ?? "N/A"} |`
+      `| ${r.scenarioName} | ${r.targetEnemies} | ${r.enemiesAvg} | ${r.enemiesMin} | ${r.enemiesMax} | **${r.avgFps}** | **${r.onePercentLowFps}** | ${r.avgFrameTimeMs} ms | ${r.maxFrameTimeMs} ms | ${r.eventHitchMs != null ? `${r.eventHitchMs} ms` : "N/A"} | ${r.drawCallsAvg} | ${Number(r.trianglesAvg).toLocaleString()} | ${r.particlesAvg} | ${r.dpr} | ${r.memoryMb ?? "N/A"} |`
     );
   }
 
