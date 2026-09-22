@@ -71,7 +71,7 @@ Post-Merge Integration Complete & Verified
   - Implemented circular arena boundary enforcement at 28.8 units (radius 30) with tangential velocity deflection.
   - Implemented Shield absorption mechanic (`shield` starting at 0, max 100): mitigated damage hits shield first; remainder damages HP.
   - Integrated WebP recovery asset pack under `public/assets/v2/items/`: `medkit-emergency.webp` (+35 HP), `medkit-case.webp` (+70 HP), `shield-potion.webp` (+25 shield), `shield-battery.webp` (+50 shield).
-  - Recovery pickups feature a 30-second lifetime expiration with warning blink and contact-based collection with consumption guards.
+  - Recovery pickups feature a 25-second lifetime expiration (warning at 5 seconds) and contact-based collection with consumption guards.
   - Fixed camera and movement vibration across straight movement, diagonal movement, turns, and arena boundaries using exponential low-pass filtering.
 
 - **Workstream: Project-Aware Professor AI Assistant**:
@@ -96,7 +96,7 @@ Post-Merge Integration Complete & Verified
     - Round 40: Venomatrix (toxic volleys, poison pools, acidic spray)
     - Round 50: Cryovex (frost novae, ice shards, blizzards)
     - Roster repeats every 50 rounds with incremented boss tiers and scaled HP/damage.
-  - Implemented boss animation and telegraph pass with distinct anticipations, attacks, and recovery states.
+  - Implemented boss animation and telegraph pass with distinct anticipations, attacks, and recovery states across the full 5-boss visual asset roster: Bonklord SVG plus four WebP boss identities.
   - Boss loot system: bosses drop reward chests containing permanent boss-exclusive passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`).
   - Chest reward architecture with `ChestRewardOverlay` displaying tiered loot (Common, Rare, Epic, Legendary).
   - Permanent special passives integrate official WebP decals and persistent stat buffs.

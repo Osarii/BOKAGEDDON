@@ -32,4 +32,4 @@ The WebP assets are fully integrated into runtime 3D item rendering, chest rewar
 | `ASSETS.enemies.venomatrix` | `/assets/enemies/venomatrix.webp` | Integrated: Round 40 Boss (Poison) |
 | `ASSETS.enemies.cryovex` | `/assets/enemies/cryovex.webp` | Integrated: Round 50 Boss (Frost) |
 
-All five boss identities are fully integrated into the 5-boss rotating encounter system with procedural 3D shells, decal emblems, telegraphs, and distinct combat mechanics.
+The full 5-boss visual asset roster: Bonklord SVG plus four WebP boss identities are fully integrated into the 5-boss rotating encounter system with procedural 3D shells, decal emblems, telegraphs, and distinct combat mechanics.
