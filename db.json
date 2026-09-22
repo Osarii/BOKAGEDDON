@@ -65,7 +65,7 @@
     {
       "id": "damage",
       "name": "Damage Boost",
-      "description": "+20% attack damage to all weapons",
+      "description": "+15% attack damage to all weapons",
       "type": "offense",
       "icon": "/assets/upgrades/damage.svg"
     },
@@ -79,44 +79,128 @@
     {
       "id": "speed",
       "name": "Speed Surge",
-      "description": "Increases movement speed by 15%",
+      "description": "Increases movement speed by 10%",
       "type": "mobility",
       "icon": "/assets/upgrades/speed.svg"
     },
     {
       "id": "vitality",
       "name": "Vitality",
-      "description": "Increases maximum health by +30 HP",
+      "description": "+25 Max HP and restores +25 HP immediately",
       "type": "defense",
       "icon": "/assets/upgrades/vitality.svg"
     },
     {
       "id": "armor",
       "name": "Reinforced Armor",
-      "description": "Reduces incoming damage by 15%",
+      "description": "Reduces incoming enemy damage by 10% (max 50%)",
       "type": "defense",
       "icon": "/assets/upgrades/armor.svg"
     },
     {
       "id": "magnet",
       "name": "XP Magnet",
-      "description": "Increases XP gem pickup radius by 40%",
+      "description": "Increases XP gem pickup range by +30%",
       "type": "utility",
       "icon": "/assets/upgrades/magnet.svg"
     },
     {
       "id": "critical",
       "name": "Critical Strike",
-      "description": "Grants a 20% chance to deal double damage",
+      "description": "+10% chance to deal critical damage",
       "type": "offense",
       "icon": "/assets/upgrades/critical.svg"
     },
     {
       "id": "multishot",
       "name": "Multishot",
-      "description": "Fires +1 additional projectile per attack cycle",
+      "description": "Fires +1 to +3 additional projectiles / cleaves",
       "type": "offense",
       "icon": "/assets/upgrades/multishot.svg"
+    },
+    {
+      "id": "fire",
+      "name": "Inferno (Fire)",
+      "description": "Attacks ignite foes for ~6 burn dmg/s per tier",
+      "type": "offense",
+      "icon": ""
+    },
+    {
+      "id": "poison",
+      "name": "Venom (Poison)",
+      "description": "Attacks poison foes for 4 + 3/s per tier",
+      "type": "offense",
+      "icon": ""
+    },
+    {
+      "id": "shock",
+      "name": "Volt (Shock)",
+      "description": "12% + 8% proc chance on hit to arc electric damage",
+      "type": "offense",
+      "icon": ""
+    },
+    {
+      "id": "frost",
+      "name": "Glacier (Frost)",
+      "description": "Chills enemies, slowing movement by 12% + 7% per tier",
+      "type": "utility",
+      "icon": ""
+    },
+    {
+      "id": "regeneration",
+      "name": "Regeneration",
+      "description": "+0.30 HP/sec health regeneration while playing",
+      "type": "defense",
+      "icon": ""
+    },
+    {
+      "id": "barrier",
+      "name": "Barrier Matrix",
+      "description": "+15 Max Shield and restores +15 Shield immediately",
+      "type": "defense",
+      "icon": ""
+    },
+    {
+      "id": "area",
+      "name": "Area Amplifier",
+      "description": "+7% effective attack area and blast radius",
+      "type": "offense",
+      "icon": ""
+    },
+    {
+      "id": "recovery",
+      "name": "Field Medic",
+      "description": "+12% HP and Shield recovery from world pickups",
+      "type": "defense",
+      "icon": ""
+    },
+    {
+      "id": "boss_hunter",
+      "name": "Boss Hunter",
+      "description": "+7% outgoing damage against boss adversaries",
+      "type": "offense",
+      "icon": ""
+    },
+    {
+      "id": "executioner",
+      "name": "Execution Protocol",
+      "description": "+6% direct damage to enemies at or below 35% HP",
+      "type": "offense",
+      "icon": ""
+    },
+    {
+      "id": "precision",
+      "name": "Critical Power",
+      "description": "+0.15x critical damage multiplier (base 2.0x)",
+      "type": "offense",
+      "icon": ""
+    },
+    {
+      "id": "fortune",
+      "name": "Fortune",
+      "description": "+0.30% chest drop chance and shifts chest rarity higher",
+      "type": "utility",
+      "icon": ""
     }
   ],
   "scores": [

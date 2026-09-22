@@ -11,7 +11,8 @@ import {
   GAME_CONFIG,
   RECOVERY_CONFIG,
   CHEST_CONFIG,
-  rollChestRarity,
+  rollChestRarityWithFortune,
+  getFortuneChestDropChance,
   rollBossLoot,
 } from "../game/config";
 import {
@@ -108,8 +109,8 @@ function getConfiguredBossStats(tier: number, bossType: BossType) {
   const safeTier = Math.max(1, Math.floor(tier));
   const boss = BOSS_CONFIGS[bossType];
   return {
-    health: Math.round(boss.baseHp * (1 + (safeTier - 1) * 0.55)),
-    damage: Math.round(boss.baseDamage * (1 + (safeTier - 1) * 0.35)),
+    health: Math.round(boss.baseHp * (1 + (safeTier - 1) * 0.60)),
+    damage: Math.round(boss.baseDamage * (1 + (safeTier - 1) * 0.40)),
     speed: Math.min(4.0, boss.speed + (safeTier - 1) * 0.12),
   };
 }
@@ -671,10 +672,13 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             });
           }
 
+          const fortuneTier = useGameStore.getState().upgrades.fortune || 0;
+          const dropChance = getFortuneChestDropChance(fortuneTier);
+
           if (runtime.normalEnemyKillsForChest % CHEST_CONFIG.guaranteedNormalKills === 0) {
-            spawnChest(runtime, enemy.x + 0.7, enemy.z, "common");
-          } else if (Math.random() < CHEST_CONFIG.normalDropChance) {
-            spawnChest(runtime, enemy.x + 0.7, enemy.z, rollChestRarity());
+            spawnChest(runtime, enemy.x + 0.7, enemy.z, rollChestRarityWithFortune(fortuneTier));
+          } else if (Math.random() < dropChance) {
+            spawnChest(runtime, enemy.x + 0.7, enemy.z, rollChestRarityWithFortune(fortuneTier));
           }
 
           // Normal enemies ONLY drop recovery items (can NEVER drop SpecialPickupType items)

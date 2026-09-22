@@ -89,7 +89,7 @@ export function getEnemyTypeForRound(round: number): EnemyType {
  */
 export function getEnemyHealthForRound(baseHealth: number, round: number): number {
   const safeRound = Math.max(1, Math.floor(round));
-  return Math.round(baseHealth * (1 + (safeRound - 1) * 0.08));
+  return Math.round(baseHealth * (1 + (safeRound - 1) * 0.09));
 }
 
 /**
@@ -97,5 +97,5 @@ export function getEnemyHealthForRound(baseHealth: number, round: number): numbe
  */
 export function getEnemyDamageForRound(baseDamage: number, round: number): number {
   const safeRound = Math.max(1, Math.floor(round));
-  return Math.round(baseDamage + (safeRound - 1) * 0.4);
+  return Math.round(baseDamage + (safeRound - 1) * 0.5);
 }

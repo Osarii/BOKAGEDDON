@@ -6,7 +6,51 @@ import { WEAPON_CONFIGS } from "../game/config";
 import { useGameStore } from "../store/gameStore";
 import { gameAudio } from "../audio/gameAudio";
 import { hasSynergy } from "../game/weaponSynergies";
-import type { WeaponType, CharacterId } from "../types/game";
+import type { WeaponType, CharacterId, EnemyType } from "../types/game";
+import { isBossType } from "../game/progression";
+
+function calculateOutgoingDamage(
+  baseHitDamage: number,
+  enemy: { type: EnemyType; health: number; maxHealth: number },
+  isCrit: boolean,
+  baseCritMultiplier: number,
+  upgrades: Record<string, number>,
+  passives: Record<string, number>,
+  secretPassives: Record<string, boolean> | undefined
+): number {
+  let critMult = baseCritMultiplier;
+  const isBoss = isBossType(enemy.type);
+  if (isBoss && secretPassives?.apex_echo) {
+    critMult += 0.25;
+  }
+
+  let finalDmg = isCrit ? baseHitDamage * critMult : baseHitDamage;
+
+  // Execution Protocol: +6% direct damage per tier against enemies <= 35% HP
+  if (enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.35) {
+    const execTier = upgrades.executioner || 0;
+    if (execTier > 0) {
+      finalDmg *= (1 + execTier * 0.06);
+    }
+  }
+
+  // Boss Hunter (+7%/tier), Apex Lens (+6%/stack), Apex Echo (+15%)
+  if (isBoss) {
+    const bossHunterTier = upgrades.boss_hunter || 0;
+    const apexStacks = passives.apex_lens || 0;
+    const hasApexEcho = Boolean(secretPassives?.apex_echo);
+    finalDmg *= (1 + bossHunterTier * 0.07 + apexStacks * 0.06 + (hasApexEcho ? 0.15 : 0));
+  }
+
+  return Math.max(1, Math.round(finalDmg));
+}
+
+function getMultishotExtra(tier: number): number {
+  if (tier <= 0) return 0;
+  if (tier <= 2) return 1;
+  if (tier <= 4) return 2;
+  return 3;
+}
 
 interface CombatManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -54,6 +98,7 @@ function applyElementalOnHit(
   enemy: { id: number; x: number; z: number; health: number; hitFlashTimer: number; burnTimer?: number; burnDps?: number; poisonTimer?: number; poisonDps?: number; frostTimer?: number; frostSlowPercent?: number },
   upgrades: Record<string, number>,
   passives: Record<string, number>,
+  secretPassives: Record<string, boolean> | undefined,
   runtime: GameRuntime
 ) {
   // Generic impact spark
@@ -74,11 +119,11 @@ function applyElementalOnHit(
     });
   }
 
-  // 1. FIRE (Burn)
+  // 1. FIRE (Burn) ~6 burn damage/sec per tier
   if (upgrades.fire > 0) {
     const tier = upgrades.fire;
     enemy.burnTimer = Math.max(enemy.burnTimer || 0, 2.0 + tier * 0.5);
-    enemy.burnDps = Math.max(enemy.burnDps || 0, tier * 8);
+    enemy.burnDps = Math.max(enemy.burnDps || 0, tier * 6);
     // Ignition burst
     if (runtime.particles.length < 250) {
       for (let k = 0; k < 2; k++) {
@@ -100,12 +145,15 @@ function applyElementalOnHit(
     }
   }
 
-  // 2. POISON (Sustained DoT, enabled by Poison upgrade or Toxic Relic)
+  // 2. POISON (4 + tier * 3 damage/sec, scaled by Toxic Relic and Venom Singularity)
   if (upgrades.poison > 0 || passives.toxic_relic > 0) {
-    const tier = upgrades.poison || 1;
+    const tier = upgrades.poison || 0;
     const toxicStacks = passives.toxic_relic || 0;
-    enemy.poisonTimer = Math.max(enemy.poisonTimer || 0, 3.0 + tier * 1.0);
-    enemy.poisonDps = Math.max(enemy.poisonDps || 0, (4 + tier * 4) * (1 + toxicStacks * 0.25));
+    const hasVenomSingularity = Boolean(secretPassives?.venom_singularity);
+    const poisonDuration = (3.0 + tier * 1.0 + toxicStacks * 1.0) * (hasVenomSingularity ? 1.20 : 1.0);
+    const poisonDps = (4 + tier * 3) * (1 + toxicStacks * 0.20) * (hasVenomSingularity ? 1.25 : 1.0);
+    enemy.poisonTimer = Math.max(enemy.poisonTimer || 0, poisonDuration);
+    enemy.poisonDps = Math.max(enemy.poisonDps || 0, poisonDps);
     // Poison splash bubbles
     if (runtime.particles.length < 250) {
       for (let k = 0; k < 2; k++) {
@@ -127,11 +175,12 @@ function applyElementalOnHit(
     }
   }
 
-  // 3. FROST (Movement Slow)
+  // 3. FROST (Movement Slow ~12% + 7% per tier, bound around 47% at T5)
   if (upgrades.frost > 0) {
     const tier = upgrades.frost;
     enemy.frostTimer = Math.max(enemy.frostTimer || 0, 2.0 + tier * 0.5);
-    enemy.frostSlowPercent = Math.max(enemy.frostSlowPercent || 0, Math.min(0.65, 0.15 + tier * 0.1));
+    const slowTarget = Math.min(0.47, 0.12 + tier * 0.07);
+    enemy.frostSlowPercent = Math.max(enemy.frostSlowPercent || 0, slowTarget);
     // Crystalline frost burst
     if (runtime.particles.length < 250) {
       for (let k = 0; k < 2; k++) {
@@ -153,13 +202,17 @@ function applyElementalOnHit(
     }
   }
 
-  // 4. SHOCK (Chain electrical arcs, guaranteed by Tesla Cell)
+  // 4. SHOCK (12% + 8% proc per tier, Tesla Cell separate, Storm Engine +10% proc & +25% chain dmg)
   const teslaStacks = passives.tesla_cell || 0;
-  const teslaChance = teslaStacks > 0 ? Math.min(0.5, 0.2 + (teslaStacks - 1) * 0.1) : 0;
-  const shockChance = Math.max(teslaChance, upgrades.shock > 0 ? 0.20 + upgrades.shock * 0.15 : 0);
+  const teslaChance = teslaStacks > 0 ? 0.20 + (teslaStacks - 1) * 0.10 : 0;
+  const upgradeShockChance = upgrades.shock > 0 ? 0.12 + upgrades.shock * 0.08 : 0;
+  let totalShockChance = Math.max(teslaChance, upgradeShockChance);
+  if (secretPassives?.storm_engine && totalShockChance > 0) {
+    totalShockChance += 0.10;
+  }
 
-  if (shockChance > 0 && Math.random() < shockChance) {
-    const shockDmg = (upgrades.shock || 1) * 12;
+  if (totalShockChance > 0 && Math.random() < totalShockChance) {
+    const shockDmg = (upgrades.shock || 1) * 12 * (1 + teslaStacks * 0.25) * (secretPassives?.storm_engine ? 1.25 : 1.0);
     const rangeSq = (5.0 + (upgrades.shock || 0) * 1.5) ** 2;
 
     for (let i = 0; i < runtime.enemies.length; i++) {
@@ -311,6 +364,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     const selectedCharacterId = (useGameStore.getState().selectedCharacterId || "bonk") as CharacterId;
     const upgrades = useGameStore.getState().upgrades;
     const passives = useGameStore.getState().passives;
+    const secretPassives = useGameStore.getState().secretPassives;
 
     // Determine weapon type based on character
     const weaponType: WeaponType =
@@ -327,11 +381,20 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     const weaponConfig = WEAPON_CONFIGS[weaponType];
 
     // Compute active upgrade bonuses and special item multipliers
-    const damageMultiplier = 1 + (upgrades.damage || 0) * 0.2;
-    const hasteMultiplier = (1 + (upgrades.haste || 0) * 0.15) * (1 + (passives.overclock_core || 0) * 0.15);
+    const damageMultiplier = 1 + (upgrades.damage || 0) * 0.15;
+    const hasteMultiplier =
+      (1 + (upgrades.haste || 0) * 0.15) *
+      (1 + (passives.overclock_core || 0) * 0.15) *
+      (secretPassives?.storm_engine ? 1.10 : 1.0);
     const effectiveCooldown = weaponConfig.baseCooldown / hasteMultiplier;
-    const critChance = (upgrades.critical || 0) * 0.2;
-    const multishotCount = 1 + (upgrades.multishot || 0);
+    const critChance = (upgrades.critical || 0) * 0.10;
+    const baseCritMultiplier =
+      2.0 + (upgrades.precision || 0) * 0.15 + (passives.echo_prism || 0) * 0.10;
+    const multishotCount = 1 + getMultishotExtra(upgrades.multishot || 0);
+    const areaMultiplier =
+      (1 + (upgrades.area || 0) * 0.07) *
+      (1 + (passives.gravity_seed || 0) * 0.08) *
+      (secretPassives?.venom_singularity ? 1.10 : 1.0);
 
     // Active weapon synergies
     const hasMeteorSlam = hasSynergy("meteor-slam", selectedCharacterId, upgrades);
@@ -436,17 +499,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           }
 
           // Damage enemies inside hammer slam radius
-          const hitRadius = weaponConfig.areaRadius + (multishotCount - 1) * 0.5;
+          const hitRadius = (weaponConfig.areaRadius * areaMultiplier) + (multishotCount - 1) * 0.5;
           const hitRadiusSq = hitRadius * hitRadius;
 
           for (let i = 0; i < runtime.enemies.length; i++) {
             const e = runtime.enemies[i];
             const distSq = (e.x - playerPos.x) ** 2 + (e.z - playerPos.z) ** 2;
             if (distSq <= hitRadiusSq) {
-              const bonusCritDamage = isCrit && hasMeteorSlam ? Math.round(totalDamage * 0.35) : 0;
-              e.health -= totalDamage + bonusCritDamage;
+              const baseDmg = weaponConfig.baseDamage * damageMultiplier;
+              const dmg = calculateOutgoingDamage(baseDmg, e, isCrit, baseCritMultiplier, upgrades, passives, secretPassives);
+              const bonusCritDamage = isCrit && hasMeteorSlam ? Math.round(dmg * 0.35) : 0;
+              e.health -= (dmg + bonusCritDamage);
               e.hitFlashTimer = 0.15;
-              applyElementalOnHit(e, upgrades, passives, runtime);
+              applyElementalOnHit(e, upgrades, passives, secretPassives, runtime);
               gameAudio.play("enemyHit");
               const dist = Math.sqrt(distSq) || 1;
               e.x += ((e.x - playerPos.x) / dist) * 1.5;
@@ -499,13 +564,14 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               z: playerPos.z,
               vx: Math.cos(angle) * projSpeed,
               vz: Math.sin(angle) * projSpeed,
-              damage: totalDamage,
+              damage: weaponConfig.baseDamage * damageMultiplier,
               radius: 0.3,
               color: isCrit ? "#a8ff60" : "#23d5ff",
               lifetime: 0,
               maxLifetime: 2.2,
               isEnemy: false,
               pierce: 1 + Math.floor((upgrades.multishot || 0) / 2),
+              isCrit: isCrit,
             });
           }
 
@@ -518,7 +584,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               z: playerPos.z,
               vx: Math.cos(baseAngle) * (projSpeed * 1.2),
               vz: Math.sin(baseAngle) * (projSpeed * 1.2),
-              damage: Math.round(totalDamage * 1.6),
+              damage: Math.round(weaponConfig.baseDamage * damageMultiplier * 1.6),
               radius: 0.45,
               color: "#f43f5e",
               lifetime: 0,
@@ -526,6 +592,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               isEnemy: false,
               pierce: 3 + multishotCount,
               isPrism: true,
+              isCrit: isCrit,
             });
           }
         }
@@ -534,7 +601,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         // NOVA: Radial Magical Burst + SUPERNOVA synergy
         // ---------------------------------------------------------------------
         else if (weaponType === "nova-burst") {
-          const burstRadius = weaponConfig.areaRadius + (multishotCount - 1) * 0.4;
+          const burstRadius = (weaponConfig.areaRadius * areaMultiplier) + (multishotCount - 1) * 0.4;
           const burstRadiusSq = burstRadius * burstRadius;
 
           // NOVA Combat Polish: astral particles & luminous cosmic flash
@@ -579,9 +646,11 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             const e = runtime.enemies[i];
             const distSq = (e.x - playerPos.x) ** 2 + (e.z - playerPos.z) ** 2;
             if (distSq <= burstRadiusSq) {
-              e.health -= totalDamage;
+              const baseDmg = weaponConfig.baseDamage * damageMultiplier;
+              const dmg = calculateOutgoingDamage(baseDmg, e, isCrit, baseCritMultiplier, upgrades, passives, secretPassives);
+              e.health -= dmg;
               e.hitFlashTimer = 0.15;
-              applyElementalOnHit(e, upgrades, passives, runtime);
+              applyElementalOnHit(e, upgrades, passives, secretPassives, runtime);
               gameAudio.play("enemyHit");
               const dist = Math.sqrt(distSq) || 1;
               e.x += ((e.x - playerPos.x) / dist) * 1.2;
@@ -651,7 +720,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               z: playerPos.z,
               vx: dirX * projSpeed,
               vz: dirZ * projSpeed,
-              damage: totalDamage,
+              damage: weaponConfig.baseDamage * damageMultiplier,
               radius: 0.35,
               color: "#22c55e",
               lifetime: 0,
@@ -661,6 +730,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
               homing: true,
               chainRemaining: maxJumps,
               hitEnemyIds: [],
+              isCrit: isCrit,
             });
           }
         }
@@ -675,7 +745,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
       runtime.axeAngle += rotSpeed * delta;
 
       const axeRadius = hasCycloneEdge ? 4.8 : weaponConfig.range;
-      const totalDamage = Math.round(weaponConfig.baseDamage * damageMultiplier * (hasCycloneEdge ? 1.4 : 1.0));
+      const axeBaseDamage = weaponConfig.baseDamage * damageMultiplier * (hasCycloneEdge ? 1.4 : 1.0);
 
       // Hit enemies that collide with any orbital axe
       for (let m = 0; m < multishotCount; m++) {
@@ -686,11 +756,14 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         for (let i = 0; i < runtime.enemies.length; i++) {
           const e = runtime.enemies[i];
           const distSq = (e.x - axeX) ** 2 + (e.z - axeZ) ** 2;
-          const hitDistance = (hasCycloneEdge ? 0.85 : 0.6) + e.radius;
+          const hitDistance = ((hasCycloneEdge ? 0.85 : 0.6) * Math.sqrt(areaMultiplier)) + e.radius;
           if (distSq < hitDistance * hitDistance) {
-            e.health -= Math.max(1, Math.round(totalDamage * 0.22));
+            const isAxeCrit = Math.random() < critChance;
+            const rawAxeDmg = axeBaseDamage * 0.22;
+            const dmg = calculateOutgoingDamage(rawAxeDmg, e, isAxeCrit, baseCritMultiplier, upgrades, passives, secretPassives);
+            e.health -= dmg;
             e.hitFlashTimer = 0.08;
-            applyElementalOnHit(e, upgrades, passives, runtime);
+            applyElementalOnHit(e, upgrades, passives, secretPassives, runtime);
             gameAudio.play("enemyHit");
 
             // TANK Combat Polish: metallic sparks & heavier cleave impact
@@ -750,7 +823,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (distSq <= burstRadiusSq) {
             e.health -= burst.damage;
             e.hitFlashTimer = 0.15;
-            applyElementalOnHit(e, upgrades, passives, runtime);
+            applyElementalOnHit(e, upgrades, passives, secretPassives, runtime);
             gameAudio.play("enemyHit");
           }
         }
@@ -831,9 +904,10 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
 
           const distSq = (enemy.x - proj.x) ** 2 + (enemy.z - proj.z) ** 2;
           if (distSq < (proj.radius + enemy.radius) ** 2) {
-            enemy.health -= proj.damage;
+            const projDmg = calculateOutgoingDamage(proj.damage, enemy, Boolean(proj.isCrit), baseCritMultiplier, upgrades, passives, secretPassives);
+            enemy.health -= projDmg;
             enemy.hitFlashTimer = 0.15;
-            applyElementalOnHit(enemy, upgrades, passives, runtime);
+            applyElementalOnHit(enemy, upgrades, passives, secretPassives, runtime);
             gameAudio.play("enemyHit");
             proj.pierce -= 1;
 

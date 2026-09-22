@@ -92,8 +92,8 @@ export function getBossStats(
 
   const base = baseStats[bossType] || baseStats.bonklord;
   return {
-    health: Math.round(base.health * (1 + (safeTier - 1) * 0.55)),
-    damage: Math.round(base.damage * (1 + (safeTier - 1) * 0.35)),
+    health: Math.round(base.health * (1 + (safeTier - 1) * 0.60)),
+    damage: Math.round(base.damage * (1 + (safeTier - 1) * 0.40)),
     speed: Math.min(4.0, base.speed + (safeTier - 1) * 0.12),
   };
 }
@@ -128,7 +128,7 @@ export function getRoundEnemyQuota(round: number): number {
  */
 export function getXpRequiredForLevel(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));
-  return Math.round(75 * Math.pow(1.18, safeLevel - 1));
+  return Math.round(85 * Math.pow(1.19, safeLevel - 1));
 }
 
 /**

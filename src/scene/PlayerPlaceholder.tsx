@@ -133,7 +133,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
 
     // Preserve existing gameplay slow value
     const slowFactor = isSlowed && runtime ? runtime.playerSlowFactor : 1.0;
-    const speed = baseSpeed * (1 + (upgrades.speed || 0) * 0.15) * slowFactor;
+    const speed = baseSpeed * (1 + (upgrades.speed || 0) * 0.10) * slowFactor;
 
     // Animation cadence reduction during active frost slow
     const cadenceMultiplier = isSlowed ? Math.max(0.45, slowFactor) : 1.0;

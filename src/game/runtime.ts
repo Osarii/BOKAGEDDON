@@ -56,6 +56,7 @@ export interface ProjectileEntity {
   chainRemaining?: number;
   hitEnemyIds?: number[];
   isPrism?: boolean;
+  isCrit?: boolean;
   effectType?: ElementalEffectType;
 }
 
