@@ -4,7 +4,7 @@
 Playable Character Animation & Combat Presentation.
 
 ## Status
-In Progress.
+Implementation complete; manual runtime visual validation pending.
 
 ## Scope
 1. **Playable Character Animation System (`src/scene/PlayerPlaceholder.tsx`)**:

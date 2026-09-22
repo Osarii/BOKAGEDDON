@@ -18,7 +18,7 @@ BONKAGEDDON is an original 3D survivor-like videogame built for an academic Reac
   - 5 starting weapons: Hammer, Energy Orb, Axe, Nova Burst, Hex Chain + Weapon Synergies
   - 8 original/base upgrades plus 4 elemental upgrade paths (Fire, Poison, Shock, Frost)
   - Permanent boss-exclusive special passives (Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment)
-  - Chest reward system (Common, Rare, Epic, Legendary)
+  - Chest reward system (Common, Rare, Legendary)
   - Frenzy runtime horde mode
   - Shield absorption & recovery pickups system
   - local JSON Server leaderboard

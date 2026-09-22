@@ -115,18 +115,18 @@
 - **Consequences**: Rich encounter variety across endless runs while preserving bounded enemy population caps.
 
 ## ADR-022: Boss-Exclusive Permanent Passive Item System
-- **Context**: Player progression beyond standard upgrades benefited from high-impact milestone rewards following boss encounters rather than temporary timed buffs.
+- **Context**: Player progression beyond standard upgrades benefits from high-impact milestone rewards from boss defeats (`BOSS_LOOT_TABLE`) rather than temporary timed buffs.
 - **Decision**:
-  1. Convert special items (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`) into permanent passive collectibles stored in `gameStore.permanentPassives`.
-  2. Overclock Core provides permanent haste (+20%); Tesla Cell triggers an automated chain-lightning aura; Toxic Relic amplifies poison damage (+35%); Phoenix Fragment provides a one-time cheat death resurrection.
-  3. Visual feedback is rendered via 3D world pickups, chest overlays, and dedicated HUD status emblems.
+  1. Convert special items (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`) into permanent passive collectibles stored in `gameStore.passives` (stacking up to 5 times).
+  2. Overclock Core provides +15% attack speed per stack; Tesla Cell grants chain-lightning chance (20% at stack 1, +10% per additional stack, cap 50%); Toxic Relic enables poison DoT and adds +25% poison damage per stack; Phoenix Fragment grants stackable revives restoring 40% max HP with 2s invulnerability.
+  3. Special passives drop as 3D world pickups via `BOSS_LOOT_TABLE` rolls on boss defeat, rendered with official WebP billboards and tracked in the HUD passive inventory.
 - **Consequences**: Meaningful boss victory incentives with durable run progression without breaking existing stat calculations.
 
 ## ADR-023: Chest Reward Architecture
-- **Context**: Boss defeats and rare events need an engaging, rewarding loot presentation that does not interfere with 60 FPS physics.
+- **Context**: Boss defeats and combat milestones need an engaging, rewarding loot presentation that does not interfere with 60 FPS physics.
 - **Decision**:
-  1. Introduce interactive chests dropped on boss defeat with rarity tiers: Common, Rare, Epic, Legendary.
-  2. Opening a chest presents a dedicated modal overlay (`ChestRewardOverlay`) pausing active simulation and revealing the rolled reward.
+  1. Introduce interactive chests with exact rarity tiers: Common, Rare, Legendary. Boss defeats drop one guaranteed Legendary Chest (alongside one `BOSS_LOOT_TABLE` pickup). Normal enemies have a 2.5% drop chance and guaranteed Common every 20 kills (weighted Common 70 / Rare 25 / Legendary 5).
+  2. Opening a chest pauses active simulation and displays `ChestRewardOverlay` offering upgrade choice selections (not passives) plus rarity bonuses (Common: upgrade; Rare: upgrade + 25 shield; Legendary: upgrade + 50 shield + 35 HP + 500 score).
   3. Rewards cleanly integrate with Zustand player state and resume gameplay seamlessly.
 - **Consequences**: Polished arcade feel, clear milestone gratification, and zero frame stutter.
 
@@ -134,6 +134,6 @@
 - **Context**: Extended rounds require dynamic pacing spikes ("Horde/Frenzy" waves) without creating React render overhead.
 - **Decision**:
   1. Maintain Frenzy state (active status, timer, enemy spawn multiplier) directly inside `GameRuntime` mutable simulation refs.
-  2. Synchronize visible UI indicators (HUD banner, audio filter) at low frequency (1 Hz or on state transition) rather than per-frame.
+  2. Synchronize visible UI indicators (HUD banner notification) at low frequency rather than per-frame.
   3. Elevate enemy movement speed and spawn pacing during Frenzy intervals.
 - **Consequences**: High-intensity survival spikes at full 60 FPS without garbage collection or React thrashing.

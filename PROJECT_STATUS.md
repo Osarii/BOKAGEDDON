@@ -97,10 +97,10 @@ Post-Merge Integration Complete & Verified
     - Round 50: Cryovex (frost novae, ice shards, blizzards)
     - Roster repeats every 50 rounds with incremented boss tiers and scaled HP/damage.
   - Implemented boss animation and telegraph pass with distinct anticipations, attacks, and recovery states across the full 5-boss visual asset roster: Bonklord SVG plus four WebP boss identities.
-  - Boss loot system: bosses drop reward chests containing permanent boss-exclusive passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`).
-  - Chest reward architecture with `ChestRewardOverlay` displaying tiered loot (Common, Rare, Epic, Legendary).
-  - Permanent special passives integrate official WebP decals and persistent stat buffs.
-  - Frenzy Mode: runtime horde mode featuring heightened spawn pressure, frenzy music/audio intensity, and event-driven low-frequency HUD synchronization.
+  - Boss loot system: boss defeats spawn exactly one item from `BOSS_LOOT_TABLE` (a recovery item or a permanent special passive pickup: `Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`) plus one separate Legendary Chest.
+  - Chest reward architecture: interactive chests drop from boss defeats (guaranteed Legendary) and normal enemies (2.5% random chance, guaranteed Common every 20 normal kills; weighted Common 70 / Rare 25 / Legendary 5). Opening a chest displays `ChestRewardOverlay` offering upgrade choice selections (not passives) plus rarity bonuses (Common: upgrade choice; Rare: upgrade + 25 shield; Legendary: upgrade + 50 shield + 35 HP + 500 score).
+  - Permanent special passives stored in `gameStore.passives` with up to 5 stacks: Overclock Core (+15% attack speed/stack), Tesla Cell (chain-lightning chance, 20% at stack 1, +10% per stack, cap 50%), Toxic Relic (enables poison, +25% poison DoT/stack), and Phoenix Fragment (stackable revive charges restoring 40% max HP with 2s temporary invulnerability).
+  - Frenzy Mode: runtime horde mode featuring heightened spawn pressure and event-driven low-frequency HUD banner notifications.
 
 ## Current
 - Playable Character Animation & Combat Presentation (Phase 2): Developing distinct motion languages, attack phases, damage reactions, frost slowdown visuals, and camera combat impulses.
