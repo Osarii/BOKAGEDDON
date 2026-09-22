@@ -10,6 +10,7 @@ import {
   endFrenzy,
   maxAllUpgrades,
   prepareBossRound,
+  triggerBossSpawn,
   resetPassives,
   resetQaRun,
   setFrenzyKills,
@@ -22,6 +23,15 @@ import {
   unlockSecretRecipe,
   QA_CHARACTERS,
 } from "../../game/devTools";
+import {
+  getPerformanceSnapshot,
+  startScenarioBenchmark,
+  getLastScenarioReport,
+  getAllScenarioReports,
+  clearScenarioReports,
+  type PerformanceSnapshot,
+  type ScenarioReport,
+} from "../../game/devPerformance";
 import { WEAPON_CONFIGS } from "../../game/config";
 import { getActiveSynergies } from "../../game/weaponSynergies";
 import type { CharacterId, RecoveryPickupType, SpecialPickupType, WeaponType } from "../../types/game";
@@ -62,9 +72,11 @@ const allRelics: Array<[string, SpecialPickupType]> = [
 const rosterIds: CharacterId[] = ["bonk", "byte", "tank", "nova", "hex", "rift", "fuse", "lux"];
 
 export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("qa") === "1");
   const [tick, setTick] = useState(0);
   const [position, setPosition] = useState({ x: 16, y: 70 });
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditProgress, setAuditProgress] = useState<string | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
   const store = useGameStore();
@@ -82,10 +94,10 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !isAuditing) return;
     const id = window.setInterval(() => setTick((value) => value + 1), 250);
     return () => window.clearInterval(id);
-  }, [open]);
+  }, [open, isAuditing]);
 
   useEffect(() => {
     const onMove = (event: MouseEvent) => {
@@ -105,6 +117,16 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
       window.removeEventListener("mouseup", onUp);
     };
   }, []);
+
+  const perf: PerformanceSnapshot = useMemo(() => {
+    void tick;
+    return getPerformanceSnapshot();
+  }, [tick]);
+
+  const lastReport: ScenarioReport | null = useMemo(() => {
+    void tick;
+    return getLastScenarioReport();
+  }, [tick]);
 
   const stats = useMemo(() => {
     void tick;
@@ -173,17 +195,235 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
     };
   }, [store, tick]);
 
+  // ---------------------------------------------------------------------------
+  // PERFORMANCE AUDIT V1.3 SCENARIOS (Load-Stabilized & Event-Decoupled)
+  // ---------------------------------------------------------------------------
+
+  const scenarios: Array<{
+    name: string;
+    setup: () => void;
+    targetEnemies?: number;
+    onEvent?: (runtime: GameRuntime) => void;
+    eventDelayMs?: number;
+  }> = [
+    // S1 — Baseline: Bonk, 5 durable enemies, no upgrades
+    {
+      name: "S1: Bonk Baseline (5 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("bonk");
+        spawnNormalEnemies(runtime, 5, true);
+      },
+      targetEnemies: 5,
+    },
+    // S2 — Enemy count ramp: Bonk, 25 durable enemies, no upgrades
+    {
+      name: "S2: Bonk 25 foes",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("bonk");
+        spawnNormalEnemies(runtime, 25, true);
+      },
+      targetEnemies: 25,
+    },
+    // S3 — Hard cap: Bonk, 48 durable enemies, no upgrades
+    {
+      name: "S3: Bonk Hard Cap (48 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("bonk");
+        spawnNormalEnemies(runtime, 48, true);
+      },
+      targetEnemies: 48,
+    },
+    // S4 — Frenzy Activation Hitch: warm up with 48 normal enemies, activate Frenzy mid-measurement
+    {
+      name: "S4: Frenzy Activation Hitch (48 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("bonk");
+        spawnNormalEnemies(runtime, 48, true);
+      },
+      targetEnemies: 48,
+      onEvent: (r) => startFrenzy(r),
+      eventDelayMs: 1000,
+    },
+    // S5a — Sustained Frenzy run 1: pre-activated Frenzy, warmed up, sustained 48 durable foes
+    {
+      name: "S5a: Sustained Frenzy (run 1)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("bonk");
+        spawnNormalEnemies(runtime, 48, true);
+        startFrenzy(runtime);
+      },
+      targetEnemies: 48,
+    },
+    // S5b — Sustained Frenzy run 2: repeat check of sustained Frenzy load
+    {
+      name: "S5b: Sustained Frenzy (run 2)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("bonk");
+        spawnNormalEnemies(runtime, 48, true);
+        startFrenzy(runtime);
+      },
+      targetEnemies: 48,
+    },
+    // S6 — Boss Spawn Hitch: Tank with 20 durable foes, spawn Cindermaw mid-measurement
+    {
+      name: "S6: Boss Spawn Hitch (Tank, 20 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("tank");
+        spawnNormalEnemies(runtime, 20, true);
+      },
+      targetEnemies: 20,
+      onEvent: (r) => triggerBossSpawn(r, 20),
+      eventDelayMs: 1000,
+    },
+    // S7 — Sustained Boss: Tank, Cindermaw + 20 durable foes pre-spawned and warmed up
+    {
+      name: "S7: Sustained Boss (Tank, 20 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("tank");
+        triggerBossSpawn(runtime, 20);
+        spawnNormalEnemies(runtime, 20, true);
+      },
+      targetEnemies: 20,
+    },
+    // S8 — Lux base: hitscan, no upgrades, 25 durable enemies
+    {
+      name: "S8: Lux Base (no upgrades)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("lux");
+        spawnNormalEnemies(runtime, 25, true);
+      },
+      targetEnemies: 25,
+    },
+    // S9 — Lux hitscan max: all upgrades + Apex Echo, 35 durable enemies maintained
+    {
+      name: "S9: Lux Hitscan Max (35 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("lux");
+        maxAllUpgrades();
+        unlockSecretRecipe("apex_echo");
+        spawnNormalEnemies(runtime, 35, true);
+      },
+      targetEnemies: 35,
+    },
+    // S10 — Pickup billboard: Bonk, 36 pickups, 0 enemies
+    {
+      name: "S10: Bonk Pickup Billboard (36)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("bonk");
+        const allP: Array<RecoveryPickupType | SpecialPickupType> = [
+          "overclock_core", "tesla_cell", "toxic_relic", "phoenix_fragment",
+          "aegis_capacitor", "apex_lens", "echo_prism", "gravity_seed",
+          "medkit_emergency", "medkit_case", "shield_potion", "shield_battery"
+        ];
+        for (let i = 0; i < 36; i++) {
+          spawnPickup(runtime, allP[i % allP.length]);
+        }
+      },
+      targetEnemies: 0,
+    },
+    // S11 — BYTE projectile swarm: Byte + all upgrades + Storm Engine, 30 durable enemies maintained
+    {
+      name: "S11: BYTE Projectile Swarm (30 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("byte");
+        maxAllUpgrades();
+        unlockSecretRecipe("storm_engine");
+        spawnNormalEnemies(runtime, 30, true);
+      },
+      targetEnemies: 30,
+    },
+    // S12 — Elemental/status-VFX stress: Nova + all upgrades + synergies, 40 durable enemies maintained
+    {
+      name: "S12: Nova Elemental VFX Stress (40 foes)",
+      setup: () => {
+        resetQaRun(runtime);
+        switchQaCharacter("nova");
+        maxAllUpgrades();
+        unlockSecretRecipe("storm_engine");
+        unlockSecretRecipe("venom_singularity");
+        unlockSecretRecipe("radiant_bastion");
+        unlockSecretRecipe("apex_echo");
+        spawnNormalEnemies(runtime, 40, true);
+      },
+      targetEnemies: 40,
+    },
+  ];
+
+  const runFullSuite = async () => {
+    if (isAuditing) return;
+    setIsAuditing(true);
+    setOpen(true);
+    clearScenarioReports();
+
+    // Warmup (ms) before each measurement window — allows entities to spawn and settle
+    const WARMUP_MS = 1500;
+    // Measurement window in seconds — 10 s gives ~600 samples at 60 fps
+    const MEASURE_SEC = 10;
+
+    for (let i = 0; i < scenarios.length; i++) {
+      const s = scenarios[i];
+      setAuditProgress(`[${i + 1}/${scenarios.length}] Warming up: ${s.name}...`);
+      s.setup();
+      // Warmup: let entities spawn and frame loop stabilise before recording
+      await new Promise((r) => setTimeout(r, WARMUP_MS));
+      setAuditProgress(`[${i + 1}/${scenarios.length}] Measuring: ${s.name}...`);
+      await startScenarioBenchmark(s.name, MEASURE_SEC, {
+        targetEnemies: s.targetEnemies,
+        onEvent: s.onEvent,
+        eventDelayMs: s.eventDelayMs,
+      });
+    }
+
+    setAuditProgress("Audit suite complete! Check console or below.");
+    setIsAuditing(false);
+
+    // Format markdown report
+    const reports = getAllScenarioReports();
+    let md = `| Scenario | Target Foes | Avg Foes | Min Foes | Max Foes | Avg FPS | p99/1%-low eq FPS | Avg Frame Time | Max Frame Time | Event Hitch | Draw Calls | Triangles | Particles | DPR | Heap MB |\n`;
+    md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
+    for (const r of reports) {
+      md += `| ${r.scenarioName} | ${r.targetEnemies} | ${r.enemiesAvg} | ${r.enemiesMin} | ${r.enemiesMax} | **${r.avgFps}** | **${r.onePercentLowFps}** | ${r.avgFrameTimeMs} ms | ${r.maxFrameTimeMs} ms | ${r.eventHitchMs != null ? `${r.eventHitchMs} ms` : "N/A"} | ${r.drawCallsAvg} | ${r.trianglesAvg.toLocaleString()} | ${r.particlesAvg} | ${r.dpr} | ${r.memoryMb ?? "N/A"} |\n`;
+    }
+    console.log("=== BONKAGEDDON PERFORMANCE AUDIT V1.3 RESULTS ===\n" + md);
+  };
+
+  const runFullSuiteRef = useRef(runFullSuite);
+  runFullSuiteRef.current = runFullSuite;
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as unknown as { __BONK_RUN_FULL_SUITE__?: () => void }).__BONK_RUN_FULL_SUITE__ = () => {
+        runFullSuiteRef.current();
+      };
+    }
+  }, []);
+
   if (!open) return null;
 
-  const button = (label: string, action: () => void, highlight = false) => (
+  const button = (label: string, action: () => void, highlight = false, disabled = false) => (
     <button
+      key={label}
       type="button"
       onClick={action}
+      disabled={disabled}
       style={highlight ? { borderColor: "#00e5ff", background: "rgba(0, 229, 255, 0.18)" } : undefined}
     >
       {label}
     </button>
   );
+
+  const fpsColor = perf.avgFps >= 55 ? "#4ade80" : perf.avgFps >= 40 ? "#fbbf24" : "#f87171";
 
   return (
     <aside className="dev-tools" style={{ left: position.x, top: position.y }}>
@@ -195,9 +435,77 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
           };
         }}
       >
-        <strong>BONKAGEDDON DEV QA</strong>
+        <strong>BONKAGEDDON DEV QA & PERF AUDIT</strong>
         <span>F8</span>
       </header>
+
+      {/* PERFORMANCE INSTRUMENTATION V1 */}
+      <section className="perf-section">
+        <h3 style={{ color: "#00e5ff", display: "flex", justifyContent: "space-between" }}>
+          <span>Performance Probe (V1)</span>
+          <span style={{ color: fpsColor }}>{perf.fps} FPS</span>
+        </h3>
+        <div className="dev-tools-grid">
+          <span>FPS (Cur / Avg)</span>
+          <b>
+            <span style={{ color: fpsColor }}>{perf.fps}</span> / {perf.avgFps}
+          </b>
+          <span>1% Low FPS</span>
+          <b style={{ color: perf.onePercentLowFps >= 45 ? "#4ade80" : "#f87171" }}>
+            {perf.onePercentLowFps} FPS
+          </b>
+          <span>Frame Time</span>
+          <b>{perf.frameTimeMs} ms</b>
+          <span>Draw Calls</span>
+          <b>{perf.drawCalls}</b>
+          <span>Triangles</span>
+          <b>{perf.triangles.toLocaleString()}</b>
+          <span>Geometries / Textures</span>
+          <b>{perf.geometries} / {perf.textures}</b>
+          <span>Entities (E/P/K/VFX)</span>
+          <b>
+            E:{perf.enemies} P:{perf.projectiles} K:{perf.pickups} V:{perf.particles}
+          </b>
+          <span>DPR / Heap</span>
+          <b>{perf.dpr}x / {perf.memoryMb ? `${perf.memoryMb} MB` : "N/A (unexposed)"}</b>
+        </div>
+
+        <div style={{ marginTop: "0.55rem" }} className="dev-tools-buttons">
+          {button(
+            isAuditing ? "Auditing..." : "Run Full Suite (v1.3 — 13 runs)",
+            runFullSuite,
+            true,
+            isAuditing
+          )}
+          {button("Sample 3s (Current)", () => startScenarioBenchmark("Custom Snapshot", 10), false, isAuditing)}
+        </div>
+
+        {auditProgress && (
+          <div style={{ marginTop: "0.35rem", fontSize: "0.68rem", color: "#fbbf24" }}>
+            {auditProgress}
+          </div>
+        )}
+
+        {lastReport && (
+          <div className="perf-last-report">
+            <div style={{ fontWeight: 800, color: "#38bdf8" }}>Last: {lastReport.scenarioName}</div>
+            <div>
+              Avg FPS: <b>{lastReport.avgFps}</b> &bull; 1% Low: <b>{lastReport.onePercentLowFps}</b> &bull; Time: <b>{lastReport.avgFrameTimeMs}ms</b>
+            </div>
+            <div>
+              Calls: <b>{lastReport.drawCallsAvg}</b> &bull; Tris: <b>{lastReport.trianglesAvg}</b> &bull; Foes: <b>{lastReport.enemiesAvg}</b> (tgt: {lastReport.targetEnemies})
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Reproducible Scenario Presets — v1.3 */}
+      <section>
+        <h3>Audit Scenario Presets (v1.3)</h3>
+        <div className="dev-tools-buttons">
+          {scenarios.map((s) => button(s.name, s.setup))}
+        </div>
+      </section>
 
       {/* Live Simulation & Session State */}
       <section className="dev-tools-grid">

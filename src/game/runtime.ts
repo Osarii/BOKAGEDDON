@@ -145,6 +145,7 @@ export interface GameRuntime {
   delayedBursts: DelayedBurstEffect[];
   hazardZones: HazardZone[];
   particles: StatusParticle[];
+  particlePool: StatusParticle[];
   playerPosition: THREE.Vector3;
   playerInvulnerableTimer: number;
   lastAttackTimer: number;
@@ -176,6 +177,24 @@ export interface GameRuntime {
 }
 
 export function createGameRuntime(): GameRuntime {
+  const initialPool: StatusParticle[] = [];
+  for (let i = 0; i < 250; i++) {
+    initialPool.push({
+      id: 0,
+      x: 0,
+      y: 0,
+      z: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      life: 0,
+      maxLife: 1,
+      color: "#ffffff",
+      size: 0.1,
+      type: "hit",
+    });
+  }
+
   const runtime: GameRuntime = {
     enemies: [],
     projectiles: [],
@@ -185,6 +204,7 @@ export function createGameRuntime(): GameRuntime {
     delayedBursts: [],
     hazardZones: [],
     particles: [],
+    particlePool: initialPool,
     playerPosition: new THREE.Vector3(0, 1.2, 0),
     playerInvulnerableTimer: 0,
     lastAttackTimer: 0,
@@ -214,7 +234,10 @@ export function createGameRuntime(): GameRuntime {
       runtime.shockwaves = [];
       runtime.delayedBursts = [];
       runtime.hazardZones = [];
-      runtime.particles = [];
+      while (runtime.particles.length > 0 && runtime.particlePool.length < 250) {
+        runtime.particlePool.push(runtime.particles.pop()!);
+      }
+      runtime.particles.length = 0;
       runtime.playerPosition.set(0, 1.2, 0);
       runtime.playerInvulnerableTimer = 0;
       runtime.lastAttackTimer = 0;
@@ -242,6 +265,54 @@ export function createGameRuntime(): GameRuntime {
   return runtime;
 }
 
+export function spawnStatusParticle(
+  runtime: GameRuntime,
+  type: ParticleType,
+  x: number,
+  y: number,
+  z: number,
+  vx: number,
+  vy: number,
+  vz: number,
+  color: string,
+  size: number,
+  maxLife: number
+): void {
+  if (runtime.particles.length >= 250) return;
+
+  const p = runtime.particlePool.pop();
+  if (p) {
+    p.id = runtime.nextEntityId++;
+    p.type = type;
+    p.x = x;
+    p.y = y;
+    p.z = z;
+    p.vx = vx;
+    p.vy = vy;
+    p.vz = vz;
+    p.color = color;
+    p.size = size;
+    p.life = 0;
+    p.maxLife = maxLife;
+    runtime.particles.push(p);
+  } else {
+    runtime.particles.push({
+      id: runtime.nextEntityId++,
+      type,
+      x,
+      y,
+      z,
+      vx,
+      vy,
+      vz,
+      color,
+      size,
+      life: 0,
+      maxLife,
+    });
+  }
+}
+
 export function damagePlayer(runtime: GameRuntime, amount: number, invulnerableSeconds: number): void {
   const beforePhoenix = useGameStore.getState().passives.phoenix_fragment;
   useGameStore.getState().takeDamage(amount);
@@ -257,20 +328,19 @@ export function damagePlayer(runtime: GameRuntime, amount: number, invulnerableS
     const p = runtime.playerPosition;
     for (let i = 0; i < 28 && runtime.particles.length < 250; i++) {
       const a = (i / 28) * Math.PI * 2;
-      runtime.particles.push({
-        id: runtime.nextEntityId++,
-        type: "burn",
-        x: p.x,
-        y: 0.8,
-        z: p.z,
-        vx: Math.cos(a) * (2.5 + Math.random() * 2),
-        vy: 1.2 + Math.random() * 2,
-        vz: Math.sin(a) * (2.5 + Math.random() * 2),
-        life: 0,
-        maxLife: 0.9,
-        color: i % 2 ? "#f97316" : "#f43f5e",
-        size: 0.32,
-      });
+      spawnStatusParticle(
+        runtime,
+        "burn",
+        p.x,
+        0.8,
+        p.z,
+        Math.cos(a) * (2.5 + Math.random() * 2),
+        1.2 + Math.random() * 2,
+        Math.sin(a) * (2.5 + Math.random() * 2),
+        i % 2 ? "#f97316" : "#f43f5e",
+        0.32,
+        0.9
+      );
     }
   }
 }

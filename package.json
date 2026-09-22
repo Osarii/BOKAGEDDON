@@ -30,6 +30,7 @@
     "@types/react-dom": "^19.2.7",
     "@types/three": "^0.174.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "chrome-remote-interface": "^0.34.0",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",

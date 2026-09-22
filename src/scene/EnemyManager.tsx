@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { damagePlayer, type GameRuntime, type EnemyEntity } from "../game/runtime";
+import { damagePlayer, spawnStatusParticle, type GameRuntime, type EnemyEntity } from "../game/runtime";
 import {
   ENEMY_CONFIGS,
   BOSS_CONFIGS,
@@ -753,22 +753,19 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
           // Visible charge-up particle feedback before firing
           if (enemy.shootCooldown <= 0.45 && enemy.shootCooldown > 0 && Math.random() < 0.25) {
-            if (runtime.particles.length < 250) {
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "hit",
-                x: enemy.x + (Math.random() - 0.5) * 0.3,
-                y: 1.2 + (Math.random() - 0.5) * 0.3,
-                z: enemy.z + (Math.random() - 0.5) * 0.3,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: 0.5,
-                vz: (Math.random() - 0.5) * 0.5,
-                color: "#ff2222",
-                size: 0.12,
-                life: 0,
-                maxLife: 0.3,
-              });
-            }
+            spawnStatusParticle(
+              runtime,
+              "hit",
+              enemy.x + (Math.random() - 0.5) * 0.3,
+              1.2 + (Math.random() - 0.5) * 0.3,
+              enemy.z + (Math.random() - 0.5) * 0.3,
+              (Math.random() - 0.5) * 0.5,
+              0.5,
+              (Math.random() - 0.5) * 0.5,
+              "#ff2222",
+              0.12,
+              0.3
+            );
           }
 
           if (enemy.shootCooldown <= 0) {
@@ -791,23 +788,20 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             });
 
             // Muzzle flash particles
-            if (runtime.particles.length < 250) {
-              for (let p = 0; p < 3; p++) {
-                runtime.particles.push({
-                  id: runtime.nextEntityId++,
-                  type: "hit",
-                  x: enemy.x + (dx / distToPlayer) * 0.5,
-                  y: 0.8,
-                  z: enemy.z + (dz / distToPlayer) * 0.5,
-                  vx: (dx / distToPlayer) * 2 + (Math.random() - 0.5),
-                  vy: (Math.random() - 0.5) * 0.5,
-                  vz: (dz / distToPlayer) * 2 + (Math.random() - 0.5),
-                  color: "#ff4444",
-                  size: 0.15,
-                  life: 0,
-                  maxLife: 0.25,
-                });
-              }
+            for (let p = 0; p < 3; p++) {
+              spawnStatusParticle(
+                runtime,
+                "hit",
+                enemy.x + (dx / distToPlayer) * 0.5,
+                0.8,
+                enemy.z + (dz / distToPlayer) * 0.5,
+                (dx / distToPlayer) * 2 + (Math.random() - 0.5),
+                (Math.random() - 0.5) * 0.5,
+                (dz / distToPlayer) * 2 + (Math.random() - 0.5),
+                "#ff4444",
+                0.15,
+                0.25
+              );
             }
           }
         }
@@ -1085,21 +1079,20 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
         // Slime landing dust particles when bounce hits bottom
-        if (bounce < -0.85 && Math.random() < 0.08 && runtime.particles.length < 250) {
-          runtime.particles.push({
-            id: runtime.nextEntityId++,
-            type: "hit",
-            x: e.x + (Math.random() - 0.5) * 0.4,
-            y: 0.1,
-            z: e.z + (Math.random() - 0.5) * 0.4,
-            vx: (Math.random() - 0.5) * 0.8,
-            vy: 0.3,
-            vz: (Math.random() - 0.5) * 0.8,
-            color: "#c084fc",
-            size: 0.1,
-            life: 0,
-            maxLife: 0.25,
-          });
+        if (bounce < -0.85 && Math.random() < 0.08) {
+          spawnStatusParticle(
+            runtime,
+            "hit",
+            e.x + (Math.random() - 0.5) * 0.4,
+            0.1,
+            e.z + (Math.random() - 0.5) * 0.4,
+            (Math.random() - 0.5) * 0.8,
+            0.3,
+            (Math.random() - 0.5) * 0.8,
+            "#c084fc",
+            0.1,
+            0.25
+          );
         }
 
         // Decal on front surface of slime
@@ -1116,21 +1109,20 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
         // Speed trail particle behind runner
-        if (Math.random() < 0.15 && runtime.particles.length < 250) {
-          runtime.particles.push({
-            id: runtime.nextEntityId++,
-            type: "hit",
-            x: e.x - sinA * 0.4,
-            y: 0.2,
-            z: e.z - cosA * 0.4,
-            vx: -sinA * 0.6 + (Math.random() - 0.5) * 0.2,
-            vy: 0.2,
-            vz: -cosA * 0.6 + (Math.random() - 0.5) * 0.2,
-            color: "#ff6b35",
-            size: 0.1,
-            life: 0,
-            maxLife: 0.2,
-          });
+        if (Math.random() < 0.15) {
+          spawnStatusParticle(
+            runtime,
+            "hit",
+            e.x - sinA * 0.4,
+            0.2,
+            e.z - cosA * 0.4,
+            -sinA * 0.6 + (Math.random() - 0.5) * 0.2,
+            0.2,
+            -cosA * 0.6 + (Math.random() - 0.5) * 0.2,
+            "#ff6b35",
+            0.1,
+            0.2
+          );
         }
 
         // Decal on dorsal surface of runner drone tilted toward overhead camera
@@ -1148,21 +1140,20 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
         // Footstep impact particles
-        if (Math.abs(sway) > 0.1 && Math.random() < 0.08 && runtime.particles.length < 250) {
-          runtime.particles.push({
-            id: runtime.nextEntityId++,
-            type: "hit",
-            x: e.x + (Math.random() - 0.5) * 0.6,
-            y: 0.1,
-            z: e.z + (Math.random() - 0.5) * 0.6,
-            vx: (Math.random() - 0.5) * 0.6,
-            vy: 0.25,
-            vz: (Math.random() - 0.5) * 0.6,
-            color: "#ef4444",
-            size: 0.12,
-            life: 0,
-            maxLife: 0.25,
-          });
+        if (Math.abs(sway) > 0.1 && Math.random() < 0.08) {
+          spawnStatusParticle(
+            runtime,
+            "hit",
+            e.x + (Math.random() - 0.5) * 0.6,
+            0.1,
+            e.z + (Math.random() - 0.5) * 0.6,
+            (Math.random() - 0.5) * 0.6,
+            0.25,
+            (Math.random() - 0.5) * 0.6,
+            "#ef4444",
+            0.12,
+            0.25
+          );
         }
 
         // Decal on front armored chest plate
@@ -1192,59 +1183,56 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       } else if (e.burnTimer && e.burnTimer > 0) {
         activeColor = burnStatusColor;
         // Burning status embers
-        if (Math.random() < 0.12 && runtime.particles.length < 250) {
-          runtime.particles.push({
-            id: runtime.nextEntityId++,
-            type: "burn",
-            x: e.x + (Math.random() - 0.5) * 0.5,
-            y: 0.6 + Math.random() * 0.4,
-            z: e.z + (Math.random() - 0.5) * 0.5,
-            vx: (Math.random() - 0.5) * 0.3,
-            vy: 1.0,
-            vz: (Math.random() - 0.5) * 0.3,
-            color: "#f97316",
-            size: 0.12,
-            life: 0,
-            maxLife: 0.45,
-          });
+        if (Math.random() < 0.12) {
+          spawnStatusParticle(
+            runtime,
+            "burn",
+            e.x + (Math.random() - 0.5) * 0.5,
+            0.6 + Math.random() * 0.4,
+            e.z + (Math.random() - 0.5) * 0.5,
+            (Math.random() - 0.5) * 0.3,
+            1.0,
+            (Math.random() - 0.5) * 0.3,
+            "#f97316",
+            0.12,
+            0.45
+          );
         }
       } else if (e.poisonTimer && e.poisonTimer > 0) {
         activeColor = poisonStatusColor;
         // Poison status bubbles
-        if (Math.random() < 0.12 && runtime.particles.length < 250) {
-          runtime.particles.push({
-            id: runtime.nextEntityId++,
-            type: "poison",
-            x: e.x + (Math.random() - 0.5) * 0.5,
-            y: 0.5 + Math.random() * 0.3,
-            z: e.z + (Math.random() - 0.5) * 0.5,
-            vx: (Math.random() - 0.5) * 0.2,
-            vy: 0.5,
-            vz: (Math.random() - 0.5) * 0.2,
-            color: "#22c55e",
-            size: 0.1,
-            life: 0,
-            maxLife: 0.5,
-          });
+        if (Math.random() < 0.12) {
+          spawnStatusParticle(
+            runtime,
+            "poison",
+            e.x + (Math.random() - 0.5) * 0.5,
+            0.5 + Math.random() * 0.3,
+            e.z + (Math.random() - 0.5) * 0.5,
+            (Math.random() - 0.5) * 0.2,
+            0.5,
+            (Math.random() - 0.5) * 0.2,
+            "#22c55e",
+            0.1,
+            0.5
+          );
         }
       } else if (e.frostTimer && e.frostTimer > 0) {
         activeColor = frostStatusColor;
         // Frost status crystalline motes
-        if (Math.random() < 0.08 && runtime.particles.length < 250) {
-          runtime.particles.push({
-            id: runtime.nextEntityId++,
-            type: "frost",
-            x: e.x + (Math.random() - 0.5) * 0.5,
-            y: 0.6 + Math.random() * 0.3,
-            z: e.z + (Math.random() - 0.5) * 0.5,
-            vx: (Math.random() - 0.5) * 0.3,
-            vy: -0.2,
-            vz: (Math.random() - 0.5) * 0.3,
-            color: "#38bdf8",
-            size: 0.1,
-            life: 0,
-            maxLife: 0.4,
-          });
+        if (Math.random() < 0.08) {
+          spawnStatusParticle(
+            runtime,
+            "frost",
+            e.x + (Math.random() - 0.5) * 0.5,
+            0.6 + Math.random() * 0.3,
+            e.z + (Math.random() - 0.5) * 0.5,
+            (Math.random() - 0.5) * 0.3,
+            -0.2,
+            (Math.random() - 0.5) * 0.3,
+            "#38bdf8",
+            0.1,
+            0.4
+          );
         }
       }
       meshRef.current.setColorAt(index, activeColor);

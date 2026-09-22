@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import type { GameRuntime, StatusParticle } from "../game/runtime";
+import type { GameRuntime } from "../game/runtime";
 import { useGameStore } from "../store/gameStore";
 
 interface StatusParticleManagerProps {
@@ -11,10 +11,18 @@ interface StatusParticleManagerProps {
 const MAX_PARTICLES = 250;
 
 const tempMatrix = new THREE.Matrix4();
-const tempPosition = new THREE.Vector3();
-const tempScale = new THREE.Vector3();
-const tempColor = new THREE.Color();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
+
+// Pre-cached THREE.Color instances to avoid per-frame hex string parsing in the hot loop
+const COLOR_CACHE: Record<string, THREE.Color> = {};
+function getCachedColor(hex: string): THREE.Color {
+  let c = COLOR_CACHE[hex];
+  if (!c) {
+    c = new THREE.Color(hex);
+    COLOR_CACHE[hex] = c;
+  }
+  return c;
+}
 
 export const StatusParticleManager: React.FC<StatusParticleManagerProps> = ({ runtimeRef }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -57,13 +65,24 @@ export const StatusParticleManager: React.FC<StatusParticleManagerProps> = ({ ru
     // Particles freeze when gameplay is paused or in levelup modal
     if (gameStatus !== "playing") return;
 
-    // 1. Simulation loop: move and decay particles
-    for (let i = runtime.particles.length - 1; i >= 0; i--) {
-      const p = runtime.particles[i];
+    const particles = runtime.particles;
+    const pool = runtime.particlePool;
+
+    // 1. Simulation loop: move and decay particles (O(1) swap-and-pop + pool recycling)
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
       p.life += delta;
 
       if (p.life >= p.maxLife) {
-        runtime.particles.splice(i, 1);
+        // Recycle to object pool
+        if (pool && pool.length < MAX_PARTICLES) {
+          pool.push(p);
+        }
+        // O(1) swap-with-last removal to eliminate array shifting (splice overhead)
+        const last = particles.pop()!;
+        if (i < particles.length) {
+          particles[i] = last;
+        }
         continue;
       }
 
@@ -87,26 +106,31 @@ export const StatusParticleManager: React.FC<StatusParticleManagerProps> = ({ ru
       }
     }
 
-    // 2. Instanced mesh rendering
+    // 2. Instanced mesh rendering with direct matrix composition
     if (meshRef.current) {
-      const activeCount = Math.min(runtime.particles.length, MAX_PARTICLES);
+      const activeCount = Math.min(particles.length, MAX_PARTICLES);
       meshRef.current.count = activeCount;
 
       for (let i = 0; i < activeCount; i++) {
-        const p: StatusParticle = runtime.particles[i];
+        const p = particles[i];
         const progress = p.life / p.maxLife;
-        const remaining = Math.max(0, 1 - progress);
-        const pop = p.type === "shock" ? 1.25 + Math.sin(progress * Math.PI) : 1 + Math.sin(progress * Math.PI) * 0.55;
-        const scaleFactor = Math.max(0.08, p.size * 1.9 * remaining * pop);
+        const remaining = 1 - progress > 0 ? 1 - progress : 0;
+        const sinProg = Math.sin(progress * Math.PI);
+        const pop = p.type === "shock" ? 1.25 + sinProg : 1 + sinProg * 0.55;
+        const scaleFactor = p.size * 1.9 * remaining * pop;
+        const finalScale = scaleFactor > 0.08 ? scaleFactor : 0.08;
+        const py = p.y > 0.1 ? p.y : 0.1;
 
-        tempPosition.set(p.x, Math.max(0.1, p.y), p.z);
-        tempScale.set(scaleFactor, scaleFactor, scaleFactor);
-        tempMatrix.makeTranslation(tempPosition.x, tempPosition.y, tempPosition.z);
-        tempMatrix.scale(tempScale);
+        // Direct matrix setting (replaces makeTranslation + scale matrix multiplication)
+        tempMatrix.set(
+          finalScale, 0, 0, p.x,
+          0, finalScale, 0, py,
+          0, 0, finalScale, p.z,
+          0, 0, 0, 1
+        );
 
         meshRef.current.setMatrixAt(i, tempMatrix);
-        tempColor.set(p.color);
-        meshRef.current.setColorAt(i, tempColor);
+        meshRef.current.setColorAt(i, getCachedColor(p.color));
       }
 
       if (activeCount > 0) {

@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { damagePlayer, type GameRuntime } from "../game/runtime";
+import { damagePlayer, spawnStatusParticle, type GameRuntime } from "../game/runtime";
 import { WEAPON_CONFIGS } from "../game/config";
 import { useGameStore } from "../store/gameStore";
 import { gameAudio } from "../audio/gameAudio";
@@ -104,22 +104,19 @@ function applyElementalOnHit(
   runtime: GameRuntime
 ) {
   // Generic impact spark
-  if (runtime.particles.length < 250) {
-    runtime.particles.push({
-      id: runtime.nextEntityId++,
-      type: "hit",
-      x: enemy.x,
-      y: 0.6,
-      z: enemy.z,
-      vx: (Math.random() - 0.5) * 1.5,
-      vy: Math.random() * 1.2 + 0.3,
-      vz: (Math.random() - 0.5) * 1.5,
-      color: "#ffffff",
-      size: 0.12,
-      life: 0,
-      maxLife: 0.22,
-    });
-  }
+  spawnStatusParticle(
+    runtime,
+    "hit",
+    enemy.x,
+    0.6,
+    enemy.z,
+    (Math.random() - 0.5) * 1.5,
+    Math.random() * 1.2 + 0.3,
+    (Math.random() - 0.5) * 1.5,
+    "#ffffff",
+    0.12,
+    0.22
+  );
 
   // 1. FIRE (Burn) ~6 burn damage/sec per tier
   if (upgrades.fire > 0) {
@@ -127,23 +124,20 @@ function applyElementalOnHit(
     enemy.burnTimer = Math.max(enemy.burnTimer || 0, 2.0 + tier * 0.5);
     enemy.burnDps = Math.max(enemy.burnDps || 0, tier * 6);
     // Ignition burst
-    if (runtime.particles.length < 250) {
-      for (let k = 0; k < 2; k++) {
-        runtime.particles.push({
-          id: runtime.nextEntityId++,
-          type: "burn",
-          x: enemy.x + (Math.random() - 0.5) * 0.3,
-          y: 0.6 + Math.random() * 0.3,
-          z: enemy.z + (Math.random() - 0.5) * 0.3,
-          vx: (Math.random() - 0.5) * 1.0,
-          vy: Math.random() * 1.5 + 0.5,
-          vz: (Math.random() - 0.5) * 1.0,
-          color: "#f97316",
-          size: 0.14,
-          life: 0,
-          maxLife: 0.35,
-        });
-      }
+    for (let k = 0; k < 2; k++) {
+      spawnStatusParticle(
+        runtime,
+        "burn",
+        enemy.x + (Math.random() - 0.5) * 0.3,
+        0.6 + Math.random() * 0.3,
+        enemy.z + (Math.random() - 0.5) * 0.3,
+        (Math.random() - 0.5) * 1.0,
+        Math.random() * 1.5 + 0.5,
+        (Math.random() - 0.5) * 1.0,
+        "#f97316",
+        0.14,
+        0.35
+      );
     }
   }
 
@@ -157,23 +151,20 @@ function applyElementalOnHit(
     enemy.poisonTimer = Math.max(enemy.poisonTimer || 0, poisonDuration);
     enemy.poisonDps = Math.max(enemy.poisonDps || 0, poisonDps);
     // Poison splash bubbles
-    if (runtime.particles.length < 250) {
-      for (let k = 0; k < 2; k++) {
-        runtime.particles.push({
-          id: runtime.nextEntityId++,
-          type: "poison",
-          x: enemy.x + (Math.random() - 0.5) * 0.3,
-          y: 0.5 + Math.random() * 0.3,
-          z: enemy.z + (Math.random() - 0.5) * 0.3,
-          vx: (Math.random() - 0.5) * 0.8,
-          vy: Math.random() * 0.8 + 0.2,
-          vz: (Math.random() - 0.5) * 0.8,
-          color: "#22c55e",
-          size: 0.24,
-          life: 0,
-          maxLife: 0.65,
-        });
-      }
+    for (let k = 0; k < 2; k++) {
+      spawnStatusParticle(
+        runtime,
+        "poison",
+        enemy.x + (Math.random() - 0.5) * 0.3,
+        0.5 + Math.random() * 0.3,
+        enemy.z + (Math.random() - 0.5) * 0.3,
+        (Math.random() - 0.5) * 0.8,
+        Math.random() * 0.8 + 0.2,
+        (Math.random() - 0.5) * 0.8,
+        "#22c55e",
+        0.24,
+        0.65
+      );
     }
   }
 
@@ -184,23 +175,20 @@ function applyElementalOnHit(
     const slowTarget = Math.min(0.47, 0.12 + tier * 0.07);
     enemy.frostSlowPercent = Math.max(enemy.frostSlowPercent || 0, slowTarget);
     // Crystalline frost burst
-    if (runtime.particles.length < 250) {
-      for (let k = 0; k < 2; k++) {
-        runtime.particles.push({
-          id: runtime.nextEntityId++,
-          type: "frost",
-          x: enemy.x + (Math.random() - 0.5) * 0.3,
-          y: 0.6 + Math.random() * 0.3,
-          z: enemy.z + (Math.random() - 0.5) * 0.3,
-          vx: (Math.random() - 0.5) * 1.2,
-          vy: Math.random() * 0.8,
-          vz: (Math.random() - 0.5) * 1.2,
-          color: "#38bdf8",
-          size: 0.13,
-          life: 0,
-          maxLife: 0.35,
-        });
-      }
+    for (let k = 0; k < 2; k++) {
+      spawnStatusParticle(
+        runtime,
+        "frost",
+        enemy.x + (Math.random() - 0.5) * 0.3,
+        0.6 + Math.random() * 0.3,
+        enemy.z + (Math.random() - 0.5) * 0.3,
+        (Math.random() - 0.5) * 1.2,
+        Math.random() * 0.8,
+        (Math.random() - 0.5) * 1.2,
+        "#38bdf8",
+        0.13,
+        0.35
+      );
     }
   }
 
@@ -237,23 +225,20 @@ function applyElementalOnHit(
           });
         }
         // Shock arc sparks
-        if (runtime.particles.length < 250) {
-          for (let k = 0; k < 3; k++) {
-            runtime.particles.push({
-              id: runtime.nextEntityId++,
-              type: "shock",
-              x: other.x,
-              y: 0.7,
-              z: other.z,
-              vx: (Math.random() - 0.5) * 2.0,
-              vy: Math.random() * 1.5,
-              vz: (Math.random() - 0.5) * 2.0,
-              color: "#00e5ff",
-              size: 0.14,
-              life: 0,
-              maxLife: 0.25,
-            });
-          }
+        for (let k = 0; k < 3; k++) {
+          spawnStatusParticle(
+            runtime,
+            "shock",
+            other.x,
+            0.7,
+            other.z,
+            (Math.random() - 0.5) * 2.0,
+            Math.random() * 1.5,
+            (Math.random() - 0.5) * 2.0,
+            "#00e5ff",
+            0.14,
+            0.25
+          );
         }
         break; // arc to 1 nearest enemy
       }
@@ -482,20 +467,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (runtime.particles.length < 250) {
             const elemColor = getStrongestElementalColor(upgrades, "#fbbf24");
             for (let k = 0; k < 6; k++) {
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "hit",
-                x: playerPos.x + (Math.random() - 0.5) * 1.5,
-                y: 0.15,
-                z: playerPos.z + (Math.random() - 0.5) * 1.5,
-                vx: (Math.random() - 0.5) * 3.0,
-                vy: Math.random() * 2.2 + 0.8,
-                vz: (Math.random() - 0.5) * 3.0,
-                color: elemColor,
-                size: 0.18,
-                life: 0,
-                maxLife: 0.35,
-              });
+              spawnStatusParticle(
+                runtime,
+                "hit",
+                playerPos.x + (Math.random() - 0.5) * 1.5,
+                0.15,
+                playerPos.z + (Math.random() - 0.5) * 1.5,
+                (Math.random() - 0.5) * 3.0,
+                Math.random() * 2.2 + 0.8,
+                (Math.random() - 0.5) * 3.0,
+                elemColor,
+                0.18,
+                0.35
+              );
             }
           }
 
@@ -548,20 +532,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (runtime.particles.length < 250) {
             const elemColor = getStrongestElementalColor(upgrades, "#23d5ff");
             for (let k = 0; k < 4; k++) {
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "shock",
-                x: playerPos.x + (Math.random() - 0.5) * 0.4,
-                y: 0.8,
-                z: playerPos.z + (Math.random() - 0.5) * 0.4,
-                vx: (Math.random() - 0.5) * 1.5,
-                vy: Math.random() * 1.2,
-                vz: (Math.random() - 0.5) * 1.5,
-                color: elemColor,
-                size: 0.14,
-                life: 0,
-                maxLife: 0.3,
-              });
+              spawnStatusParticle(
+                runtime,
+                "shock",
+                playerPos.x + (Math.random() - 0.5) * 0.4,
+                0.8,
+                playerPos.z + (Math.random() - 0.5) * 0.4,
+                (Math.random() - 0.5) * 1.5,
+                Math.random() * 1.2,
+                (Math.random() - 0.5) * 1.5,
+                elemColor,
+                0.14,
+                0.3
+              );
             }
           }
 
@@ -625,20 +608,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             for (let k = 0; k < 6; k++) {
               const pAngle = Math.random() * Math.PI * 2;
               const pSpeed = Math.random() * 3.5 + 1.5;
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "shock",
-                x: playerPos.x,
-                y: 0.7,
-                z: playerPos.z,
-                vx: Math.cos(pAngle) * pSpeed,
-                vy: (Math.random() - 0.3) * 1.5,
-                vz: Math.sin(pAngle) * pSpeed,
-                color: elemColor,
-                size: 0.18,
-                life: 0,
-                maxLife: 0.42,
-              });
+              spawnStatusParticle(
+                runtime,
+                "shock",
+                playerPos.x,
+                0.7,
+                playerPos.z,
+                Math.cos(pAngle) * pSpeed,
+                (Math.random() - 0.3) * 1.5,
+                Math.sin(pAngle) * pSpeed,
+                elemColor,
+                0.18,
+                0.42
+              );
             }
           }
 
@@ -700,20 +682,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (runtime.particles.length < 250) {
             const elemColor = getStrongestElementalColor(upgrades, "#a855f7");
             for (let k = 0; k < 4; k++) {
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "poison",
-                x: playerPos.x + (Math.random() - 0.5) * 0.6,
-                y: 0.8,
-                z: playerPos.z + (Math.random() - 0.5) * 0.6,
-                vx: (Math.random() - 0.5) * 1.8,
-                vy: Math.random() * 1.5,
-                vz: (Math.random() - 0.5) * 1.8,
-                color: elemColor,
-                size: 0.15,
-                life: 0,
-                maxLife: 0.4,
-              });
+              spawnStatusParticle(
+                runtime,
+                "poison",
+                playerPos.x + (Math.random() - 0.5) * 0.6,
+                0.8,
+                playerPos.z + (Math.random() - 0.5) * 0.6,
+                (Math.random() - 0.5) * 1.8,
+                Math.random() * 1.5,
+                (Math.random() - 0.5) * 1.8,
+                elemColor,
+                0.15,
+                0.4
+              );
             }
           }
 
@@ -762,20 +743,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           if (runtime.particles.length < 250) {
             const elemColor = getStrongestElementalColor(upgrades, "#8b5cf6");
             for (let k = 0; k < 4; k++) {
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "hit",
-                x: playerPos.x + (Math.random() - 0.5) * 0.4,
-                y: 0.8,
-                z: playerPos.z + (Math.random() - 0.5) * 0.4,
-                vx: (Math.random() - 0.5) * 1.5,
-                vy: Math.random() * 1.2,
-                vz: (Math.random() - 0.5) * 1.5,
-                color: elemColor,
-                size: 0.16,
-                life: 0,
-                maxLife: 0.35,
-              });
+              spawnStatusParticle(
+                runtime,
+                "hit",
+                playerPos.x + (Math.random() - 0.5) * 0.4,
+                0.8,
+                playerPos.z + (Math.random() - 0.5) * 0.4,
+                (Math.random() - 0.5) * 1.5,
+                Math.random() * 1.2,
+                (Math.random() - 0.5) * 1.5,
+                elemColor,
+                0.16,
+                0.35
+              );
             }
           }
 
@@ -838,20 +818,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             });
 
             if (runtime.particles.length < 250) {
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "hit",
-                x: mx,
-                y: 0.2,
-                z: mz,
-                vx: 0,
-                vy: 0.8,
-                vz: 0,
-                color: "#f59e0b",
-                size: 0.22,
-                life: 0,
-                maxLife: 0.65,
-              });
+              spawnStatusParticle(
+                runtime,
+                "hit",
+                mx,
+                0.2,
+                mz,
+                0,
+                0.8,
+                0,
+                "#f59e0b",
+                0.22,
+                0.65
+              );
             }
           }
         }
@@ -960,20 +939,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             // TANK Combat Polish: metallic sparks & heavier cleave impact
             if (runtime.particles.length < 250 && Math.random() < 0.35) {
               const elemColor = getStrongestElementalColor(upgrades, "#fb923c");
-              runtime.particles.push({
-                id: runtime.nextEntityId++,
-                type: "hit",
-                x: axeX,
-                y: 0.8,
-                z: axeZ,
-                vx: (Math.random() - 0.5) * 2.0,
-                vy: Math.random() * 1.5,
-                vz: (Math.random() - 0.5) * 2.0,
-                color: elemColor,
-                size: 0.16,
-                life: 0,
-                maxLife: 0.25,
-              });
+              spawnStatusParticle(
+                runtime,
+                "hit",
+                axeX,
+                0.8,
+                axeZ,
+                (Math.random() - 0.5) * 2.0,
+                Math.random() * 1.5,
+                (Math.random() - 0.5) * 2.0,
+                elemColor,
+                0.16,
+                0.25
+              );
             }
           }
         }
@@ -1101,20 +1079,19 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
                   : "hit";
               const pColor = proj.color || "#ef4444";
               for (let k = 0; k < 4; k++) {
-                runtime.particles.push({
-                  id: runtime.nextEntityId++,
-                  type: pType,
-                  x: proj.x,
-                  y: 0.8,
-                  z: proj.z,
-                  vx: (Math.random() - 0.5) * 1.6,
-                  vy: Math.random() * 1.5,
-                  vz: (Math.random() - 0.5) * 1.6,
-                  color: pColor,
-                  size: 0.14,
-                  life: 0,
-                  maxLife: 0.35,
-                });
+                spawnStatusParticle(
+                  runtime,
+                  pType,
+                  proj.x,
+                  0.8,
+                  proj.z,
+                  (Math.random() - 0.5) * 1.6,
+                  Math.random() * 1.5,
+                  (Math.random() - 0.5) * 1.6,
+                  pColor,
+                  0.14,
+                  0.35
+                );
               }
             }
           }
