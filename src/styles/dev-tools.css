@@ -1,7 +1,7 @@
 .dev-tools {
   position: fixed;
   z-index: 120;
-  width: min(360px, calc(100vw - 24px));
+  width: min(400px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
   overflow: auto;
   color: #e5f7ff;
