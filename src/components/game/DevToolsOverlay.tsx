@@ -27,6 +27,7 @@ import {
   startScenarioBenchmark,
   getLastScenarioReport,
   getAllScenarioReports,
+  clearScenarioReports,
   type PerformanceSnapshot,
   type ScenarioReport,
 } from "../../game/devPerformance";
@@ -193,43 +194,68 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
     };
   }, [store, tick]);
 
-  // Scenario runners
+  // ---------------------------------------------------------------------------
+  // Scenario runners — v1.1 corrected
+  // Each scenario explicitly selects its character for isolation.
+  // ---------------------------------------------------------------------------
+
+  // S1 — Baseline: Bonk, 5 enemies, no upgrades
   const runScenario1 = () => {
     resetQaRun(runtime);
+    switchQaCharacter("bonk");
     spawnNormalEnemies(runtime, 5);
   };
 
+  // S2 — Enemy count ramp: Bonk, 25 enemies, no upgrades
   const runScenario2 = () => {
     resetQaRun(runtime);
+    switchQaCharacter("bonk");
     spawnNormalEnemies(runtime, 25);
   };
 
+  // S3 — Hard cap: Bonk, 48 enemies, no upgrades
   const runScenario3 = () => {
     resetQaRun(runtime);
+    switchQaCharacter("bonk");
     spawnNormalEnemies(runtime, 48);
   };
 
+  // S4 — Frenzy stress: Bonk, 48 enemies + Frenzy (run twice for repeatability)
   const runScenario4 = () => {
     resetQaRun(runtime);
+    switchQaCharacter("bonk");
     spawnNormalEnemies(runtime, 48);
     startFrenzy(runtime);
   };
 
+  // S5 — Boss pressure: Tank, Cindermaw + 20 normal enemies, no upgrades
   const runScenario5 = () => {
     resetQaRun(runtime);
-    prepareBossRound(runtime, 20); // Cindermaw Fire Boss
+    switchQaCharacter("tank");
+    prepareBossRound(runtime, 20); // Cindermaw Fire Boss (round 20)
     spawnNormalEnemies(runtime, 20);
   };
 
+  // S6 — Lux base (hitscan, no upgrades, 25 enemies) — weapon cost in isolation
   const runScenario6 = () => {
     resetQaRun(runtime);
     switchQaCharacter("lux");
+    spawnNormalEnemies(runtime, 25);
+  };
+
+  // S7 — Lux hitscan max: all upgrades + SolarRefraction synergy, 35 enemies (run twice)
+  const runScenario7 = () => {
+    resetQaRun(runtime);
+    switchQaCharacter("lux");
     maxAllUpgrades();
+    unlockSecretRecipe("apex_echo"); // triggers SolarRefraction crit bounce
     spawnNormalEnemies(runtime, 35);
   };
 
-  const runScenario7 = () => {
+  // S8 — Pickup billboard: Bonk, 36 pickups, no enemies
+  const runScenario8 = () => {
     resetQaRun(runtime);
+    switchQaCharacter("bonk");
     const allP: Array<RecoveryPickupType | SpecialPickupType> = [
       "overclock_core", "tesla_cell", "toxic_relic", "phoenix_fragment",
       "aegis_capacitor", "apex_lens", "echo_prism", "gravity_seed",
@@ -240,53 +266,76 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
     }
   };
 
-  const runScenario8 = () => {
+  // S9 — BYTE projectile swarm: Byte + all upgrades + Storm Engine (Prism Barrage), 30 enemies (run twice)
+  const runScenario9 = () => {
     resetQaRun(runtime);
+    switchQaCharacter("byte");
+    maxAllUpgrades();
+    unlockSecretRecipe("storm_engine"); // Storm Engine unlocks PRISM BARRAGE for BYTE
+    spawnNormalEnemies(runtime, 30);
+  };
+
+  // S10 — Elemental/status-VFX stress: Nova + all upgrades + all synergies, 40 enemies
+  const runScenario10 = () => {
+    resetQaRun(runtime);
+    switchQaCharacter("nova");
     maxAllUpgrades();
     unlockSecretRecipe("storm_engine");
     unlockSecretRecipe("venom_singularity");
     unlockSecretRecipe("radiant_bastion");
     unlockSecretRecipe("apex_echo");
-    spawnNormalEnemies(runtime, 48);
+    spawnNormalEnemies(runtime, 40);
   };
 
   const runFullSuite = async () => {
     if (isAuditing) return;
     setIsAuditing(true);
     setOpen(true);
+    clearScenarioReports();
 
-    const scenarios = [
-      { name: "1. Normal Gameplay (Low Foes)", setup: runScenario1 },
-      { name: "2. Medium Pressure (~25 Foes)", setup: runScenario2 },
-      { name: "3. Enemy Hard-Cap Stress (~48)", setup: runScenario3 },
-      { name: "4. 48 Foes + Frenzy Horde", setup: runScenario4 },
-      { name: "5. Boss Pressure (Cindermaw + 20)", setup: runScenario5 },
-      { name: "6. Projectile-Heavy Combat (Lux Max)", setup: runScenario6 },
-      { name: "7. 35+ Pickups / Relic Billboards", setup: runScenario7 },
-      { name: "8. Late-Game Max Upgrades + Status VFX", setup: runScenario8 },
+    // Warmup (ms) before each measurement window — allows entities to spawn and settle
+    const WARMUP_MS = 1500;
+    // Measurement window in seconds — 10 s gives ~600 samples at 60 fps
+    const MEASURE_SEC = 10;
+
+    // Critical degraded scenarios run twice to separate init hitches from sustained cost
+    const scenarios: Array<{ name: string; setup: () => void }> = [
+      { name: "S1: Bonk Baseline (5 foes)",            setup: runScenario1 },
+      { name: "S2: Bonk 25 foes",                      setup: runScenario2 },
+      { name: "S3: Bonk Hard Cap (48 foes)",           setup: runScenario3 },
+      { name: "S4a: Bonk 48+Frenzy (run 1)",          setup: runScenario4 },
+      { name: "S4b: Bonk 48+Frenzy (run 2)",          setup: runScenario4 },
+      { name: "S5: Tank Boss Pressure",                setup: runScenario5 },
+      { name: "S6: Lux Base (no upgrades)",            setup: runScenario6 },
+      { name: "S7a: Lux Hitscan Max (run 1)",         setup: runScenario7 },
+      { name: "S7b: Lux Hitscan Max (run 2)",         setup: runScenario7 },
+      { name: "S8: Bonk Pickup Billboard (36)",        setup: runScenario8 },
+      { name: "S9a: BYTE Projectile Swarm (run 1)",   setup: runScenario9 },
+      { name: "S9b: BYTE Projectile Swarm (run 2)",   setup: runScenario9 },
+      { name: "S10: Nova Elemental VFX Stress",       setup: runScenario10 },
     ];
 
     for (let i = 0; i < scenarios.length; i++) {
       const s = scenarios[i];
-      setAuditProgress(`[${i + 1}/${scenarios.length}] Running: ${s.name}...`);
+      setAuditProgress(`[${i + 1}/${scenarios.length}] Warming up: ${s.name}...`);
       s.setup();
-      // Wait 600ms for entities to spawn and physics to settle
-      await new Promise((r) => setTimeout(r, 600));
-      // Measure for 3.0 seconds
-      await startScenarioBenchmark(s.name, 3);
+      // Warmup: let entities spawn and frame loop stabilise before recording
+      await new Promise((r) => setTimeout(r, WARMUP_MS));
+      setAuditProgress(`[${i + 1}/${scenarios.length}] Measuring: ${s.name}...`);
+      await startScenarioBenchmark(s.name, MEASURE_SEC);
     }
 
     setAuditProgress("Audit suite complete! Check console or below.");
     setIsAuditing(false);
 
-    // Format markdown report
+    // Format markdown report — metric column labels corrected for v1.1
     const reports = getAllScenarioReports();
-    let md = `| Scenario | Avg FPS | 1% Low FPS | Avg Frame Time | Draw Calls | Triangles | Geometries | Textures | Enemies | Pickups | Particles | DPR | Heap MB |\n`;
-    md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
+    let md = `| Scenario | Avg FPS | p99 frame-time / 1%-low eq FPS | Avg Frame Time | Max Frame Time | Draw Calls | Triangles | Enemies | Particles | DPR | Heap MB |\n`;
+    md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
     for (const r of reports) {
-      md += `| ${r.scenarioName} | **${r.avgFps}** | **${r.onePercentLowFps}** | ${r.avgFrameTimeMs} ms | ${r.drawCallsAvg} | ${r.trianglesAvg.toLocaleString()} | ${r.geometries} | ${r.textures} | ${r.enemiesAvg} | ${r.pickupsAvg} | ${r.particlesAvg} | ${r.dpr} | ${r.memoryMb ?? "N/A"} |\n`;
+      md += `| ${r.scenarioName} | **${r.avgFps}** | **${r.onePercentLowFps}** | ${r.avgFrameTimeMs} ms | ${r.maxFrameTimeMs} ms | ${r.drawCallsAvg} | ${r.trianglesAvg.toLocaleString()} | ${r.enemiesAvg} | ${r.particlesAvg} | ${r.dpr} | ${r.memoryMb ?? "N/A"} |\n`;
     }
-    console.log("=== BONKAGEDDON PERFORMANCE AUDIT V1 RESULTS ===\n" + md);
+    console.log("=== BONKAGEDDON PERFORMANCE AUDIT V1.1 RESULTS ===\n" + md);
   };
 
   if (!open) return null;
@@ -352,12 +401,12 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
 
         <div style={{ marginTop: "0.55rem" }} className="dev-tools-buttons">
           {button(
-            isAuditing ? "Auditing..." : "Run Full 8-Scenario Suite",
+            isAuditing ? "Auditing..." : "Run Full Suite (v1.1 — 13 runs)",
             runFullSuite,
             true,
             isAuditing
           )}
-          {button("Sample 3s (Current)", () => startScenarioBenchmark("Custom Snapshot", 3), false, isAuditing)}
+          {button("Sample 3s (Current)", () => startScenarioBenchmark("Custom Snapshot", 10), false, isAuditing)}
         </div>
 
         {auditProgress && (
@@ -379,18 +428,20 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
         )}
       </section>
 
-      {/* Reproducible Scenario Presets */}
+      {/* Reproducible Scenario Presets — v1.1 */}
       <section>
-        <h3>Audit Scenario Presets</h3>
+        <h3>Audit Scenario Presets (v1.1)</h3>
         <div className="dev-tools-buttons">
-          {button("S1: Low Foes (5)", runScenario1)}
-          {button("S2: Med Foes (25)", runScenario2)}
-          {button("S3: Hard Cap (48)", runScenario3)}
-          {button("S4: 48 + Frenzy", runScenario4)}
-          {button("S5: Boss Pressure", runScenario5)}
-          {button("S6: Projectile Swarm", runScenario6)}
-          {button("S7: 35+ Pickups", runScenario7)}
-          {button("S8: Late Max Upgrades", runScenario8)}
+          {button("S1: Bonk Baseline", runScenario1)}
+          {button("S2: Bonk 25 foes", runScenario2)}
+          {button("S3: Bonk Hard Cap (48)", runScenario3)}
+          {button("S4: Bonk 48+Frenzy", runScenario4)}
+          {button("S5: Tank Boss", runScenario5)}
+          {button("S6: Lux Base", runScenario6)}
+          {button("S7: Lux Hitscan Max", runScenario7)}
+          {button("S8: Pickup Billboards", runScenario8)}
+          {button("S9: BYTE Proj Swarm", runScenario9)}
+          {button("S10: Nova Elemental VFX", runScenario10)}
         </div>
       </section>
 
