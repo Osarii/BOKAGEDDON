@@ -47,8 +47,8 @@
 
 ## ADR-010: Original Visual Identity & Asset Integrity
 - **Context**: The project must not copy Megabonk or commercial assets.
-- **Decision**: All assets (characters, enemies, weapons, upgrades, audio, UI) are original creations stored in `public/assets/` under an 88 KB lightweight SVG pack.
-- **Consequences**: Full legal safety, unique branding, and minimal download footprint (< 5 MB).
+- **Decision**: All assets (characters, enemies, weapons, upgrades, audio, UI) are original creations stored in `public/assets/` under an optimized asset bundle of approximately 3.16 MB.
+- **Consequences**: Full legal safety, unique branding, and minimal download footprint well below the 5 MB project limit.
 
 ## ADR-011: Original AI-Assisted Art Pipeline
 - **Context**: Rapid creation of stylized arcade assets without violating third-party copyrights.
@@ -90,7 +90,7 @@
 - **Decision**:
   1. Separate `level` (XP-driven) and `round` (run-progression-driven).
   2. Implement finite round quotas (early: 14-20, pre-boss: 22-32, late: capped at 40) followed by 3.5s intermissions.
-  3. Tiered Bonklord boss encounters every 10 rounds (`tier = round / 10`) with scaled HP and damage. Defeating Bonklord continues the endless run (10 -> 11, etc.) without triggering `victory`.
+  3. [Superseded by ADR-021] Tiered boss encounters every 10 rounds across a rotating 5-boss roster with scaled HP and damage. Defeating a boss continues the endless run without triggering `victory`.
   4. Mitigated damage is absorbed by `shield` first (max 100), remainder damages health.
   5. Recovery pickups (`medkit-emergency`, `medkit-case`, `shield-potion`, `shield-battery`) collected strictly by contact without magnet pull, with full-HP/shield consumption guards.
   6. Camera look-ahead smoothed with exponential damping and boundary tangential movement deflection to eliminate physics jitter.
@@ -106,3 +106,34 @@
   5. Clearly document browser-side API key exposure; prioritize `.env.local` (git-ignored) for local classroom demos or ephemeral manual entry in the UI.
 - **Consequences**: Grounded, transparent code analysis in real-time with zero backend infrastructure requirements and strict academic accountability.
 
+## ADR-021: Rotating Five-Boss Roster and 50-Round Tier Cycle
+- **Context**: Relying exclusively on Bonklord every 10 rounds created visual and gameplay monotony in late-game endless survival.
+- **Decision**:
+  1. Implement a rotating 5-boss encounter cycle: Round 10 (Bonklord), Round 20 (Cindermaw), Round 30 (Stormcoil), Round 40 (Venomatrix), Round 50 (Cryovex).
+  2. Repeat the entire 50-round roster cyclically at incrementing boss tiers (`bossTier = Math.floor((round - 1) / 50) + 1`), scaling HP, damage, and projectile frequency.
+  3. Provide each boss archetype with unique procedural 3D models, telegraph visual effects, attack sequences, and official asset decals.
+- **Consequences**: Rich encounter variety across endless runs while preserving bounded enemy population caps.
+
+## ADR-022: Boss-Exclusive Permanent Passive Item System
+- **Context**: Player progression beyond standard upgrades benefited from high-impact milestone rewards following boss encounters rather than temporary timed buffs.
+- **Decision**:
+  1. Convert special items (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`) into permanent passive collectibles stored in `gameStore.permanentPassives`.
+  2. Overclock Core provides permanent haste (+20%); Tesla Cell triggers an automated chain-lightning aura; Toxic Relic amplifies poison damage (+35%); Phoenix Fragment provides a one-time cheat death resurrection.
+  3. Visual feedback is rendered via 3D world pickups, chest overlays, and dedicated HUD status emblems.
+- **Consequences**: Meaningful boss victory incentives with durable run progression without breaking existing stat calculations.
+
+## ADR-023: Chest Reward Architecture
+- **Context**: Boss defeats and rare events need an engaging, rewarding loot presentation that does not interfere with 60 FPS physics.
+- **Decision**:
+  1. Introduce interactive chests dropped on boss defeat with rarity tiers: Common, Rare, Epic, Legendary.
+  2. Opening a chest presents a dedicated modal overlay (`ChestRewardOverlay`) pausing active simulation and revealing the rolled reward.
+  3. Rewards cleanly integrate with Zustand player state and resume gameplay seamlessly.
+- **Consequences**: Polished arcade feel, clear milestone gratification, and zero frame stutter.
+
+## ADR-024: Frenzy Runtime Mode with Simulation-Driven State and Low-Frequency UI Sync
+- **Context**: Extended rounds require dynamic pacing spikes ("Horde/Frenzy" waves) without creating React render overhead.
+- **Decision**:
+  1. Maintain Frenzy state (active status, timer, enemy spawn multiplier) directly inside `GameRuntime` mutable simulation refs.
+  2. Synchronize visible UI indicators (HUD banner, audio filter) at low frequency (1 Hz or on state transition) rather than per-frame.
+  3. Elevate enemy movement speed and spawn pacing during Frenzy intervals.
+- **Consequences**: High-intensity survival spikes at full 60 FPS without garbage collection or React thrashing.

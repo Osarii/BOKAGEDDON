@@ -9,7 +9,7 @@ Post-Merge Integration Complete & Verified
   - Initialized Vite + React 19 + TypeScript with strict typing.
   - Configured `@react-three/fiber`, `@react-three/drei`, `@react-three/rapier`, `three`, `zustand`, `react-router-dom`, `lucide-react`, and `json-server`.
   - Discovered and integrated local SVG assets (88 KB) and centralized in `src/config/assets.ts`.
-  - Configured JSON Server (`db.json`) with 3 characters, 8 upgrades, and empty scores.
+  - Configured JSON Server (`db.json`) with 5 characters, 8 base upgrades, and persistent scores.
   - Implemented typed `src/services/api.ts` with `AbortSignal`.
   - Implemented React Router with 5 primary routes and dynamic validation.
   - Configured minimal Zustand store with selectors.
@@ -22,7 +22,7 @@ Post-Merge Integration Complete & Verified
   - Hooked movement into R3F `useFrame(delta)` for frame-rate independence.
   - Wired character-specific base speeds (`bonk`: 5.0, `byte`: 6.5, `tank`: 4.0).
   - Applied movement via Rapier `setLinvel` preserving natural vertical gravity.
-  - Implemented circular arena boundary clamping (`ARENA_BOUNDARY_LIMIT = 17.2`).
+  - Implemented circular arena boundary clamping (`ARENA_RADIUS = 30`, `ARENA_BOUNDARY_LIMIT = 28.8`).
   - Added smooth player facing rotation toward movement direction.
   - Implemented `CameraController` using exponential decay lerp from elevated perspective without OrbitControls.
   - Reused module/ref `THREE.Vector3` instances, ensuring zero garbage collection overhead per frame.
@@ -68,13 +68,11 @@ Post-Merge Integration Complete & Verified
 - **Workstream: Endless Rounds, Shield & Recovery System**:
   - Separated `level` (XP-driven player progression & upgrades) and `round` (run pacing, enemy quotas, composition scaling, boss rounds).
   - Implemented endless rounds starting at Round 1 with finite enemy quotas (14 to 40) and 3.5s intermission intervals between waves.
-  - Implemented tiered Bonklord encounters every 10 rounds (`bossTier = round / 10`) with dynamic HP/damage scaling; defeating Bonklord advances to the next round (10 -> 11, etc.) without triggering `victory` (run concludes only on player death or exit).
+  - Implemented circular arena boundary enforcement at 28.8 units (radius 30) with tangential velocity deflection.
   - Implemented Shield absorption mechanic (`shield` starting at 0, max 100): mitigated damage hits shield first; remainder damages HP.
-  - Extracted and integrated optimized WebP recovery asset pack under `public/assets/v2/items/`: `medkit-emergency.webp` (+35 HP), `medkit-case.webp` (+70 HP), `shield-potion.webp` (+25 shield), `shield-battery.webp` (+50 shield).
-  - Implemented contact-based collection in `PickupManager.tsx` with consumption guards (full HP cannot consume medkits; full shield cannot consume shield items).
-  - Weighted drops: low recovery item drop chance on normal enemies (bounded to 24 active items); guaranteed major recovery drop + optional secondary drop on Bonklord defeat.
-  - Fixed camera and movement vibration across straight movement, diagonal movement, turns, and arena boundaries by replacing raw physics difference lookahead with exponential low-pass filtering and deflecting outward velocity tangentially along the arena perimeter.
-  - Updated `HUDShell.tsx` to display Round indicator (with prominent flame boss wave styling on rounds 10, 20, 30...), Shield bar & value, and wave intermission banner while preserving existing synergy presentations.
+  - Integrated WebP recovery asset pack under `public/assets/v2/items/`: `medkit-emergency.webp` (+35 HP), `medkit-case.webp` (+70 HP), `shield-potion.webp` (+25 shield), `shield-battery.webp` (+50 shield).
+  - Recovery pickups feature a 30-second lifetime expiration with warning blink and contact-based collection with consumption guards.
+  - Fixed camera and movement vibration across straight movement, diagonal movement, turns, and arena boundaries using exponential low-pass filtering.
 
 - **Workstream: Project-Aware Professor AI Assistant**:
   - Implemented local in-memory codebase indexing (`src/services/projectContext.ts`) using Vite `import.meta.glob` (`?raw` eager imports) ingesting `.ts`, `.tsx`, `.css`, `.md`, `.json`, and config files with line-level chunking.
@@ -83,18 +81,32 @@ Post-Merge Integration Complete & Verified
   - Integrated `/profesor-ia` into `Routing.tsx` and main `NavBar.tsx`.
   - Documented Gemini environment variables in `.env.example` and added ADR-020 in `docs/DECISIONS.md`.
 
-- **Workstream: Combat Variety, Pause Menu and Faster Progression**:
-  - Implemented clearly visible red projectile identity (`#ef4444`) for all hostile shooter attacks.
+- **Workstream: Combat Variety, Pause Menu, Elemental Upgrades & Progression**:
+  - Implemented clearly visible red projectile identity (`#ef4444`) for all hostile shooter attacks, cleanly distinguishing enemy fire from player projectiles.
   - Implemented pause menu with `Escape` keyboard shortcut, freezing Rapier physics simulation and gameplay updates, with options to resume, restart run, or exit to character selection.
   - Accelerated XP curve with 75 baseline (`Math.round(75 * Math.pow(1.18, level - 1))`) preserving overflow.
-  - Added 4 elemental upgrade paths (`fire`, `poison`, `shock`, `frost`) with Burn DoT, Poison DoT, Shock chain arcs, and Frost slow, complete with enemy mesh tinting and safe Lucide icon resolvers.
-  - Separated pickup unions (`RecoveryPickupType`, `SpecialPickupType`, `PickupType`) and built procedural 3D special items (`overclock_core`, `tesla_cell`, `toxic_relic`, `phoenix_fragment`) with auto-clearing HUD notification toasts and gameplay-only timer decrements.
+  - All 5 playable characters and weapons implemented: Bonk (Hammer), Byte (Energy Orb), Tank (Axe), Nova (Nova Burst), Hex (Hex Chain), with weapon synergies.
+  - Added 4 elemental upgrade paths (`fire`, `poison`, `shock`, `frost`) bringing total upgrade paths to 12 (8 base + 4 elemental) with Burn DoT, Poison DoT, Shock chain arcs, Frost slow, and rich elemental VFX status particles.
+
+- **Workstream: Rotating Bosses, Permanent Passives, Chests & Frenzy Mode**:
+  - Implemented rotating 5-boss roster every 10 rounds:
+    - Round 10: Bonklord (hammer slam & radial shockwaves)
+    - Round 20: Cindermaw (fire rings, meteor strikes, burning ground)
+    - Round 30: Stormcoil (radial electric bursts, chain lightning, charged pulse)
+    - Round 40: Venomatrix (toxic volleys, poison pools, acidic spray)
+    - Round 50: Cryovex (frost novae, ice shards, blizzards)
+    - Roster repeats every 50 rounds with incremented boss tiers and scaled HP/damage.
+  - Implemented boss animation and telegraph pass with distinct anticipations, attacks, and recovery states.
+  - Boss loot system: bosses drop reward chests containing permanent boss-exclusive passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`).
+  - Chest reward architecture with `ChestRewardOverlay` displaying tiered loot (Common, Rare, Epic, Legendary).
+  - Permanent special passives integrate official WebP decals and persistent stat buffs.
+  - Frenzy Mode: runtime horde mode featuring heightened spawn pressure, frenzy music/audio intensity, and event-driven low-frequency HUD synchronization.
 
 ## Current
-- Combat variety, pause menu, and faster progression fully integrated and verified.
+- Playable Character Animation & Combat Presentation (Phase 2): Developing distinct motion languages, attack phases, damage reactions, frost slowdown visuals, and camera combat impulses.
 
 ## Next
-- Live n8n Verification + Final Rubric Audit
+- Full Integration, End-to-End Verification & Academic Rubric Audit
 
 ## Known Issues
 - Antigravity browser sandbox Playwright binary download returns 404 from upstream CDN; local Vite dev server and JSON Server fully verified via CLI and curl.

@@ -8,18 +8,29 @@ Players choose a hero, navigate a hazardous circular arena, auto-cast weapon att
 
 ## Gameplay & Features
 
-- **3 Playable Characters & Weapons**:
+- **5 Playable Characters & Weapons**:
   - **BONK (Balanced Bruiser)**: Armed with the Hammer, triggering circular shockwave slams with area-of-effect damage and knockback.
   - **BYTE (Fast Ranged Specialist)**: Armed with the Energy Orb, launching high-velocity homing projectiles with multi-shot spreads.
   - **TANK (Slow Armored Juggernaut)**: Armed with dual Orbital Axes that continuously orbit and cleave contacting enemies.
-- **4 Normal Enemy Archetypes + Boss**:
+  - **NOVA (Astral Caster)**: Armed with Nova Burst, releasing radiating cosmic bursts that expand outward.
+  - **HEX (Void Controller)**: Armed with Hex Chain, unleashing arcing void chains that tether and damage enemy clusters.
+- **4 Normal Enemy Archetypes + 5 Rotating Bosses**:
   - **Slime Bot**: Bouncy purple dome with organic squash-and-stretch wobble and official face decal.
   - **Runner Drone**: Supersonic orange stealth dart with swept wings, top fin, and jet exhaust.
   - **Iron Brute**: Heavy crimson tank chassis with dual shoulder horns/exhausts and glowing visor.
-  - **Beam Sentry (Shooter)**: Floating cyan diamond turret that maintains distance and fires energy beams.
-  - **THE BONKLORD (Boss at Level 10)**: 3.5-unit obsidian titan with a 5-spire golden crown, glowing lava skull chest, legendary spiked warhammer, ground aura, and radial stomp shockwaves. Spawns with slot reservation to strictly honor the active enemy cap.
-- **Progressive Upgrades & Level-Up System**:
-  - 8 stackable upgrades (Damage, Haste, Speed, Vitality, Armor, Magnet, Critical, Multishot) up to Tier 5.
+  - **Beam Sentry (Shooter)**: Floating cyan diamond turret that maintains distance and fires red energy beams.
+  - **Rotating Boss Roster (Round-Based Encounters every 10 Rounds)**:
+    - **Round 10 — BONKLORD**: Obsidian titan with golden crown, volcanic chest, warhammer slams, and radial stomp shockwaves.
+    - **Round 20 — CINDERMAW**: Magma behemoth unleashing fire rings, meteor strikes, and persistent burning zones.
+    - **Round 30 — STORMCOIL**: Overcharged construct discharging radial electric bolts, chain lightning, and pulse waves.
+    - **Round 40 — VENOMATRIX**: Acidic arachnid launching toxic projectile volleys and corrosive pools.
+    - **Round 50 — CRYOVEX**: Glacial colossus summoning frost novae, homing ice shards, and blizzard zones.
+    - *Boss cycle repeats every 50 rounds at incremented boss tiers with scaled HP and damage.*
+- **Progressive Upgrades, Elemental Paths & Permanent Passives**:
+  - **12 Total Upgrade Paths**: 8 base upgrades (Damage, Haste, Speed, Vitality, Armor, Magnet, Critical, Multishot) plus 4 elemental paths (Fire, Poison, Shock, Frost) with visual status effects.
+  - **Permanent Boss-Exclusive Passives**: Defeating bosses and opening chests awards legendary passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`).
+  - **Chest Reward System**: Tiered reward chests (Common, Rare, Epic, Legendary) drop upon boss defeat.
+  - **Frenzy Mode**: High-intensity horde mode triggering elevated enemy rushes and dynamic audio shifts.
   - **Exact XP Overflow Preservation**: Surplus XP bridges level thresholds cleanly and queues multiple upgrade choices one selection at a time without experience loss.
 - **Procedural Web Audio API Sound Effects**:
   - 100% lightweight procedural synthesizers (hammer slams, energy orbs, axe swings, enemy hits, enemy deaths, boss spawn/death, player damage, level-up fanfares).
@@ -35,7 +46,7 @@ Players choose a hero, navigate a hazardous circular arena, auto-cast weapon att
 ## Academic Context & Rubric Compliance
 
 This project visibly satisfies the key requirements of the academic React Quiz:
-- **Reusable Components**: `CharacterCard`, `HUDShell`, `NavBar`, `LoadingState`, `ErrorState`, `LevelUpOverlay`, `GameOverOverlay`, `VictoryOverlay`, and `GameScene`.
+- **Reusable Components**: `CharacterCard`, `HUDShell`, `NavBar`, `LoadingState`, `ErrorState`, `LevelUpOverlay`, `PauseOverlay`, `ChestRewardOverlay`, `GameOverOverlay`, `VictoryOverlay`, and `GameScene`.
 - **React Hooks**:
   - `useState`: Real local state management for asynchronous loading, error states, and UI modal states.
   - `useEffect`: Lifecycle data fetching from JSON Server with `AbortController` cancellation and cleanup.
@@ -108,7 +119,7 @@ BONKAGEDDON includes an importable, production-ready n8n workflow for completed 
 2. Activate the workflow and copy its production Webhook URL.
 3. Add the webhook URL to your `.env` file:
    ```env
-   VITE_N8N_WEBHOOK_URL="http://localhost:5678/webhook/bonkageddon-run"
+   VITE_N8N_WEBHOOK_URL="http://localhost:5678/webhook/bonkageddon/run-completed"
    ```
 4. Restart the Vite dev server (`npm run dev`).
 5. Complete a run (Victory or Game Over). The run results will be dispatched to n8n, normalized, classified (`LEGENDARY`, `HIGH_SCORE`, or `NORMAL_RUN`), and acknowledged with a JSON response.
@@ -120,4 +131,4 @@ BONKAGEDDON includes an importable, production-ready n8n workflow for completed 
 
 ## Asset Policy
 
-All visual assets used in BONKAGEDDON are 100% original, self-contained, and stored under `public/assets/` (`characters/`, `enemies/`, `weapons/`, `upgrades/`, `pickups/`, `ui/`). The custom asset bundle is ~88 KB, well below the 5 MB limit. Asset paths are centralized in `src/config/assets.ts`.
+All visual assets used in BONKAGEDDON are 100% original, self-contained, and stored under `public/assets/` (`characters/`, `enemies/`, `weapons/`, `upgrades/`, `pickups/`, `ui/`). The custom asset bundle is approximately 3.16 MB, well below the 5 MB project limit. Asset paths are centralized in `src/config/assets.ts`.

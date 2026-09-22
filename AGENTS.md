@@ -8,9 +8,18 @@ BONKAGEDDON is an original 3D survivor-like videogame built for an academic Reac
   - 5 playable characters: Bonk, Byte, Tank, Nova, Hex
   - 1 circular arena (radius 30, boundary 28.8)
   - 4 normal enemy archetypes: Slime, Runner, Brute, Shooter
-  - Endless rounds progression with tiered Bonklord boss every 10 rounds
+  - Rotating boss roster:
+    - Round 10: Bonklord
+    - Round 20: Cindermaw
+    - Round 30: Stormcoil
+    - Round 40: Venomatrix
+    - Round 50: Cryovex
+    - Roster repeats every 50 rounds at the next boss tier
   - 5 starting weapons: Hammer, Energy Orb, Axe, Nova Burst, Hex Chain + Weapon Synergies
-  - 8 stackable upgrades
+  - 8 original/base upgrades plus 4 elemental upgrade paths (Fire, Poison, Shock, Frost)
+  - Permanent boss-exclusive special passives (Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment)
+  - Chest reward system (Common, Rare, Epic, Legendary)
+  - Frenzy runtime horde mode
   - Shield absorption & recovery pickups system
   - local JSON Server leaderboard
   - Endless arcade survival loop
@@ -253,7 +262,7 @@ Math.min(
 )
 ```
 
-Bonklord spawns every 10 rounds (10, 20, 30, ...) as tiered boss encounters with scaled HP/damage. Defeating Bonklord advances to the next round in an endless run without setting gameStatus to victory.
+Bosses spawn every 10 rounds with scaled HP/damage across a rotating 5-boss roster (Round 10 Bonklord, Round 20 Cindermaw, Round 30 Stormcoil, Round 40 Venomatrix, Round 50 Cryovex). The roster repeats every 50 rounds at the next boss tier. Defeating any boss advances to the next round in an endless run without setting gameStatus to victory.
 
 Before spawning, always respect available slots.
 
