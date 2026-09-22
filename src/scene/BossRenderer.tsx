@@ -19,23 +19,21 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
   const coilRing2Ref = useRef<THREE.Group>(null);
   const crystalSpireRef = useRef<THREE.Group>(null);
 
-  // Textures safely loaded with fallback to bonklord if new boss assets are pending integration
+  // Real registered boss textures loaded directly from ASSETS.enemies
   const bossTextures = useMemo(() => {
     const loader = new THREE.TextureLoader();
-    const enemies = ASSETS.enemies as Record<string, string | undefined>;
-    const loadSafe = (key: string) => {
-      const url = enemies[key] || ASSETS.enemies.bonklord;
+    const loadTex = (url: string) => {
       const tex = loader.load(url);
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
     };
 
     return {
-      bonklord: loadSafe("bonklord"),
-      cindermaw: loadSafe("cindermaw"),
-      stormcoil: loadSafe("stormcoil"),
-      venomatrix: loadSafe("venomatrix"),
-      cryovex: loadSafe("cryovex"),
+      bonklord: loadTex(ASSETS.enemies.bonklord),
+      cindermaw: loadTex(ASSETS.enemies.cindermaw),
+      stormcoil: loadTex(ASSETS.enemies.stormcoil),
+      venomatrix: loadTex(ASSETS.enemies.venomatrix),
+      cryovex: loadTex(ASSETS.enemies.cryovex),
     };
   }, []);
 

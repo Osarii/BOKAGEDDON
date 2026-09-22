@@ -36,6 +36,17 @@ Object.values(itemTextures).forEach((t) => {
   t.colorSpace = THREE.SRGBColorSpace;
 });
 
+// Shared textures loaded once at module scope for Special pickups
+const specialTextures: Record<SpecialPickupType, THREE.Texture> = {
+  overclock_core: textureLoader.load(ASSETS.items.overclockCore),
+  tesla_cell: textureLoader.load(ASSETS.items.teslaCell),
+  toxic_relic: textureLoader.load(ASSETS.items.toxicRelic),
+  phoenix_fragment: textureLoader.load(ASSETS.items.phoenixFragment),
+};
+Object.values(specialTextures).forEach((t) => {
+  t.colorSpace = THREE.SRGBColorSpace;
+});
+
 export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
   // InstancedMesh for XP Gems
   const xpMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -117,44 +128,40 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     []
   );
 
-  // Procedural geometries and glowing materials for the 4 Special Pickups
-  const specialGeometries = useMemo(() => ({
-    overclock: new THREE.IcosahedronGeometry(0.32, 0),
-    tesla: new THREE.OctahedronGeometry(0.32, 0),
-    toxic: new THREE.TorusGeometry(0.24, 0.09, 10, 20),
-    phoenix: new THREE.TetrahedronGeometry(0.34, 0),
-  }), []);
-
-  const specialMaterials = useMemo(() => ({
-    overclock: new THREE.MeshStandardMaterial({
-      color: "#ffb020",
-      emissive: "#f59e0b",
-      emissiveIntensity: 1.4,
-      roughness: 0.2,
-      metalness: 0.8,
+  // Dedicated textured materials for each special pickup archetype using real registered assets
+  const specialMaterials = useMemo(
+    () => ({
+      overclock_core: new THREE.MeshBasicMaterial({
+        map: specialTextures.overclock_core,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      tesla_cell: new THREE.MeshBasicMaterial({
+        map: specialTextures.tesla_cell,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      toxic_relic: new THREE.MeshBasicMaterial({
+        map: specialTextures.toxic_relic,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      phoenix_fragment: new THREE.MeshBasicMaterial({
+        map: specialTextures.phoenix_fragment,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
     }),
-    tesla: new THREE.MeshStandardMaterial({
-      color: "#00e5ff",
-      emissive: "#06b6d4",
-      emissiveIntensity: 1.5,
-      roughness: 0.2,
-      metalness: 0.8,
-    }),
-    toxic: new THREE.MeshStandardMaterial({
-      color: "#22c55e",
-      emissive: "#10b981",
-      emissiveIntensity: 1.4,
-      roughness: 0.2,
-      metalness: 0.7,
-    }),
-    phoenix: new THREE.MeshStandardMaterial({
-      color: "#f43f5e",
-      emissive: "#e11d48",
-      emissiveIntensity: 1.6,
-      roughness: 0.2,
-      metalness: 0.8,
-    }),
-  }), []);
+    []
+  );
 
   // Initialize instance counts and hidden matrices once at mount
   useEffect(() => {
@@ -386,10 +393,12 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
 
         if (meshRef.current && count < MAX_SPECIAL_INSTANCES) {
           const bob = Math.sin(time * 4.5 + i * 0.9) * 0.12;
-          tempPosition.set(p.x, 0.5 + bob, p.z);
-          tempRotation.set(time * 2.2 + i, time * 3.0, time * 1.5);
-          tempQuaternion.setFromEuler(tempRotation);
-          tempScale.set(1.15, 1.15, 1.15);
+          tempPosition.set(p.x, 0.55 + bob, p.z);
+          // Billboard facing the camera directly for clear registered asset display
+          tempQuaternion.copy(state.camera.quaternion);
+          // Legendary boss loot pulsing scale
+          const pulse = 1.25 + Math.sin(time * 5 + i) * 0.1;
+          tempScale.set(pulse, pulse, pulse);
 
           tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
           meshRef.current.setMatrixAt(count, tempMatrix);
@@ -479,32 +488,32 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         frustumCulled={false}
       />
 
-      {/* Procedural Special Pickups */}
-      {/* Overclock Core (Icosahedron) */}
+      {/* Special Pickups (Textured Billboards with Real Registered Assets) */}
+      {/* Overclock Core */}
       <instancedMesh
         ref={overclockMeshRef}
-        args={[specialGeometries.overclock, specialMaterials.overclock, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.overclock_core, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 
-      {/* Tesla Cell (Octahedron) */}
+      {/* Tesla Cell */}
       <instancedMesh
         ref={teslaMeshRef}
-        args={[specialGeometries.tesla, specialMaterials.tesla, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.tesla_cell, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 
-      {/* Toxic Relic (Torus) */}
+      {/* Toxic Relic */}
       <instancedMesh
         ref={toxicMeshRef}
-        args={[specialGeometries.toxic, specialMaterials.toxic, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.toxic_relic, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 
-      {/* Phoenix Fragment (Tetrahedron) */}
+      {/* Phoenix Fragment */}
       <instancedMesh
         ref={phoenixMeshRef}
-        args={[specialGeometries.phoenix, specialMaterials.phoenix, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.phoenix_fragment, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
     </group>
