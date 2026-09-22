@@ -15,6 +15,7 @@ import { createGameRuntime, type GameRuntime } from "../game/runtime";
 import type { Character, CharacterId } from "../types/game";
 
 const VALID_CHARACTER_IDS: CharacterId[] = ["bonk", "byte", "tank", "nova", "hex"];
+type DevToolsComponent = React.ComponentType<{ runtimeRef: React.RefObject<GameRuntime> }>;
 
 export const Game: React.FC = () => {
   const { characterId } = useParams<{ characterId: string }>();
@@ -34,6 +35,15 @@ export const Game: React.FC = () => {
 
   const isValid = Boolean(characterId && VALID_CHARACTER_IDS.includes(characterId as CharacterId));
   const [isLoading, setIsLoading] = useState<boolean>(() => isValid && selectedCharacterId !== characterId);
+  const [DevToolsOverlay, setDevToolsOverlay] = useState<DevToolsComponent | null>(null);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const devToolsPath = "/src/components/game/DevToolsOverlay.tsx";
+    import(/* @vite-ignore */ devToolsPath).then((module: { DevToolsOverlay: DevToolsComponent }) => {
+      setDevToolsOverlay(() => module.DevToolsOverlay);
+    });
+  }, []);
 
   useEffect(() => {
     if (!isValid || !characterId) return;
@@ -155,6 +165,10 @@ export const Game: React.FC = () => {
         hasSavedScoreRef={hasSavedScoreRef}
         hasSentWebhookRef={hasSentWebhookRef}
       />
+
+      {DevToolsOverlay && (
+        <DevToolsOverlay runtimeRef={runtimeRef} />
+      )}
     </div>
   );
 };
