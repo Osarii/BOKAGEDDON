@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { EnemyType, PickupType } from "../types/game";
+import type { ElementalEffectType, EnemyType, HazardZoneType, PickupType } from "../types/game";
 
 export interface EnemyEntity {
   id: number;
@@ -19,6 +19,9 @@ export interface EnemyEntity {
   xpValue: number;
   shootCooldown?: number;
   stompCooldown?: number;
+  bossAttackTimer?: number;
+  bossAttackCooldown?: number;
+  bossSubAttackTimer?: number;
   hitFlashTimer: number;
   scaleY: number; // for squash/stretch
 
@@ -51,6 +54,7 @@ export interface ProjectileEntity {
   chainRemaining?: number;
   hitEnemyIds?: number[];
   isPrism?: boolean;
+  effectType?: ElementalEffectType;
 }
 
 export interface PickupEntity {
@@ -84,12 +88,43 @@ export interface DelayedBurstEffect {
   color: string;
 }
 
+export interface HazardZone {
+  id: number;
+  type: HazardZoneType;
+  x: number;
+  z: number;
+  radius: number;
+  duration: number;
+  maxDuration: number;
+  damagePerSec: number;
+  slowPercent?: number;
+}
+
+export type ParticleType = "burn" | "poison" | "shock" | "frost" | "hit" | "weapon";
+
+export interface StatusParticle {
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+  type: ParticleType;
+}
+
 export interface GameRuntime {
   enemies: EnemyEntity[];
   projectiles: ProjectileEntity[];
   pickups: PickupEntity[];
   shockwaves: ShockwaveEffect[];
   delayedBursts: DelayedBurstEffect[];
+  hazardZones: HazardZone[];
+  particles: StatusParticle[];
   playerPosition: THREE.Vector3;
   playerInvulnerableTimer: number;
   lastAttackTimer: number;
@@ -107,6 +142,10 @@ export interface GameRuntime {
   roundQuota: number;
   intermissionTimer: number;
 
+  // Cryovex frost player slow
+  playerSlowTimer: number;
+  playerSlowFactor: number;
+
   // Temporary Special Item Buff Timers (decrement only during active gameplay)
   overclockTimer: number;
   teslaTimer: number;
@@ -123,6 +162,8 @@ export function createGameRuntime(): GameRuntime {
     pickups: [],
     shockwaves: [],
     delayedBursts: [],
+    hazardZones: [],
+    particles: [],
     playerPosition: new THREE.Vector3(0, 1.2, 0),
     playerInvulnerableTimer: 0,
     lastAttackTimer: 0,
@@ -137,6 +178,8 @@ export function createGameRuntime(): GameRuntime {
     roundSpawnedCount: 0,
     roundQuota: 14,
     intermissionTimer: 0,
+    playerSlowTimer: 0,
+    playerSlowFactor: 1.0,
     overclockTimer: 0,
     teslaTimer: 0,
     toxicRelicTimer: 0,
@@ -147,6 +190,8 @@ export function createGameRuntime(): GameRuntime {
       runtime.pickups = [];
       runtime.shockwaves = [];
       runtime.delayedBursts = [];
+      runtime.hazardZones = [];
+      runtime.particles = [];
       runtime.playerPosition.set(0, 1.2, 0);
       runtime.playerInvulnerableTimer = 0;
       runtime.lastAttackTimer = 0;
@@ -161,6 +206,8 @@ export function createGameRuntime(): GameRuntime {
       runtime.roundSpawnedCount = 0;
       runtime.roundQuota = 14;
       runtime.intermissionTimer = 0;
+      runtime.playerSlowTimer = 0;
+      runtime.playerSlowFactor = 1.0;
       runtime.overclockTimer = 0;
       runtime.teslaTimer = 0;
       runtime.toxicRelicTimer = 0;

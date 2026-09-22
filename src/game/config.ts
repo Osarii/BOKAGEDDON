@@ -1,4 +1,12 @@
-import type { CharacterId, EnemyType, UpgradeId, WeaponType } from "../types/game";
+import type {
+  BossType,
+  CharacterId,
+  EnemyType,
+  RecoveryPickupType,
+  SpecialPickupType,
+  UpgradeId,
+  WeaponType,
+} from "../types/game";
 
 export const BASE_ENEMY_CAP = 12;
 export const ENEMIES_PER_LEVEL = 3;
@@ -90,6 +98,119 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
     color: "#e11d48",
     scoreValue: 500,
     xpValue: 100,
+  },
+  cindermaw: {
+    type: "cindermaw",
+    name: "CINDERMAW",
+    health: 1350,
+    speed: 2.4,
+    damage: 28,
+    radius: 1.5,
+    height: 3.2,
+    color: "#f97316",
+    scoreValue: 600,
+    xpValue: 120,
+  },
+  stormcoil: {
+    type: "stormcoil",
+    name: "STORMCOIL",
+    health: 1100,
+    speed: 3.0,
+    damage: 22,
+    radius: 1.3,
+    height: 2.8,
+    color: "#00e5ff",
+    scoreValue: 600,
+    xpValue: 120,
+  },
+  venomatrix: {
+    type: "venomatrix",
+    name: "VENOMATRIX",
+    health: 1250,
+    speed: 2.7,
+    damage: 24,
+    radius: 1.4,
+    height: 2.9,
+    color: "#22c55e",
+    scoreValue: 600,
+    xpValue: 120,
+  },
+  cryovex: {
+    type: "cryovex",
+    name: "CRYOVEX",
+    health: 1400,
+    speed: 2.2,
+    damage: 20,
+    radius: 1.4,
+    height: 3.4,
+    color: "#38bdf8",
+    scoreValue: 600,
+    xpValue: 120,
+  },
+};
+
+export const BOSS_CONFIGS: Record<
+  BossType,
+  {
+    name: BossType;
+    displayName: string;
+    accentColor: string;
+    baseHp: number;
+    baseDamage: number;
+    speed: number;
+    attackCooldown: number;
+    description: string;
+  }
+> = {
+  bonklord: {
+    name: "bonklord",
+    displayName: "Bonklord",
+    accentColor: "#e11d48",
+    baseHp: 1200,
+    baseDamage: 25,
+    speed: 2.6,
+    attackCooldown: 3.5,
+    description: "Titan warhammer & shockwave stomp",
+  },
+  cindermaw: {
+    name: "cindermaw",
+    displayName: "Cindermaw",
+    accentColor: "#f97316",
+    baseHp: 1350,
+    baseDamage: 28,
+    speed: 2.4,
+    attackCooldown: 3.8,
+    description: "Volcanic fire drake, meteor strikes & burning ground",
+  },
+  stormcoil: {
+    name: "stormcoil",
+    displayName: "Stormcoil",
+    accentColor: "#00e5ff",
+    baseHp: 1100,
+    baseDamage: 22,
+    speed: 3.0,
+    attackCooldown: 3.2,
+    description: "Levitating electrical construct & radial volt pulses",
+  },
+  venomatrix: {
+    name: "venomatrix",
+    displayName: "Venomatrix",
+    accentColor: "#22c55e",
+    baseHp: 1250,
+    baseDamage: 24,
+    speed: 2.7,
+    attackCooldown: 3.4,
+    description: "Acidic chitin hydra, toxic volleys & poison pools",
+  },
+  cryovex: {
+    name: "cryovex",
+    displayName: "Cryovex",
+    accentColor: "#38bdf8",
+    baseHp: 1400,
+    baseDamage: 20,
+    speed: 2.2,
+    attackCooldown: 3.6,
+    description: "Glacial crystal spire, ice shards & frost slow",
   },
 };
 
@@ -223,8 +344,8 @@ export const UPGRADE_DETAILS: Record<
 
 export const SPECIAL_PICKUP_CONFIG = {
   maxActiveSpecialPickups: 4,
-  normalEnemyDropChance: 0.015,
-  bruteDropChance: 0.12,
+  normalEnemyDropChance: 0, // Normal enemies never drop special items per contract
+  bruteDropChance: 0,
   buffDurations: {
     overclock_core: 8.0,
     tesla_cell: 10.0,
@@ -238,6 +359,36 @@ export const SPECIAL_PICKUP_CONFIG = {
     phoenix_fragment: { name: "Phoenix Fragment", subtitle: "+50 HP Healed & Flame Damage Surge (+40%)!", color: "#f43f5e", emissive: "#e11d48" },
   },
 } as const;
+
+/**
+ * Exactly one item dropped per boss defeat using one weighted roll (100% total).
+ * 15% each recovery item (60% total recovery) + 10% each rare special item (40% total special).
+ */
+export const BOSS_LOOT_TABLE: Array<{
+  type: RecoveryPickupType | SpecialPickupType;
+  weight: number;
+}> = [
+  { type: "medkit_emergency", weight: 15 },
+  { type: "medkit_case", weight: 15 },
+  { type: "shield_potion", weight: 15 },
+  { type: "shield_battery", weight: 15 },
+  { type: "overclock_core", weight: 10 },
+  { type: "tesla_cell", weight: 10 },
+  { type: "toxic_relic", weight: 10 },
+  { type: "phoenix_fragment", weight: 10 },
+];
+
+export function rollBossLoot(): RecoveryPickupType | SpecialPickupType {
+  const rand = Math.random() * 100;
+  let accumulated = 0;
+  for (const entry of BOSS_LOOT_TABLE) {
+    accumulated += entry.weight;
+    if (rand < accumulated) {
+      return entry.type;
+    }
+  }
+  return "medkit_case";
+}
 
 export const RECOVERY_CONFIG = {
   maxActivePickups: 24,

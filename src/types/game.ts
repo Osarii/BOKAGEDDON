@@ -64,12 +64,23 @@ export type GameStatus =
 
 export type RoundStatus = "wave" | "intermission";
 
+export type BossType =
+  | "bonklord"
+  | "cindermaw"
+  | "stormcoil"
+  | "venomatrix"
+  | "cryovex";
+
 export type EnemyType =
   | "slime"
   | "runner"
   | "brute"
   | "shooter"
-  | "bonklord";
+  | BossType;
+
+export type HazardZoneType = "fire" | "poison" | "frost";
+
+export type ElementalEffectType = "fire" | "poison" | "shock" | "frost";
 
 export type RecoveryPickupType =
   | "medkit_emergency"

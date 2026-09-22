@@ -1,4 +1,20 @@
 import { BASE_ENEMY_CAP, ENEMIES_PER_LEVEL, HARD_ENEMY_CAP } from "./config";
+import type { BossType } from "../types/game";
+
+export const BOSS_ROSTER: BossType[] = [
+  "bonklord",
+  "cindermaw",
+  "stormcoil",
+  "venomatrix",
+  "cryovex",
+];
+
+/**
+ * Type guard to check if an enemy type string corresponds to any boss archetype.
+ */
+export function isBossType(type: string): type is BossType {
+  return (BOSS_ROSTER as string[]).includes(type);
+}
 
 /**
  * Calculates the maximum active enemy cap for a given round.
@@ -28,22 +44,57 @@ export function isBossRound(round: number): boolean {
 }
 
 /**
- * Computes the boss tier based on round number (round / 10).
+ * Determines which boss spawns for a given boss round.
+ * Round 10 -> Bonklord, Round 20 -> Cindermaw, Round 30 -> Stormcoil,
+ * Round 40 -> Venomatrix, Round 50 -> Cryovex, then repeats with higher tiers.
  */
-export function getBossTier(round: number): number {
+export function getBossTypeForRound(round: number): BossType {
   const safeRound = Math.max(1, Math.floor(round));
-  return Math.max(1, Math.floor(safeRound / 10));
+  const bossNumber = Math.max(0, Math.floor(safeRound / 10) - 1);
+  const bossIndex = bossNumber % BOSS_ROSTER.length;
+  return BOSS_ROSTER[bossIndex];
 }
 
 /**
- * Calculates scaled Bonklord boss stats by boss tier with no maximum round.
+ * Computes the boss tier based on complete 5-boss cycles:
+ * Rounds 10-50 -> Tier 1
+ * Rounds 60-100 -> Tier 2
+ * Rounds 110-150 -> Tier 3
  */
-export function getBossStats(tier: number): { health: number; damage: number; speed: number } {
+export function getBossCycleTier(round: number): number {
+  const safeRound = Math.max(1, Math.floor(round));
+  const bossNumber = Math.max(0, Math.floor(safeRound / 10) - 1);
+  return Math.floor(bossNumber / BOSS_ROSTER.length) + 1;
+}
+
+/**
+ * Backwards compatibility alias for getBossCycleTier.
+ */
+export function getBossTier(round: number): number {
+  return getBossCycleTier(round);
+}
+
+/**
+ * Calculates scaled boss stats by boss tier and archetype with no maximum round.
+ */
+export function getBossStats(
+  tier: number,
+  bossType: BossType = "bonklord"
+): { health: number; damage: number; speed: number } {
   const safeTier = Math.max(1, Math.floor(tier));
+  const baseStats: Record<BossType, { health: number; damage: number; speed: number }> = {
+    bonklord: { health: 1200, damage: 25, speed: 2.6 },
+    cindermaw: { health: 1350, damage: 28, speed: 2.4 },
+    stormcoil: { health: 1100, damage: 22, speed: 3.0 },
+    venomatrix: { health: 1250, damage: 24, speed: 2.7 },
+    cryovex: { health: 1400, damage: 20, speed: 2.2 },
+  };
+
+  const base = baseStats[bossType] || baseStats.bonklord;
   return {
-    health: Math.round(1200 * (1 + (safeTier - 1) * 0.5)),
-    damage: Math.round(25 * (1 + (safeTier - 1) * 0.3)),
-    speed: Math.min(3.8, 2.6 + (safeTier - 1) * 0.12),
+    health: Math.round(base.health * (1 + (safeTier - 1) * 0.55)),
+    damage: Math.round(base.damage * (1 + (safeTier - 1) * 0.35)),
+    speed: Math.min(4.0, base.speed + (safeTier - 1) * 0.12),
   };
 }
 

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Character, CharacterId, GameStatus, RoundStatus, UpgradeId } from "../types/game";
+import type { BossType, Character, CharacterId, GameStatus, RoundStatus, UpgradeId } from "../types/game";
 import { getXpRequiredForLevel } from "../game/progression";
 
 interface GameState {
@@ -20,6 +20,10 @@ interface GameState {
   bossActive: boolean;
   bossHealth: number;
   bossMaxHealth: number;
+  bossType: BossType | null;
+  bossName: string;
+  bossTier: number;
+  bossAccentColor: string;
   upgrades: Record<UpgradeId, number>;
   gameStatus: GameStatus;
   notification: { title: string; subtitle: string; timestamp: number } | null;
@@ -46,7 +50,11 @@ interface GameState {
   applyUpgrade: (upgradeId: UpgradeId) => void;
   setTimeSurvived: (seconds: number) => void;
   setBossActive: (active: boolean) => void;
-  updateBossHealth: (health: number, maxHealth?: number) => void;
+  updateBossHealth: (
+    health: number,
+    maxHealth?: number,
+    details?: { name?: string; tier?: number; type?: BossType; color?: string }
+  ) => void;
   levelUp: () => void;
   resetRun: () => void;
   initializeCharacterRun: (character: Character) => void;
@@ -84,6 +92,10 @@ const INITIAL_RUN_STATE = {
   bossActive: false,
   bossHealth: 1200,
   bossMaxHealth: 1200,
+  bossType: null as BossType | null,
+  bossName: "Bonklord",
+  bossTier: 1,
+  bossAccentColor: "#e11d48",
   upgrades: INITIAL_UPGRADES,
   gameStatus: "idle" as GameStatus,
   notification: null,
@@ -251,10 +263,14 @@ export const useGameStore = create<GameState>((set) => ({
 
   setBossActive: (active) => set({ bossActive: active }),
 
-  updateBossHealth: (health, maxHealth) =>
+  updateBossHealth: (health, maxHealth, details) =>
     set((state) => ({
       bossHealth: Math.max(0, health),
       bossMaxHealth: maxHealth !== undefined ? maxHealth : state.bossMaxHealth,
+      ...(details?.name ? { bossName: details.name } : {}),
+      ...(details?.tier ? { bossTier: details.tier } : {}),
+      ...(details?.type ? { bossType: details.type } : {}),
+      ...(details?.color ? { bossAccentColor: details.color } : {}),
     })),
 
   levelUp: () =>
@@ -291,6 +307,10 @@ export const useGameStore = create<GameState>((set) => ({
       bossActive: false,
       bossHealth: 1200,
       bossMaxHealth: 1200,
+      bossType: null,
+      bossName: "Bonklord",
+      bossTier: 1,
+      bossAccentColor: "#e11d48",
       upgrades: { ...INITIAL_UPGRADES },
       gameStatus: "playing",
       notification: null,
