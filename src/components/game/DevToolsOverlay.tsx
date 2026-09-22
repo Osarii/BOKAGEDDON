@@ -71,7 +71,7 @@ const allRelics: Array<[string, SpecialPickupType]> = [
 const rosterIds: CharacterId[] = ["bonk", "byte", "tank", "nova", "hex", "rift", "fuse", "lux"];
 
 export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("qa") === "1");
   const [tick, setTick] = useState(0);
   const [position, setPosition] = useState({ x: 16, y: 70 });
   const [isAuditing, setIsAuditing] = useState(false);
@@ -243,12 +243,14 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
     spawnNormalEnemies(runtime, 25);
   };
 
-  // S7 — Lux hitscan max: all upgrades + SolarRefraction synergy, 35 enemies (run twice)
+  // S7 — Lux hitscan max: all upgrades + additional secret passives for maximum stress, 35 enemies (run twice)
+  //        SolarRefraction synergy activates automatically because maxAllUpgrades()
+  //        satisfies its requirements (critical>=2, precision>=2).
   const runScenario7 = () => {
     resetQaRun(runtime);
     switchQaCharacter("lux");
     maxAllUpgrades();
-    unlockSecretRecipe("apex_echo"); // triggers SolarRefraction crit bounce
+    unlockSecretRecipe("apex_echo"); // extra stress: higher crit chance/multiplier (does NOT activate SolarRefraction)
     spawnNormalEnemies(runtime, 35);
   };
 
@@ -266,12 +268,14 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
     }
   };
 
-  // S9 — BYTE projectile swarm: Byte + all upgrades + Storm Engine (Prism Barrage), 30 enemies (run twice)
+  // S9 — BYTE projectile swarm: Byte + all upgrades + additional secret passives for maximum stress, 30 enemies (run twice)
+  //        PrismBarrage synergy activates automatically because maxAllUpgrades()
+  //        satisfies its requirements (haste>=2, multishot>=2).
   const runScenario9 = () => {
     resetQaRun(runtime);
     switchQaCharacter("byte");
     maxAllUpgrades();
-    unlockSecretRecipe("storm_engine"); // Storm Engine unlocks PRISM BARRAGE for BYTE
+    unlockSecretRecipe("storm_engine"); // extra stress: shock proc rate boost (does NOT activate PrismBarrage)
     spawnNormalEnemies(runtime, 30);
   };
 
@@ -335,8 +339,18 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
     for (const r of reports) {
       md += `| ${r.scenarioName} | **${r.avgFps}** | **${r.onePercentLowFps}** | ${r.avgFrameTimeMs} ms | ${r.maxFrameTimeMs} ms | ${r.drawCallsAvg} | ${r.trianglesAvg.toLocaleString()} | ${r.enemiesAvg} | ${r.particlesAvg} | ${r.dpr} | ${r.memoryMb ?? "N/A"} |\n`;
     }
-    console.log("=== BONKAGEDDON PERFORMANCE AUDIT V1.1 RESULTS ===\n" + md);
+    console.log("=== BONKAGEDDON PERFORMANCE AUDIT V1.2 RESULTS ===\n" + md);
   };
+
+  const runFullSuiteRef = useRef(runFullSuite);
+  runFullSuiteRef.current = runFullSuite;
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as unknown as { __BONK_RUN_FULL_SUITE__?: () => void }).__BONK_RUN_FULL_SUITE__ = () => {
+        runFullSuiteRef.current();
+      };
+    }
+  }, []);
 
   if (!open) return null;
 
@@ -401,7 +415,7 @@ export const DevToolsOverlay: React.FC<DevToolsOverlayProps> = ({ runtimeRef }) 
 
         <div style={{ marginTop: "0.55rem" }} className="dev-tools-buttons">
           {button(
-            isAuditing ? "Auditing..." : "Run Full Suite (v1.1 — 13 runs)",
+            isAuditing ? "Auditing..." : "Run Full Suite (v1.2 — 13 runs)",
             runFullSuite,
             true,
             isAuditing
