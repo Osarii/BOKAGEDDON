@@ -33,6 +33,11 @@ import {
 import { useGameStore } from "../store/gameStore";
 import { ASSETS } from "../config/assets";
 import { gameAudio } from "../audio/gameAudio";
+import {
+  findValidArenaPosition,
+  getArenaSteeringDirection,
+  resolveArenaCollision,
+} from "../game/arenaLayout";
 import type { ChestRarity, EnemyType, BossType, RecoveryPickupType } from "../types/game";
 
 interface EnemyManagerProps {
@@ -117,14 +122,24 @@ function getConfiguredBossStats(tier: number, bossType: BossType) {
 
 function spawnChest(runtime: GameRuntime, x: number, z: number, rarity: ChestRarity) {
   if (runtime.chests.length >= CHEST_CONFIG.maxActiveChests) return;
+  const pos = findValidArenaPosition(x, z, 0.95);
   runtime.chests.push({
     id: runtime.nextEntityId++,
     rarity,
-    x,
+    x: pos.x,
     y: 0.45,
-    z,
+    z: pos.z,
     radius: 0.85,
   });
+}
+
+function moveEnemyWithArena(enemy: EnemyEntity, dirX: number, dirZ: number, speed: number, delta: number) {
+  const dir = getArenaSteeringDirection(enemy.x, enemy.z, dirX, dirZ, enemy.radius + 0.12);
+  enemy.x += dir.x * speed * delta;
+  enemy.z += dir.z * speed * delta;
+  const resolved = resolveArenaCollision(enemy.x, enemy.z, enemy.radius + 0.08);
+  enemy.x = resolved.x;
+  enemy.z = resolved.z;
 }
 
 export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
@@ -428,6 +443,12 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         if (!runtime.bossSpawned) {
           const angle = Math.random() * Math.PI * 2;
           const spawnDist = ARENA_BOUNDARY_LIMIT - 3.0;
+          const bossSpawn = findValidArenaPosition(
+            Math.cos(angle) * spawnDist,
+            Math.sin(angle) * spawnDist,
+            2.2,
+            30
+          );
           const bossType = getBossTypeForRound(round);
           const bossTier = getBossCycleTier(round);
           const bossStats = getConfiguredBossStats(bossTier, bossType);
@@ -437,9 +458,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           const bossEntity: EnemyEntity = {
             id: runtime.nextEntityId++,
             type: bossType,
-            x: Math.cos(angle) * spawnDist,
+            x: bossSpawn.x,
             y: (enemyConfig?.height || 3.0) / 2,
-            z: Math.sin(angle) * spawnDist,
+            z: bossSpawn.z,
             vx: 0,
             vz: 0,
             health: bossStats.health,
@@ -501,6 +522,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
                   spawnX *= clampRatio;
                   spawnZ *= clampRatio;
                 }
+                const spawn = findValidArenaPosition(spawnX, spawnZ, config.radius + 0.25);
 
                 const enemyHealth = getEnemyHealthForRound(config.health, round);
                 const enemyDamage = getEnemyDamageForRound(config.damage, round);
@@ -508,9 +530,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
                 const enemy: EnemyEntity = {
                   id: runtime.nextEntityId++,
                   type,
-                  x: spawnX,
+                  x: spawn.x,
                   y: config.height / 2,
-                  z: spawnZ,
+                  z: spawn.z,
                   vx: 0,
                   vz: 0,
                   health: enemyHealth,
@@ -594,13 +616,14 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
       // Check death
       if (enemy.health <= 0) {
+        const dropPos = findValidArenaPosition(enemy.x, enemy.z, 0.55);
         // Spawn XP pickup at death position
         runtime.pickups.push({
           id: runtime.nextEntityId++,
           type: "xp",
-          x: enemy.x,
+          x: dropPos.x,
           y: 0.35,
-          z: enemy.z,
+          z: dropPos.z,
           value: enemy.xpValue,
           radius: 0.4,
         });
@@ -643,16 +666,16 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           runtime.pickups.push({
             id: runtime.nextEntityId++,
             type: bossLoot,
-            x: enemy.x,
+            x: dropPos.x,
             y: 0.45,
-            z: enemy.z,
+            z: dropPos.z,
             value: lootValue,
             radius: 0.8,
             lifetime: isRecoveryLoot ? RECOVERY_CONFIG.lifetimeSec : undefined,
             maxLifetime: isRecoveryLoot ? RECOVERY_CONFIG.lifetimeSec : undefined,
           });
 
-          spawnChest(runtime, enemy.x + 1.1, enemy.z, "legendary");
+          spawnChest(runtime, dropPos.x + 1.1, dropPos.z, "legendary");
 
           // Boss round complete! Enter intermission to advance to next round
           runtime.intermissionTimer = 0;
@@ -714,9 +737,9 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             runtime.pickups.push({
               id: runtime.nextEntityId++,
               type: dropType,
-              x: enemy.x,
+              x: dropPos.x,
               y: 0.35,
-              z: enemy.z,
+              z: dropPos.z,
               value: dropVal,
               radius: 0.5,
               lifetime: RECOVERY_CONFIG.lifetimeSec,
@@ -739,12 +762,10 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       if (enemy.type === "shooter") {
         // Shooter maintains standoff distance (~7.5 units)
         if (distToPlayer > 8.0) {
-          enemy.x += (dx / distToPlayer) * currentSpeed * delta;
-          enemy.z += (dz / distToPlayer) * currentSpeed * delta;
+          moveEnemyWithArena(enemy, dx, dz, currentSpeed, delta);
         } else if (distToPlayer < 6.0) {
           // Back away
-          enemy.x -= (dx / distToPlayer) * currentSpeed * 0.7 * delta;
-          enemy.z -= (dz / distToPlayer) * currentSpeed * 0.7 * delta;
+          moveEnemyWithArena(enemy, -dx, -dz, currentSpeed * 0.7, delta);
         }
 
         // Shoot hostile projectile (clearly visible red identity)
@@ -808,8 +829,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       } else if (isBossType(enemy.type)) {
         // Boss moves steadily toward player
         if (distToPlayer > 0.1) {
-          enemy.x += (dx / distToPlayer) * currentSpeed * delta;
-          enemy.z += (dz / distToPlayer) * currentSpeed * delta;
+          moveEnemyWithArena(enemy, dx, dz, currentSpeed, delta);
         }
 
         const bossType = enemy.type as BossType;
@@ -987,18 +1007,14 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       } else {
         // Standard chase
         if (distToPlayer > 0.1) {
-          enemy.x += (dx / distToPlayer) * currentSpeed * delta;
-          enemy.z += (dz / distToPlayer) * currentSpeed * delta;
+          moveEnemyWithArena(enemy, dx, dz, currentSpeed, delta);
         }
       }
 
       // Circular arena boundary clamp
-      const distFromCenter = Math.hypot(enemy.x, enemy.z);
-      if (distFromCenter > ARENA_BOUNDARY_LIMIT) {
-        const factor = ARENA_BOUNDARY_LIMIT / distFromCenter;
-        enemy.x *= factor;
-        enemy.z *= factor;
-      }
+      const resolvedEnemy = resolveArenaCollision(enemy.x, enemy.z, enemy.radius + 0.08);
+      enemy.x = resolvedEnemy.x;
+      enemy.z = resolvedEnemy.z;
 
       // Check contact damage with player
       if (distToPlayer < playerRadius + enemy.radius) {

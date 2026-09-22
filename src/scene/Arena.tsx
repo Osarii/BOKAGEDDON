@@ -1,12 +1,15 @@
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useLoader } from "@react-three/fiber";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import { ARENA_RADIUS, ARENA_BOUNDARY_LIMIT } from "../game/config";
 import { useGameStore } from "../store/gameStore";
+import { ASSETS } from "../config/assets";
+import { ARENA_V2_DECALS, ARENA_V2_OBSTACLES, type ArenaAssetKey } from "../game/arenaLayout";
 
 const PILLAR_COUNT = 12;
 const EMBER_COUNT = 36;
+type ArenaDecalAssetKey = "warningRingDecal" | "laneConnectorDecal";
 
 export const Arena: React.FC = () => {
   const embersRef = useRef<THREE.Points>(null);
@@ -30,6 +33,81 @@ export const Arena: React.FC = () => {
   const defaultCyanEmissive = useMemo(() => new THREE.Color("#06b6d4"), []);
   const tempBossColor = useMemo(() => new THREE.Color(), []);
   const tempTargetColor = useMemo(() => new THREE.Color(), []);
+  const arenaTextures = useLoader(THREE.TextureLoader, [
+    ASSETS.arenaV2.wallStraight,
+    ASSETS.arenaV2.wallCorner,
+    ASSETS.arenaV2.barricadeShort,
+    ASSETS.arenaV2.reactorBlock,
+    ASSETS.arenaV2.crystalCluster,
+    ASSETS.arenaV2.defensePlatform,
+    ASSETS.arenaV2.energyPylon,
+    ASSETS.arenaV2.sectorBeacon,
+    ASSETS.arenaV2.warningRingDecal,
+    ASSETS.arenaV2.laneConnectorDecal,
+  ]);
+
+  const textureByKey = useMemo(() => {
+    arenaTextures.forEach((texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 4;
+    });
+    return {
+      wallStraight: arenaTextures[0],
+      wallCorner: arenaTextures[1],
+      barricadeShort: arenaTextures[2],
+      reactorBlock: arenaTextures[3],
+      crystalCluster: arenaTextures[4],
+      defensePlatform: arenaTextures[5],
+      energyPylon: arenaTextures[6],
+      sectorBeacon: arenaTextures[7],
+      warningRingDecal: arenaTextures[8],
+      laneConnectorDecal: arenaTextures[9],
+    } satisfies Record<ArenaAssetKey | "warningRingDecal" | "laneConnectorDecal", THREE.Texture>;
+  }, [arenaTextures]);
+
+  const obstacleBaseGeometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
+  const obstacleVisualGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  const decalGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  const obstacleBaseMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#111827", roughness: 0.72, metalness: 0.28 }),
+    []
+  );
+  const decalMaterials = useMemo(
+    () =>
+      ({
+        warningRingDecal: new THREE.MeshBasicMaterial({
+          map: textureByKey.warningRingDecal,
+          transparent: true,
+          opacity: 0.52,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+        laneConnectorDecal: new THREE.MeshBasicMaterial({
+          map: textureByKey.laneConnectorDecal,
+          transparent: true,
+          opacity: 0.42,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+      }) satisfies Record<ArenaDecalAssetKey, THREE.MeshBasicMaterial>,
+    [textureByKey]
+  );
+  const obstacleVisualMaterials = useMemo(() => {
+    return Object.fromEntries(
+      (Object.keys(textureByKey) as Array<ArenaAssetKey | ArenaDecalAssetKey>)
+        .filter((key): key is ArenaAssetKey => key !== "warningRingDecal" && key !== "laneConnectorDecal")
+        .map((key) => [
+          key,
+          new THREE.MeshBasicMaterial({
+            map: textureByKey[key],
+            transparent: true,
+            alphaTest: 0.08,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          }),
+        ])
+    ) as Record<ArenaAssetKey, THREE.MeshBasicMaterial>;
+  }, [textureByKey]);
 
   // Deterministic initial particle distribution
   const [emberPositions, initialData] = useMemo(() => {
@@ -69,7 +147,7 @@ export const Arena: React.FC = () => {
     return list;
   }, []);
 
-  // Cardinal directional floor markers scaled for radius 30
+  // Cardinal directional floor markers inside the expanded arena.
   const cardinalMarkers = useMemo(() => {
     return [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle) => {
       const dist = 20.0;
@@ -169,6 +247,18 @@ export const Arena: React.FC = () => {
       <RigidBody type="fixed" colliders={false} position={[0, -0.25, 0]}>
         <CuboidCollider args={[ARENA_RADIUS, 0.25, ARENA_RADIUS]} />
       </RigidBody>
+
+      {ARENA_V2_OBSTACLES.map((obstacle) => (
+        <RigidBody
+          key={`collider-${obstacle.id}`}
+          type="fixed"
+          colliders={false}
+          position={[obstacle.x, obstacle.height / 2, obstacle.z]}
+          rotation={[0, obstacle.rotation, 0]}
+        >
+          <CuboidCollider args={[obstacle.width / 2, obstacle.height / 2, obstacle.depth / 2]} />
+        </RigidBody>
+      ))}
 
       {/* ===================================================================== */}
       {/* 1. LAYERED ARENA FLOOR WITH RICH CONTRAST                             */}
@@ -298,6 +388,39 @@ export const Arena: React.FC = () => {
         args={[ARENA_RADIUS * 2, 48, "#1e293b", "#090d16"]}
         position={[0, 0.007, 0]}
       />
+
+      {/* Arena V2 floor markings: central core, sectors, and open connector lanes */}
+      {ARENA_V2_DECALS.map((decal) => (
+        <group key={decal.id} position={[decal.x, 0.018, decal.z]} rotation={[0, decal.rotation, 0]}>
+          <mesh
+            geometry={decalGeometry}
+            material={decalMaterials[decal.asset]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            scale={[decal.width, decal.depth, 1]}
+          />
+        </group>
+      ))}
+
+      {/* Arena V2 landmarks and blockers driven by shared gameplay obstacle data */}
+      {ARENA_V2_OBSTACLES.map((obstacle) => (
+        <group key={obstacle.id} position={[obstacle.x, 0, obstacle.z]} rotation={[0, obstacle.rotation, 0]}>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={obstacleBaseGeometry}
+            material={obstacleBaseMaterial}
+            position={[0, Math.min(0.35, obstacle.height * 0.16), 0]}
+            scale={[obstacle.width, Math.min(0.7, obstacle.height * 0.32), obstacle.depth]}
+          />
+          <mesh
+            castShadow
+            geometry={obstacleVisualGeometry}
+            material={obstacleVisualMaterials[obstacle.asset]}
+            position={[0, obstacle.height * 0.56, obstacle.depth / 2 + 0.035]}
+            scale={[obstacle.width * 1.08, obstacle.height * 1.08, 1]}
+          />
+        </group>
+      ))}
 
       {/* ===================================================================== */}
       {/* 4. 8 HIGH-TECH PERIMETER COLOSSEUM PYLONS                             */}

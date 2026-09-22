@@ -13,8 +13,8 @@ export const BASE_ENEMY_CAP = 12;
 export const ENEMIES_PER_LEVEL = 3;
 export const HARD_ENEMY_CAP = 48;
 
-export const ARENA_RADIUS = 30;
-export const ARENA_BOUNDARY_LIMIT = 28.8;
+export const ARENA_RADIUS = 44;
+export const ARENA_BOUNDARY_LIMIT = 42.4;
 
 export const CHARACTER_BASE_SPEEDS: Record<CharacterId, number> = {
   bonk: 5.0,
