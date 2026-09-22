@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { RigidBody, RapierRigidBody, CapsuleCollider } from "@react-three/rapier";
 import { useGameStore } from "../store/gameStore";
 import { CHARACTER_BASE_SPEEDS, ARENA_BOUNDARY_LIMIT, WEAPON_CONFIGS } from "../game/config";
-import type { GameRuntime } from "../game/runtime";
+import { spawnStatusParticle, type GameRuntime } from "../game/runtime";
 import type { WeaponType } from "../types/game";
 
 interface PlayerPlaceholderProps {
@@ -118,22 +118,21 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       runtime.playerSlowTimer = Math.max(0, runtime.playerSlowTimer - delta);
       if (runtime.playerSlowTimer === 0) {
         runtime.playerSlowFactor = 1.0;
-      } else if (Math.random() < 0.12 && runtime.particles.length < 250) {
+      } else if (Math.random() < 0.12) {
         // Subtle chill motes trailing behind slowed player
-        runtime.particles.push({
-          id: runtime.nextEntityId++,
-          type: "frost",
-          x: runtime.playerPosition.x + (Math.random() - 0.5) * 0.5,
-          y: 0.3,
-          z: runtime.playerPosition.z + (Math.random() - 0.5) * 0.5,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: 0.2,
-          vz: (Math.random() - 0.5) * 0.3,
-          color: "#38bdf8",
-          size: 0.1,
-          life: 0,
-          maxLife: 0.35,
-        });
+        spawnStatusParticle(
+          runtime,
+          "frost",
+          runtime.playerPosition.x + (Math.random() - 0.5) * 0.5,
+          0.3,
+          runtime.playerPosition.z + (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.3,
+          0.2,
+          (Math.random() - 0.5) * 0.3,
+          "#38bdf8",
+          0.1,
+          0.35
+        );
       }
     }
 
