@@ -103,7 +103,7 @@ Post-Merge Integration Complete & Verified
   - Frenzy Mode: runtime horde mode featuring heightened spawn pressure and event-driven low-frequency HUD banner notifications.
 
 ## Current
-- Playable Character Animation & Combat Presentation (Phase 2): Developing distinct motion languages, attack phases, damage reactions, frost slowdown visuals, and camera combat impulses.
+- Playable Character Animation & Combat Presentation (Phase 2): Implementation complete; manual runtime visual validation is pending.
 
 ## Next
 - Full Integration, End-to-End Verification & Academic Rubric Audit

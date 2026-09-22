@@ -30,7 +30,7 @@ Players choose a hero, navigate a hazardous circular arena, auto-cast weapon att
   - **12 Total Upgrade Paths**: 8 base upgrades (Damage, Haste, Speed, Vitality, Armor, Magnet, Critical, Multishot) plus 4 elemental paths (Fire, Poison, Shock, Frost) with visual status effects.
   - **Permanent Boss-Exclusive Passives**: Boss defeats drop loot from `BOSS_LOOT_TABLE` which can yield permanent passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`) stacking up to 5 times in `gameStore.passives`.
   - **Chest Reward System**: Tiered reward chests (Common, Rare, Legendary) drop from boss defeats (guaranteed Legendary) and normal enemies (2.5% chance or every 20 kills), granting upgrade choice selections and rarity bonuses.
-  - **Frenzy Mode**: High-intensity horde mode triggering elevated enemy rushes and dynamic audio shifts.
+  - **Frenzy Mode**: High-intensity horde mode with increased enemy pressure and a dedicated HUD timer.
   - **Exact XP Overflow Preservation**: Surplus XP bridges level thresholds cleanly and queues multiple upgrade choices one selection at a time without experience loss.
 - **Procedural Web Audio API Sound Effects**:
   - 100% lightweight procedural synthesizers (hammer slams, energy orbs, axe swings, enemy hits, enemy deaths, boss spawn/death, player damage, level-up fanfares).
