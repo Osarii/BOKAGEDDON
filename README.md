@@ -2,7 +2,7 @@
 
 An original 3D survivor-like arcade videogame built with React 19, Three.js, React Three Fiber, Rapier, and Zustand for an academic React Quiz.
 
-Players choose a hero, navigate a hazardous circular arena, auto-cast weapon attacks against swarms of robotic enemies, collect emerald XP gems, stack synergistic upgrades, and defeat the legendary boss **BONKLORD**.
+Players choose a hero, navigate a hazardous circular arena, auto-cast weapon attacks against swarms of robotic enemies, collect emerald XP gems, stack synergistic upgrades, and survive against the rotating 5-boss roster (**BONKLORD**, **CINDERMAW**, **STORMCOIL**, **VENOMATRIX**, and **CRYOVEX**).
 
 ---
 
@@ -28,8 +28,8 @@ Players choose a hero, navigate a hazardous circular arena, auto-cast weapon att
     - *Boss cycle repeats every 50 rounds at incremented boss tiers with scaled HP and damage.*
 - **Progressive Upgrades, Elemental Paths & Permanent Passives**:
   - **12 Total Upgrade Paths**: 8 base upgrades (Damage, Haste, Speed, Vitality, Armor, Magnet, Critical, Multishot) plus 4 elemental paths (Fire, Poison, Shock, Frost) with visual status effects.
-  - **Permanent Boss-Exclusive Passives**: Defeating bosses and opening chests awards legendary passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`).
-  - **Chest Reward System**: Tiered reward chests (Common, Rare, Epic, Legendary) drop upon boss defeat.
+  - **Permanent Boss-Exclusive Passives**: Boss defeats drop loot from `BOSS_LOOT_TABLE` which can yield permanent passives (`Overclock Core`, `Tesla Cell`, `Toxic Relic`, `Phoenix Fragment`) stacking up to 5 times in `gameStore.passives`.
+  - **Chest Reward System**: Tiered reward chests (Common, Rare, Legendary) drop from boss defeats (guaranteed Legendary) and normal enemies (2.5% chance or every 20 kills), granting upgrade choice selections and rarity bonuses.
   - **Frenzy Mode**: High-intensity horde mode triggering elevated enemy rushes and dynamic audio shifts.
   - **Exact XP Overflow Preservation**: Surplus XP bridges level thresholds cleanly and queues multiple upgrade choices one selection at a time without experience loss.
 - **Procedural Web Audio API Sound Effects**:

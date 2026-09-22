@@ -15,12 +15,12 @@ Source pack: `BONKAGEDDON_assets_medical_special_bosses` (12 WebP assets with tr
 
 | Key | Public path | Status |
 | --- | --- | --- |
-| `ASSETS.items.overclockCore` | `/assets/v2/items/overclock-core.webp` | Integrated into 3D billboards, chest rewards & permanent passives (+20% haste) |
-| `ASSETS.items.teslaCell` | `/assets/v2/items/tesla-cell.webp` | Integrated into 3D billboards, chest rewards & permanent passives (chain lightning aura) |
-| `ASSETS.items.toxicRelic` | `/assets/v2/items/toxic-relic.webp` | Integrated into 3D billboards, chest rewards & permanent passives (+35% poison damage) |
-| `ASSETS.items.phoenixFragment` | `/assets/v2/items/phoenix-fragment.webp` | Integrated into 3D billboards, chest rewards & permanent passives (one-time cheat death revive) |
+| `ASSETS.items.overclockCore` | `/assets/v2/items/overclock-core.webp` | Integrated into 3D billboards & HUD passive inventory (+15% attack speed/stack) |
+| `ASSETS.items.teslaCell` | `/assets/v2/items/tesla-cell.webp` | Integrated into 3D billboards & HUD passive inventory (chain lightning chance) |
+| `ASSETS.items.toxicRelic` | `/assets/v2/items/toxic-relic.webp` | Integrated into 3D billboards & HUD passive inventory (+25% poison DoT/stack) |
+| `ASSETS.items.phoenixFragment` | `/assets/v2/items/phoenix-fragment.webp` | Integrated into 3D billboards & HUD passive inventory (stackable cheat death revive) |
 
-The WebP assets are fully integrated into runtime 3D item rendering, chest reward overlays, HUD passive inventory, and item compendium displays.
+The WebP assets are fully integrated into runtime 3D item billboards and HUD passive inventory displays.
 
 ## Boss Identities
 

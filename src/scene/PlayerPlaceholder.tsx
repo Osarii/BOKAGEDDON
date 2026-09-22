@@ -3,8 +3,9 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, RapierRigidBody, CapsuleCollider } from "@react-three/rapier";
 import { useGameStore } from "../store/gameStore";
-import { CHARACTER_BASE_SPEEDS, ARENA_BOUNDARY_LIMIT } from "../game/config";
+import { CHARACTER_BASE_SPEEDS, ARENA_BOUNDARY_LIMIT, WEAPON_CONFIGS } from "../game/config";
 import type { GameRuntime } from "../game/runtime";
+import type { WeaponType } from "../types/game";
 
 interface PlayerPlaceholderProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -12,14 +13,7 @@ interface PlayerPlaceholderProps {
 
 const defaultBlackColor = new THREE.Color("#000000");
 
-// Base attack cooldowns for each weapon
-const WEAPON_COOLDOWNS: Record<string, number> = {
-  bonk: 1.2,
-  byte: 0.4,
-  tank: 0.9,
-  nova: 1.0,
-  hex: 0.8,
-};
+
 
 // Attack animation phase durations (seconds)
 const ATTACK_TIMINGS: Record<string, { anticipation: number; release: number; recovery: number }> = {
@@ -234,8 +228,24 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     // Attack Cycle Detection & Phase Calculations
     // =========================================================================
     const timing = ATTACK_TIMINGS[selectedCharacterId] || ATTACK_TIMINGS.bonk;
-    const baseCooldown = WEAPON_COOLDOWNS[selectedCharacterId] || 1.0;
-    const effectiveCooldown = baseCooldown / (1 + (upgrades.haste || 0) * 0.15);
+    const weaponType: WeaponType =
+      selectedCharacterId === "byte"
+        ? "energy-orb"
+        : selectedCharacterId === "tank"
+        ? "axe"
+        : selectedCharacterId === "nova"
+        ? "nova-burst"
+        : selectedCharacterId === "hex"
+        ? "hex-chain"
+        : "hammer";
+
+    const weaponConfig = WEAPON_CONFIGS[weaponType];
+    const passives = useGameStore.getState().passives;
+    const hasteMultiplier =
+      (1 + (upgrades.haste || 0) * 0.15) *
+      (1 + (passives.overclock_core || 0) * 0.15);
+    const effectiveCooldown = weaponConfig.baseCooldown / hasteMultiplier;
+    const anticipationDuration = Math.min(timing.anticipation, effectiveCooldown * 0.4);
 
     if (runtime) {
       // Attack trigger: CombatManager resets lastAttackTimer to 0 upon attack launch
@@ -257,9 +267,9 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       recoveryTimerRef.current -= delta;
       attackPhase = "recovery";
       phaseProgress = 1 - Math.max(0, recoveryTimerRef.current) / timing.recovery;
-    } else if (runtime && effectiveCooldown - runtime.lastAttackTimer <= timing.anticipation) {
+    } else if (runtime && effectiveCooldown - runtime.lastAttackTimer <= anticipationDuration) {
       attackPhase = "anticipation";
-      phaseProgress = 1 - Math.max(0, effectiveCooldown - runtime.lastAttackTimer) / timing.anticipation;
+      phaseProgress = 1 - Math.max(0, effectiveCooldown - runtime.lastAttackTimer) / anticipationDuration;
     } else {
       attackPhase = inputLength > 0 ? "movement" : "idle";
       phaseProgress = 0;
@@ -367,10 +377,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         }
 
         // Chest crest glow
-        if (coreMeshRef.current) {
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
           const boost = attackPhase === "anticipation" ? 2.2 * phaseProgress : 0;
-          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-            0.8 + Math.sin(animTime * 3.5) * 0.3 + boost;
+          const intensity = 0.8 + Math.sin(animTime * 3.5) * 0.3 + boost;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.userData.currentAnimatedIntensity = intensity;
+          mat.emissiveIntensity = intensity;
         }
       } else if (selectedCharacterId === "byte") {
         // BYTE: Hovering Energy Caster
@@ -422,10 +434,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         }
 
         // Core glow
-        if (coreMeshRef.current) {
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
           const boost = attackPhase === "anticipation" ? 2.5 * phaseProgress : 0;
-          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-            1.3 + Math.sin(animTime * 5.0) * 0.5 + boost;
+          const intensity = 1.3 + Math.sin(animTime * 5.0) * 0.5 + boost;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.userData.currentAnimatedIntensity = intensity;
+          mat.emissiveIntensity = intensity;
         }
       } else if (selectedCharacterId === "tank") {
         // TANK: Mechanical Axe Juggernaut
@@ -481,10 +495,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         }
 
         // Visor slit glow
-        if (coreMeshRef.current) {
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
           const boost = attackPhase === "anticipation" ? 2.0 * phaseProgress : 0;
-          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-            1.4 + Math.sin(animTime * 3.2) * 0.4 + boost;
+          const intensity = 1.4 + Math.sin(animTime * 3.2) * 0.4 + boost;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.userData.currentAnimatedIntensity = intensity;
+          mat.emissiveIntensity = intensity;
         }
       } else if (selectedCharacterId === "nova") {
         // NOVA: Astral Floating Caster
@@ -535,10 +551,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         }
 
         // Astral core glow
-        if (coreMeshRef.current) {
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
           const boost = attackPhase === "anticipation" ? 2.8 * phaseProgress : 0;
-          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-            1.5 + Math.sin(animTime * 4.5) * 0.5 + boost;
+          const intensity = 1.5 + Math.sin(animTime * 4.5) * 0.5 + boost;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.userData.currentAnimatedIntensity = intensity;
+          mat.emissiveIntensity = intensity;
         }
       } else if (selectedCharacterId === "hex") {
         // HEX: Unstable Void Controller
@@ -591,7 +609,21 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
           const boost = attackPhase === "anticipation" ? 2.5 * phaseProgress : 0;
           const eyeGlow = 1.4 + Math.sin(animTime * 4.0) * 0.5 + boost;
-          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = eyeGlow;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.userData.currentAnimatedIntensity = eyeGlow;
+          mat.emissiveIntensity = eyeGlow;
+          const parent = coreMeshRef.current.parent;
+          if (parent) {
+            const children = parent.children;
+            for (let i = 0; i < children.length; i++) {
+              const childMesh = children[i] as THREE.Mesh;
+              if (childMesh.material) {
+                const cm = childMesh.material as THREE.MeshStandardMaterial;
+                cm.userData.currentAnimatedIntensity = eyeGlow;
+                cm.emissiveIntensity = eyeGlow;
+              }
+            }
+          }
         }
       }
 
@@ -710,17 +742,27 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
           mat.emissiveIntensity = 0.35;
         } else {
           mat.emissive.copy(mat.userData.baseEmissive || defaultBlackColor);
-          mat.emissiveIntensity = mat.userData.baseIntensity || 0;
+          mat.emissiveIntensity =
+            mat.userData.currentAnimatedIntensity !== undefined
+              ? mat.userData.currentAnimatedIntensity
+              : (mat.userData.baseIntensity || 0);
         }
       }
     });
   });
 
-  // Helper to register materials for dynamic hit flashes
-  const registerFlashMaterial = (mat: THREE.MeshStandardMaterial | null, baseEmissive = "#000000", baseIntensity = 0) => {
+  // Helper to register materials for dynamic hit flashes with core animation preservation
+  const registerFlashMaterial = (
+    mat: THREE.MeshStandardMaterial | null,
+    baseEmissive = "#000000",
+    baseIntensity = 0,
+    isCore = false
+  ) => {
     if (mat && !flashMaterialsRef.current.includes(mat)) {
       mat.userData.baseEmissive = new THREE.Color(baseEmissive);
       mat.userData.baseIntensity = baseIntensity;
+      mat.userData.isCore = isCore;
+      mat.userData.currentAnimatedIntensity = baseIntensity;
       flashMaterialsRef.current.push(mat);
     }
   };
@@ -954,7 +996,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                 <mesh ref={coreMeshRef}>
                   <boxGeometry args={[0.38, 0.24, 0.14]} />
                   <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.8)}
+                    ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.8, true)}
                     color="#fbbf24"
                     emissive="#fbbf24"
                     emissiveIntensity={0.8}
@@ -1125,7 +1167,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                 <mesh ref={coreMeshRef}>
                   <cylinderGeometry args={[0.15, 0.15, 0.1, 16]} />
                   <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8)}
+                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8, true)}
                     color="#22d3ee"
                     emissive="#22d3ee"
                     emissiveIntensity={1.8}
@@ -1171,7 +1213,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                 <mesh position={[0, 0.02, 0.25]}>
                   <boxGeometry args={[0.44, 0.12, 0.14]} />
                   <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8)}
+                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8, true)}
                     color="#22d3ee"
                     emissive="#22d3ee"
                     emissiveIntensity={1.8}
@@ -1443,7 +1485,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                 <mesh ref={coreMeshRef} position={[0, 0.02, 0.29]}>
                   <boxGeometry args={[0.46, 0.09, 0.08]} />
                   <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#ef4444", 1.8)}
+                    ref={(m) => registerFlashMaterial(m, "#ef4444", 1.8, true)}
                     color="#ef4444"
                     emissive="#ef4444"
                     emissiveIntensity={1.8}
@@ -1745,7 +1787,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                 <mesh ref={coreMeshRef}>
                   <octahedronGeometry args={[0.16]} />
                   <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#f472b6", 1.8)}
+                    ref={(m) => registerFlashMaterial(m, "#f472b6", 1.8, true)}
                     color="#ffffff"
                     emissive="#f472b6"
                     emissiveIntensity={1.8}
@@ -1992,7 +2034,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                   <mesh ref={coreMeshRef} position={[-0.085, 0, 0]}>
                     <octahedronGeometry args={[0.06]} />
                     <meshStandardMaterial
-                      ref={(m) => registerFlashMaterial(m, "#22c55e", 2.0)}
+                      ref={(m) => registerFlashMaterial(m, "#22c55e", 2.0, true)}
                       color="#22c55e"
                       emissive="#22c55e"
                       emissiveIntensity={2.0}
@@ -2002,7 +2044,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                   <mesh position={[0.085, 0, 0]}>
                     <octahedronGeometry args={[0.06]} />
                     <meshStandardMaterial
-                      ref={(m) => registerFlashMaterial(m, "#22c55e", 2.0)}
+                      ref={(m) => registerFlashMaterial(m, "#22c55e", 2.0, true)}
                       color="#22c55e"
                       emissive="#22c55e"
                       emissiveIntensity={2.0}
