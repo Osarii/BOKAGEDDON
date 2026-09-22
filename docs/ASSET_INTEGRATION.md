@@ -50,9 +50,9 @@ Source pack: `BONKAGEDDON_ASSET_PACK_V2_INTEGRATION_READY` (23 SVG assets).
 
 | Key | Public path | Status |
 | --- | --- | --- |
-| `ASSETS.weapons.riftDisc` | `/assets/v3/weapons/rift-disc.svg` | Integrated: Character card & HUD loadout display |
-| `ASSETS.weapons.pulseMine` | `/assets/v3/weapons/pulse-mine.svg` | Integrated: Character card & HUD loadout display |
-| `ASSETS.weapons.lightLance` | `/assets/v3/weapons/light-lance.svg` | Integrated: Character card & HUD loadout display |
+| `ASSETS.weapons.riftDisc` | `/assets/v3/weapons/rift-disc.svg` | Integrated: Character card |
+| `ASSETS.weapons.pulseMine` | `/assets/v3/weapons/pulse-mine.svg` | Integrated: Character card |
+| `ASSETS.weapons.lightLance` | `/assets/v3/weapons/light-lance.svg` | Integrated: Character card |
 
 ### Expanded Normal Upgrades
 
