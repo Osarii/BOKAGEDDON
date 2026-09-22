@@ -592,10 +592,6 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
           const currentScale = hz.radius;
           slotGroup.scale.set(currentScale, currentScale, currentScale);
 
-          // Alpha fade near expiration
-          const progress = hz.duration / Math.max(0.1, hz.maxDuration);
-          const opacity = Math.min(1, progress * 1.5);
-
           // Sub-groups: child 0 = fire, child 1 = poison, child 2 = frost
           const fireGrp = slotGroup.children[0] as THREE.Group;
           const poisonGrp = slotGroup.children[1] as THREE.Group;
@@ -607,19 +603,6 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
 
           // Rotating tactical edge
           slotGroup.rotation.z += delta * 0.4;
-
-          // Dynamically adjust opacity on the active material pair
-          const hm = hazardMaterials;
-          if (hz.type === "fire") {
-            hm.fire.opacity = 0.55 * opacity;
-            hm.fireRing.opacity = 0.85 * opacity;
-          } else if (hz.type === "poison") {
-            hm.poison.opacity = 0.5 * opacity;
-            hm.poisonRing.opacity = 0.8 * opacity;
-          } else if (hz.type === "frost") {
-            hm.frost.opacity = 0.45 * opacity;
-            hm.frostRing.opacity = 0.8 * opacity;
-          }
         } else {
           slotGroup.visible = false;
         }
