@@ -1,0 +1,161 @@
+.instructions-wide {
+  max-width: 1000px;
+  margin: 1.5rem auto 0;
+  padding: 1.75rem;
+}
+
+.instructions-wide h2 {
+  font-size: 1.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.instructions-wide > p {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-bottom: 1.2rem;
+}
+
+.boss-grid,
+.loot-grid,
+.element-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.boss-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.boss-card,
+.loot-card,
+.element-card {
+  border-radius: 8px;
+  transition: transform 0.2s var(--ease-snappy), box-shadow 0.2s var(--ease-snappy);
+}
+
+.boss-card:hover,
+.loot-card:hover,
+.element-card:hover {
+  transform: translateY(-3px);
+}
+
+.boss-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--boss-color) 10%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--boss-color) 55%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--boss-color) 18%, transparent);
+}
+
+.boss-card:hover {
+  box-shadow: 0 0 32px color-mix(in srgb, var(--boss-color) 32%, transparent);
+}
+
+.boss-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--boss-color) 55%, transparent));
+}
+
+.boss-card span,
+.loot-card p {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.boss-card h3,
+.loot-card h3,
+.element-card h3 {
+  font-size: 0.95rem;
+  margin: 0.25rem 0;
+}
+
+.boss-card strong {
+  color: var(--boss-color);
+  font-size: 0.82rem;
+}
+
+.boss-card p,
+.element-card p {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin-top: 0.45rem;
+}
+
+.loot-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.loot-summary span {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-weight: 800;
+  padding: 0.35rem 0.8rem;
+}
+
+.loot-grid {
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+}
+
+.loot-card {
+  padding: 0.9rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(127, 255, 0, 0.24);
+}
+
+.loot-card.rare {
+  border-color: rgba(176, 96, 255, 0.5);
+  box-shadow: inset 0 0 18px rgba(176, 96, 255, 0.08);
+}
+
+.loot-card:hover {
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.1);
+}
+
+.loot-card img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
+}
+
+.loot-card strong {
+  color: var(--accent-energy);
+  font-family: var(--font-mono);
+}
+
+.loot-card.rare strong {
+  color: #b060ff;
+}
+
+.element-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.element-card {
+  padding: 1rem;
+  background: color-mix(in srgb, var(--element-color) 9%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--element-color) 50%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--element-color) 16%, transparent);
+}
+
+.element-card h3 {
+  color: var(--element-color);
+}
+
+@media (max-width: 520px) {
+  .instructions-wide {
+    padding: 1.1rem;
+  }
+}

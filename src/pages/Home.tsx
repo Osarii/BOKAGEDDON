@@ -87,7 +87,7 @@ export const Home: React.FC = () => {
           }}
         >
           5 supervivientes. 1 arena circular. Sinergias de armas únicas.
-          Sobrevive oleadas interminables y vence al Bonklord.
+          Sobrevive oleadas interminables y enfrenta una rotación completa de jefes.
         </p>
 
         {/* Live badge */}
@@ -186,8 +186,8 @@ export const Home: React.FC = () => {
             },
             {
               icon: <Shield size={26} color="var(--accent-xp)" />,
-              title: "Sistema de Escudo",
-              desc: "Absorción por escudo + consumibles de recuperación durante el combate.",
+              title: "5 Bosses Rotativos",
+              desc: "Bonklord · Cindermaw · Stormcoil · Venomatrix · Cryovex cada 10 rondas.",
               accent: "var(--accent-xp)",
               bg: "rgba(127,255,0,0.06)",
               border: "rgba(127,255,0,0.2)",
@@ -291,4 +291,3 @@ export const Home: React.FC = () => {
     </main>
   );
 };
-

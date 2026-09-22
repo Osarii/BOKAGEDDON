@@ -4,6 +4,68 @@ import { Move, Zap, Sparkles, Award, Play, AlertCircle, Flame } from "lucide-rea
 import { ASSETS } from "../config/assets";
 import { GAME_CONFIG, UPGRADE_DETAILS } from "../game/config";
 import { WEAPON_SYNERGIES } from "../game/weaponSynergies";
+import "../styles/instructions.css";
+
+const bosses = [
+  {
+    name: "Bonklord",
+    theme: "Obsidian hammer titan",
+    round: 10,
+    identity: "Heavy shockwave pressure that punishes standing still.",
+    image: ASSETS.enemies.bonklord,
+    color: "#e11d48",
+  },
+  {
+    name: "Cindermaw",
+    theme: "Fire",
+    round: 20,
+    identity: "Volcanic boss identity built around burning zones and burst pressure.",
+    image: ASSETS.enemies.cindermaw,
+    color: "#f97316",
+  },
+  {
+    name: "Stormcoil",
+    theme: "Shock",
+    round: 30,
+    identity: "Electric construct identity with fast pulses and chain pressure.",
+    image: ASSETS.enemies.stormcoil,
+    color: "#00e5ff",
+  },
+  {
+    name: "Venomatrix",
+    theme: "Poison",
+    round: 40,
+    identity: "Toxic hunter identity focused on lingering danger and area denial.",
+    image: ASSETS.enemies.venomatrix,
+    color: "#22c55e",
+  },
+  {
+    name: "Cryovex",
+    theme: "Frost",
+    round: 50,
+    identity: "Glacial boss identity that chills movement and controls space.",
+    image: ASSETS.enemies.cryovex,
+    color: "#38bdf8",
+  },
+];
+
+const lootItems = [
+  { name: "Medkit Emergency", chance: "15%", rarity: "Recovery", image: ASSETS.items.medkitEmergency },
+  { name: "Medkit Case", chance: "15%", rarity: "Recovery", image: ASSETS.items.medkitCase },
+  { name: "Shield Potion", chance: "15%", rarity: "Recovery", image: ASSETS.items.shieldPotion },
+  { name: "Shield Battery", chance: "15%", rarity: "Recovery", image: ASSETS.items.shieldBattery },
+  { name: "Overclock Core", chance: "10%", rarity: "Rare", image: ASSETS.items.overclockCore },
+  { name: "Tesla Cell", chance: "10%", rarity: "Rare", image: ASSETS.items.teslaCell },
+  { name: "Toxic Relic", chance: "10%", rarity: "Rare", image: ASSETS.items.toxicRelic },
+  { name: "Phoenix Fragment", chance: "10%", rarity: "Rare", image: ASSETS.items.phoenixFragment },
+];
+
+const elementalBuilds = [
+  { name: "Fire", text: "Burn damage over time.", color: "#f97316" },
+  { name: "Poison", text: "Poison damage over time.", color: "#22c55e" },
+  { name: "Shock", text: "Chain/electric damage.", color: "#00e5ff" },
+  { name: "Frost", text: "Slow/chill control.", color: "#38bdf8" },
+];
 
 export const Instructions: React.FC = () => {
   const synergyList = Object.values(WEAPON_SYNERGIES);
@@ -162,6 +224,62 @@ export const Instructions: React.FC = () => {
           </div>
         </section>
       </div>
+
+      <section className="instructions-wide glass-panel">
+        <h2>Boss Bestiary</h2>
+        <p>
+          Bosses rotate through the round ladder: Round 10 Bonklord, Round 20 Cindermaw, Round 30 Stormcoil,
+          Round 40 Venomatrix, and Round 50 Cryovex. After Round 50, the roster repeats every 50 rounds with
+          higher tiers.
+        </p>
+        <div className="boss-grid">
+          {bosses.map((boss) => (
+            <article key={boss.name} className="boss-card" style={{ "--boss-color": boss.color } as React.CSSProperties}>
+              <img src={boss.image} alt={boss.name} />
+              <div>
+                <span>Round {boss.round}</span>
+                <h3>{boss.name}</h3>
+                <strong>{boss.theme}</strong>
+                <p>{boss.identity}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="instructions-wide glass-panel">
+        <h2>Items / Loot</h2>
+        <p>
+          Boss loot uses a planned 100% roll: 60% recovery items and 40% rare boss-exclusive drops. Normal gameplay
+          logic stays in the arena; this page is only the guide.
+        </p>
+        <div className="loot-summary">
+          <span>60% Recovery</span>
+          <span>40% Rare boss-exclusive</span>
+        </div>
+        <div className="loot-grid">
+          {lootItems.map((item) => (
+            <article key={item.name} className={`loot-card ${item.rarity === "Rare" ? "rare" : ""}`}>
+              <img src={item.image} alt={item.name} />
+              <h3>{item.name}</h3>
+              <p>{item.rarity}</p>
+              <strong>{item.chance}</strong>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="instructions-wide glass-panel">
+        <h2>Elemental Builds</h2>
+        <div className="element-grid">
+          {elementalBuilds.map((element) => (
+            <article key={element.name} className="element-card" style={{ "--element-color": element.color } as React.CSSProperties}>
+              <h3>{element.name}</h3>
+              <p>{element.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <div style={{ textAlign: "center", marginTop: "3rem" }}>
         <Link to="/characters" className="btn btn-primary" style={{ padding: "0.85rem 2rem" }}>
