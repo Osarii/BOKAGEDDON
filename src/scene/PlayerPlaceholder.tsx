@@ -77,7 +77,35 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
 
     const upgrades = useGameStore.getState().upgrades;
     const baseSpeed = CHARACTER_BASE_SPEEDS[selectedCharacterId] || 5.0;
-    const speed = baseSpeed * (1 + (upgrades.speed || 0) * 0.15);
+
+    // Decrement player slow timer during active gameplay
+    if (runtime) {
+      if (runtime.playerSlowTimer > 0) {
+        runtime.playerSlowTimer = Math.max(0, runtime.playerSlowTimer - delta);
+        if (runtime.playerSlowTimer === 0) {
+          runtime.playerSlowFactor = 1.0;
+        } else if (Math.random() < 0.1 && runtime.particles.length < 250) {
+          // Subtle chill motes trailing behind slowed player
+          runtime.particles.push({
+            id: runtime.nextEntityId++,
+            type: "frost",
+            x: runtime.playerPosition.x + (Math.random() - 0.5) * 0.5,
+            y: 0.3,
+            z: runtime.playerPosition.z + (Math.random() - 0.5) * 0.5,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: 0.2,
+            vz: (Math.random() - 0.5) * 0.3,
+            color: "#38bdf8",
+            size: 0.1,
+            life: 0,
+            maxLife: 0.35,
+          });
+        }
+      }
+    }
+
+    const slowFactor = runtime && runtime.playerSlowTimer > 0 ? runtime.playerSlowFactor : 1.0;
+    const speed = baseSpeed * (1 + (upgrades.speed || 0) * 0.15) * slowFactor;
 
     const keys = keysRef.current;
 

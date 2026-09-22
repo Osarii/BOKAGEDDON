@@ -25,6 +25,9 @@ export const HUDShell: React.FC = () => {
   const bossActive = useGameStore((s) => s.bossActive);
   const bossHealth = useGameStore((s) => s.bossHealth);
   const bossMaxHealth = useGameStore((s) => s.bossMaxHealth);
+  const bossName = useGameStore((s) => s.bossName) || "THE BONKLORD";
+  const bossTier = useGameStore((s) => s.bossTier) || 1;
+  const bossAccentColor = useGameStore((s) => s.bossAccentColor) || "#e11d48";
   const upgrades = useGameStore((s) => s.upgrades);
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId);
   const notification = useGameStore((s) => s.notification);
@@ -113,15 +116,15 @@ export const HUDShell: React.FC = () => {
               display: "flex",
               alignItems: "center",
               gap: "0.5rem",
-              color: "#ef4444",
+              color: bossAccentColor,
               fontWeight: 900,
               fontSize: "0.9rem",
               letterSpacing: "0.08em",
-              textShadow: "0 0 12px rgba(239, 68, 68, 0.6)",
+              textShadow: `0 0 12px ${bossAccentColor}aa`,
             }}
           >
             <Flame size={16} />
-            <span>THE BONKLORD</span>
+            <span>{bossName.toUpperCase()} — TIER {bossTier}</span>
             <Flame size={16} />
           </div>
           <div
@@ -130,16 +133,16 @@ export const HUDShell: React.FC = () => {
               height: "14px",
               background: "rgba(15, 20, 32, 0.9)",
               borderRadius: "7px",
-              border: "1px solid rgba(239, 68, 68, 0.5)",
+              border: `1px solid ${bossAccentColor}88`,
               overflow: "hidden",
-              boxShadow: "0 0 20px rgba(239, 68, 68, 0.35)",
+              boxShadow: `0 0 20px ${bossAccentColor}55`,
             }}
           >
             <div
               style={{
                 width: `${bossHpPercent}%`,
                 height: "100%",
-                background: "linear-gradient(90deg, #b91c1c, #ef4444, #f97316)",
+                background: `linear-gradient(90deg, #18181b, ${bossAccentColor}, #ffffff)`,
                 transition: "width 0.2s ease",
               }}
             />

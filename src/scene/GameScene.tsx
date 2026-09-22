@@ -6,6 +6,8 @@ import { Arena } from "./Arena";
 import { PlayerPlaceholder } from "./PlayerPlaceholder";
 import { CameraController } from "./CameraController";
 import { EnemyManager } from "./EnemyManager";
+import { BossRenderer } from "./BossRenderer";
+import { StatusParticleManager } from "./StatusParticleManager";
 import { CombatManager } from "./CombatManager";
 import { PickupManager } from "./PickupManager";
 import { useGameStore } from "../store/gameStore";
@@ -68,6 +70,8 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
 
         {/* Gameplay Simulation Systems */}
         <EnemyManager runtimeRef={runtimeRef} />
+        <BossRenderer runtimeRef={runtimeRef} />
+        <StatusParticleManager runtimeRef={runtimeRef} />
         <CombatManager runtimeRef={runtimeRef} />
         <PickupManager runtimeRef={runtimeRef} />
 

@@ -20,6 +20,7 @@ const tempScale = new THREE.Vector3();
 const tempRotation = new THREE.Euler();
 const tempQuaternion = new THREE.Quaternion();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
+const tempColor = new THREE.Color();
 
 // Pre-defined palette colors for instanced rendering
 const defaultProjColor = new THREE.Color("#23d5ff");
@@ -37,17 +38,66 @@ const bossShockColor = new THREE.Color("#e11d48");
 const novaShockColor = new THREE.Color("#d946ef");
 const supernovaShockColor = new THREE.Color("#f43f5e");
 
+// Helper to get highest active elemental color for weapon VFX
+function getStrongestElementalColor(upgrades: Record<string, number>, fallback: string): string {
+  const elements = [
+    { type: "fire", count: upgrades.fire || 0, color: "#f97316" },
+    { type: "shock", count: upgrades.shock || 0, color: "#00e5ff" },
+    { type: "poison", count: upgrades.poison || 0, color: "#22c55e" },
+    { type: "frost", count: upgrades.frost || 0, color: "#38bdf8" },
+  ];
+  elements.sort((a, b) => b.count - a.count);
+  return elements[0].count > 0 ? elements[0].color : fallback;
+}
+
 // Helper to apply elemental status effects and electric shock arcs across all weapons
 function applyElementalOnHit(
   enemy: { id: number; x: number; z: number; health: number; hitFlashTimer: number; burnTimer?: number; burnDps?: number; poisonTimer?: number; poisonDps?: number; frostTimer?: number; frostSlowPercent?: number },
   upgrades: Record<string, number>,
   runtime: GameRuntime
 ) {
+  // Generic impact spark
+  if (runtime.particles.length < 250) {
+    runtime.particles.push({
+      id: runtime.nextEntityId++,
+      type: "hit",
+      x: enemy.x,
+      y: 0.6,
+      z: enemy.z,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: Math.random() * 1.2 + 0.3,
+      vz: (Math.random() - 0.5) * 1.5,
+      color: "#ffffff",
+      size: 0.12,
+      life: 0,
+      maxLife: 0.22,
+    });
+  }
+
   // 1. FIRE (Burn)
   if (upgrades.fire > 0) {
     const tier = upgrades.fire;
     enemy.burnTimer = Math.max(enemy.burnTimer || 0, 2.0 + tier * 0.5);
     enemy.burnDps = Math.max(enemy.burnDps || 0, tier * 8);
+    // Ignition burst
+    if (runtime.particles.length < 250) {
+      for (let k = 0; k < 2; k++) {
+        runtime.particles.push({
+          id: runtime.nextEntityId++,
+          type: "burn",
+          x: enemy.x + (Math.random() - 0.5) * 0.3,
+          y: 0.6 + Math.random() * 0.3,
+          z: enemy.z + (Math.random() - 0.5) * 0.3,
+          vx: (Math.random() - 0.5) * 1.0,
+          vy: Math.random() * 1.5 + 0.5,
+          vz: (Math.random() - 0.5) * 1.0,
+          color: "#f97316",
+          size: 0.14,
+          life: 0,
+          maxLife: 0.35,
+        });
+      }
+    }
   }
 
   // 2. POISON (Sustained DoT, boosted 2x by Toxic Relic)
@@ -56,6 +106,25 @@ function applyElementalOnHit(
     const isAmped = runtime.toxicRelicTimer > 0;
     enemy.poisonTimer = Math.max(enemy.poisonTimer || 0, 3.0 + tier * 1.0);
     enemy.poisonDps = Math.max(enemy.poisonDps || 0, (4 + tier * 4) * (isAmped ? 2.0 : 1.0));
+    // Poison splash bubbles
+    if (runtime.particles.length < 250) {
+      for (let k = 0; k < 2; k++) {
+        runtime.particles.push({
+          id: runtime.nextEntityId++,
+          type: "poison",
+          x: enemy.x + (Math.random() - 0.5) * 0.3,
+          y: 0.5 + Math.random() * 0.3,
+          z: enemy.z + (Math.random() - 0.5) * 0.3,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: Math.random() * 0.8 + 0.2,
+          vz: (Math.random() - 0.5) * 0.8,
+          color: "#22c55e",
+          size: 0.12,
+          life: 0,
+          maxLife: 0.4,
+        });
+      }
+    }
   }
 
   // 3. FROST (Movement Slow)
@@ -63,6 +132,25 @@ function applyElementalOnHit(
     const tier = upgrades.frost;
     enemy.frostTimer = Math.max(enemy.frostTimer || 0, 2.0 + tier * 0.5);
     enemy.frostSlowPercent = Math.max(enemy.frostSlowPercent || 0, Math.min(0.65, 0.15 + tier * 0.1));
+    // Crystalline frost burst
+    if (runtime.particles.length < 250) {
+      for (let k = 0; k < 2; k++) {
+        runtime.particles.push({
+          id: runtime.nextEntityId++,
+          type: "frost",
+          x: enemy.x + (Math.random() - 0.5) * 0.3,
+          y: 0.6 + Math.random() * 0.3,
+          z: enemy.z + (Math.random() - 0.5) * 0.3,
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: Math.random() * 0.8,
+          vz: (Math.random() - 0.5) * 1.2,
+          color: "#38bdf8",
+          size: 0.13,
+          life: 0,
+          maxLife: 0.35,
+        });
+      }
+    }
   }
 
   // 4. SHOCK (Chain electrical arcs, guaranteed by Tesla Cell)
@@ -91,6 +179,25 @@ function applyElementalOnHit(
             lifetime: 0,
             maxLifetime: 0.25,
           });
+        }
+        // Shock arc sparks
+        if (runtime.particles.length < 250) {
+          for (let k = 0; k < 3; k++) {
+            runtime.particles.push({
+              id: runtime.nextEntityId++,
+              type: "shock",
+              x: other.x,
+              y: 0.7,
+              z: other.z,
+              vx: (Math.random() - 0.5) * 2.0,
+              vy: Math.random() * 1.5,
+              vz: (Math.random() - 0.5) * 2.0,
+              color: "#00e5ff",
+              size: 0.14,
+              life: 0,
+              maxLife: 0.25,
+            });
+          }
         }
         break; // arc to 1 nearest enemy
       }
@@ -260,6 +367,7 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         const totalDamage = Math.round(weaponConfig.baseDamage * damageMultiplier * (isCrit ? 2 : 1));
 
         // ---------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         // BONK: Mega Hammer Ground Slam / Shockwave + METEOR SLAM synergy
         // ---------------------------------------------------------------------
         if (weaponType === "hammer") {
@@ -274,6 +382,27 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
                 color: isCrit ? "#ff3b5c" : "#ffb020",
                 lifetime: 0,
                 maxLifetime: 0.6 + s * 0.1,
+              });
+            }
+          }
+
+          // BONK Combat Polish: hammer trail & heavy ground impact debris
+          if (runtime.particles.length < 250) {
+            const elemColor = getStrongestElementalColor(upgrades, "#fbbf24");
+            for (let k = 0; k < 6; k++) {
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "hit",
+                x: playerPos.x + (Math.random() - 0.5) * 1.5,
+                y: 0.15,
+                z: playerPos.z + (Math.random() - 0.5) * 1.5,
+                vx: (Math.random() - 0.5) * 3.0,
+                vy: Math.random() * 2.2 + 0.8,
+                vz: (Math.random() - 0.5) * 3.0,
+                color: elemColor,
+                size: 0.18,
+                life: 0,
+                maxLife: 0.35,
               });
             }
           }
@@ -320,6 +449,27 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           const baseDz = targetZ - playerPos.z;
           const baseAngle = Math.atan2(baseDz, baseDx);
           const projSpeed = 16.0;
+
+          // BYTE Combat Polish: energy-orb trail & cyan tech particles
+          if (runtime.particles.length < 250) {
+            const elemColor = getStrongestElementalColor(upgrades, "#23d5ff");
+            for (let k = 0; k < 4; k++) {
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "shock",
+                x: playerPos.x + (Math.random() - 0.5) * 0.4,
+                y: 0.8,
+                z: playerPos.z + (Math.random() - 0.5) * 0.4,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: Math.random() * 1.2,
+                vz: (Math.random() - 0.5) * 1.5,
+                color: elemColor,
+                size: 0.14,
+                life: 0,
+                maxLife: 0.3,
+              });
+            }
+          }
 
           // Fan spread for multishot
           const spreadArc = 0.22;
@@ -373,6 +523,29 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           const burstRadius = weaponConfig.areaRadius + (multishotCount - 1) * 0.4;
           const burstRadiusSq = burstRadius * burstRadius;
 
+          // NOVA Combat Polish: astral particles & luminous cosmic flash
+          if (runtime.particles.length < 250) {
+            const elemColor = getStrongestElementalColor(upgrades, "#d946ef");
+            for (let k = 0; k < 6; k++) {
+              const pAngle = Math.random() * Math.PI * 2;
+              const pSpeed = Math.random() * 3.5 + 1.5;
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "shock",
+                x: playerPos.x,
+                y: 0.7,
+                z: playerPos.z,
+                vx: Math.cos(pAngle) * pSpeed,
+                vy: (Math.random() - 0.3) * 1.5,
+                vz: Math.sin(pAngle) * pSpeed,
+                color: elemColor,
+                size: 0.18,
+                life: 0,
+                maxLife: 0.42,
+              });
+            }
+          }
+
           // Immediate primary radial shockwave
           if (runtime.shockwaves.length < MAX_SHOCKWAVES) {
             runtime.shockwaves.push({
@@ -424,6 +597,27 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
           const baseDz = targetZ - playerPos.z;
           const baseDist = Math.hypot(baseDx, baseDz) || 1;
           const projSpeed = 15.0;
+
+          // HEX Combat Polish: void motes & purple/green chain energy
+          if (runtime.particles.length < 250) {
+            const elemColor = getStrongestElementalColor(upgrades, "#a855f7");
+            for (let k = 0; k < 4; k++) {
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "poison",
+                x: playerPos.x + (Math.random() - 0.5) * 0.6,
+                y: 0.8,
+                z: playerPos.z + (Math.random() - 0.5) * 0.6,
+                vx: (Math.random() - 0.5) * 1.8,
+                vy: Math.random() * 1.5,
+                vz: (Math.random() - 0.5) * 1.8,
+                color: elemColor,
+                size: 0.15,
+                life: 0,
+                maxLife: 0.4,
+              });
+            }
+          }
 
           // HEXSTORM: can jump to an additional enemy (2 jumps total vs 1 base)
           const maxJumps = hasHexstorm ? 2 : 1;
@@ -484,6 +678,25 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             e.hitFlashTimer = 0.08;
             applyElementalOnHit(e, upgrades, runtime);
             gameAudio.play("enemyHit");
+
+            // TANK Combat Polish: metallic sparks & heavier cleave impact
+            if (runtime.particles.length < 250 && Math.random() < 0.35) {
+              const elemColor = getStrongestElementalColor(upgrades, "#fb923c");
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "hit",
+                x: axeX,
+                y: 0.8,
+                z: axeZ,
+                vx: (Math.random() - 0.5) * 2.0,
+                vy: Math.random() * 1.5,
+                vz: (Math.random() - 0.5) * 2.0,
+                color: elemColor,
+                size: 0.16,
+                life: 0,
+                maxLife: 0.25,
+              });
+            }
           }
         }
       }
@@ -555,6 +768,43 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
             useGameStore.getState().takeDamage(proj.damage);
             gameAudio.play("playerDamage");
             runtime.playerInvulnerableTimer = 0.6;
+
+            // Handle Cryovex frost chill slow
+            if (proj.effectType === "frost") {
+              runtime.playerSlowTimer = 2.5;
+              runtime.playerSlowFactor = 0.55;
+            }
+
+            // Elemental hit feedback particles on player
+            if (runtime.particles.length < 250) {
+              const pType =
+                proj.effectType === "fire"
+                  ? "burn"
+                  : proj.effectType === "poison"
+                  ? "poison"
+                  : proj.effectType === "shock"
+                  ? "shock"
+                  : proj.effectType === "frost"
+                  ? "frost"
+                  : "hit";
+              const pColor = proj.color || "#ef4444";
+              for (let k = 0; k < 4; k++) {
+                runtime.particles.push({
+                  id: runtime.nextEntityId++,
+                  type: pType,
+                  x: proj.x,
+                  y: 0.8,
+                  z: proj.z,
+                  vx: (Math.random() - 0.5) * 1.6,
+                  vy: Math.random() * 1.5,
+                  vz: (Math.random() - 0.5) * 1.6,
+                  color: pColor,
+                  size: 0.14,
+                  life: 0,
+                  maxLife: 0.35,
+                });
+              }
+            }
           }
           runtime.projectiles.splice(p, 1);
           continue;
@@ -619,7 +869,34 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
     }
 
     // =========================================================================
-    // 4. Shockwaves Simulation & Instanced Rendering
+    // 4. Hazard Zones Simulation & Damage (Cindermaw Fire, Venomatrix Poison, Cryovex Frost)
+    // =========================================================================
+    for (let h = runtime.hazardZones.length - 1; h >= 0; h--) {
+      const hz = runtime.hazardZones[h];
+      hz.duration -= delta;
+      if (hz.duration <= 0) {
+        runtime.hazardZones.splice(h, 1);
+        continue;
+      }
+
+      // Check player inside hazard
+      const distSq = (playerPos.x - hz.x) ** 2 + (playerPos.z - hz.z) ** 2;
+      if (distSq < hz.radius * hz.radius) {
+        if (hz.type === "fire" || hz.type === "poison") {
+          if (runtime.playerInvulnerableTimer <= 0) {
+            useGameStore.getState().takeDamage(Math.round(hz.damagePerSec * 0.4));
+            runtime.playerInvulnerableTimer = 0.4;
+            gameAudio.play("playerDamage");
+          }
+        } else if (hz.type === "frost") {
+          runtime.playerSlowTimer = Math.max(runtime.playerSlowTimer, 1.2);
+          runtime.playerSlowFactor = Math.min(runtime.playerSlowFactor, hz.slowPercent || 0.5);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 5. Shockwaves Simulation & Instanced Rendering
     // =========================================================================
     for (let s = runtime.shockwaves.length - 1; s >= 0; s--) {
       const sw = runtime.shockwaves[s];
@@ -655,7 +932,8 @@ export const CombatManager: React.FC<CombatManagerProps> = ({ runtimeRef }) => {
         } else if (sw.color === "#f43f5e") {
           shockwaveMeshRef.current.setColorAt(i, supernovaShockColor);
         } else {
-          shockwaveMeshRef.current.setColorAt(i, defaultShockColor);
+          tempColor.set(sw.color || "#ffb020");
+          shockwaveMeshRef.current.setColorAt(i, tempColor);
         }
       }
 

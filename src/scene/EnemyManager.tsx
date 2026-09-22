@@ -5,18 +5,22 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { GameRuntime, EnemyEntity } from "../game/runtime";
 import {
   ENEMY_CONFIGS,
+  BOSS_CONFIGS,
   HARD_ENEMY_CAP,
   ARENA_BOUNDARY_LIMIT,
   GAME_CONFIG,
   RECOVERY_CONFIG,
   SPECIAL_PICKUP_CONFIG,
+  rollBossLoot,
 } from "../game/config";
 import {
   getRoundEnemyCap,
   getRoundEnemyQuota,
   isBossRound,
-  getBossTier,
   getBossStats,
+  getBossTypeForRound,
+  getBossCycleTier,
+  isBossType,
 } from "../game/progression";
 import {
   getSpawnInterval,
@@ -28,7 +32,7 @@ import {
 import { useGameStore } from "../store/gameStore";
 import { ASSETS } from "../config/assets";
 import { gameAudio } from "../audio/gameAudio";
-import type { EnemyType, PickupType, SpecialPickupType, RecoveryPickupType } from "../types/game";
+import type { EnemyType, BossType, RecoveryPickupType } from "../types/game";
 
 interface EnemyManagerProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -83,6 +87,10 @@ const baseColors: Record<EnemyType, THREE.Color> = {
   brute: new THREE.Color("#ef4444"),
   shooter: new THREE.Color("#22d3ee"),
   bonklord: new THREE.Color("#e11d48"),
+  cindermaw: new THREE.Color("#f97316"),
+  stormcoil: new THREE.Color("#00e5ff"),
+  venomatrix: new THREE.Color("#22c55e"),
+  cryovex: new THREE.Color("#38bdf8"),
 };
 
 // Safe geometry merger normalizing indexed and non-indexed buffers and computing bounds/normals
@@ -111,9 +119,7 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
   const deathMeshRef = useRef<THREE.InstancedMesh>(null);
   const deathRingsRef = useRef<DeathRing[]>([]);
 
-  // Dedicated mesh ref for the unique Bonklord boss
-  const bossGroupRef = useRef<THREE.Group>(null);
-  const bossAuraRef = useRef<THREE.Mesh>(null);
+  // Last synced boss HP
   const lastBossHpRef = useRef<number>(-1);
 
   // Shared reusable 3D geometries with distinct silhouettes
@@ -355,15 +361,17 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         if (!runtime.bossSpawned) {
           const angle = Math.random() * Math.PI * 2;
           const spawnDist = ARENA_BOUNDARY_LIMIT - 3.0;
-          const bossConfig = ENEMY_CONFIGS.bonklord;
-          const bossTier = getBossTier(round);
-          const bossStats = getBossStats(bossTier);
+          const bossType = getBossTypeForRound(round);
+          const bossTier = getBossCycleTier(round);
+          const bossStats = getBossStats(bossTier, bossType);
+          const bossConfig = BOSS_CONFIGS[bossType];
+          const enemyConfig = ENEMY_CONFIGS[bossType];
 
           const bossEntity: EnemyEntity = {
             id: runtime.nextEntityId++,
-            type: "bonklord",
+            type: bossType,
             x: Math.cos(angle) * spawnDist,
-            y: bossConfig.height / 2,
+            y: (enemyConfig?.height || 3.0) / 2,
             z: Math.sin(angle) * spawnDist,
             vx: 0,
             vz: 0,
@@ -371,11 +379,14 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
             maxHealth: bossStats.health,
             speed: bossStats.speed,
             damage: bossStats.damage,
-            radius: bossConfig.radius,
-            color: bossConfig.color,
-            scoreValue: bossConfig.scoreValue * bossTier,
-            xpValue: bossConfig.xpValue * bossTier,
+            radius: enemyConfig?.radius || 1.4,
+            color: bossConfig.accentColor,
+            scoreValue: (enemyConfig?.scoreValue || 600) * bossTier,
+            xpValue: (enemyConfig?.xpValue || 120) * bossTier,
             stompCooldown: 3.5,
+            bossAttackTimer: 0,
+            bossAttackCooldown: bossConfig.attackCooldown,
+            bossSubAttackTimer: 0,
             hitFlashTimer: 0,
             scaleY: 1,
           };
@@ -383,8 +394,14 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
           runtime.enemies.push(bossEntity);
           runtime.bossSpawned = true;
           runtime.roundSpawnedCount = 1;
+          lastBossHpRef.current = bossStats.health;
           useGameStore.getState().setBossActive(true);
-          useGameStore.getState().updateBossHealth(bossStats.health, bossStats.health);
+          useGameStore.getState().updateBossHealth(bossStats.health, bossStats.health, {
+            name: bossConfig.displayName,
+            tier: bossTier,
+            type: bossType,
+            color: bossConfig.accentColor,
+          });
           gameAudio.play("bossSpawn");
         }
       } else {
@@ -526,88 +543,49 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         frameKills++;
         frameScore += enemy.scoreValue;
 
-        if (enemy.type === "bonklord") {
+        if (isBossType(enemy.type)) {
           runtime.bossDefeated = true;
           useGameStore.getState().setBossActive(false);
           gameAudio.play("bossDeath");
 
-          // Boss recovery rewards:
-          // Guaranteed useful major recovery pickup + optional weighted secondary drop
-          const currentHp = useGameStore.getState().health;
-          const currentMaxHp = useGameStore.getState().maxHealth;
-          const guaranteedType: PickupType = currentHp < currentMaxHp ? "medkit_case" : "shield_battery";
-          const guaranteedVal = guaranteedType === "medkit_case" ? 70 : 50;
+          // Exactly one item dropped per boss defeat using ONE weighted roll (100% total)
+          const bossLoot = rollBossLoot();
+          const isSpecial =
+            bossLoot === "overclock_core" ||
+            bossLoot === "tesla_cell" ||
+            bossLoot === "toxic_relic" ||
+            bossLoot === "phoenix_fragment";
+
+          const lootValue = isSpecial
+            ? SPECIAL_PICKUP_CONFIG.buffDurations[bossLoot]
+            : (RECOVERY_CONFIG.pickupEffects as Record<string, { hp: number; shield: number }>)[bossLoot]?.hp ||
+              (RECOVERY_CONFIG.pickupEffects as Record<string, { hp: number; shield: number }>)[bossLoot]?.shield ||
+              35;
 
           runtime.pickups.push({
             id: runtime.nextEntityId++,
-            type: guaranteedType,
-            x: enemy.x - 0.5,
-            y: 0.35,
-            z: enemy.z,
-            value: guaranteedVal,
-            radius: 0.6,
-          });
-
-          // Optional additional weighted recovery drop (75% chance)
-          if (Math.random() < 0.75) {
-            const secondType: PickupType = Math.random() < 0.5 ? "shield_potion" : "medkit_emergency";
-            const secondVal = secondType === "shield_potion" ? 25 : 35;
-            runtime.pickups.push({
-              id: runtime.nextEntityId++,
-              type: secondType,
-              x: enemy.x + 0.5,
-              y: 0.35,
-              z: enemy.z,
-              value: secondVal,
-              radius: 0.5,
-            });
-          }
-
-          // Guaranteed special item drop from boss
-          const specialTypes: SpecialPickupType[] = ["overclock_core", "tesla_cell", "toxic_relic", "phoenix_fragment"];
-          const bossSpecial = specialTypes[Math.floor(Math.random() * specialTypes.length)];
-          runtime.pickups.push({
-            id: runtime.nextEntityId++,
-            type: bossSpecial,
+            type: bossLoot,
             x: enemy.x,
             y: 0.45,
-            z: enemy.z + 0.8,
-            value: SPECIAL_PICKUP_CONFIG.buffDurations[bossSpecial],
-            radius: 0.7,
+            z: enemy.z,
+            value: lootValue,
+            radius: 0.8,
           });
 
-          // Boss round complete! Enter intermission to advance to next round (e.g. 10 -> 11)
+          // Boss round complete! Enter intermission to advance to next round
           runtime.intermissionTimer = 0;
           useGameStore.getState().setRoundStatus("intermission");
         } else {
           gameAudio.play("enemyDeath");
 
-          // Rare special item drop check (1.5% normal, 12% Brute)
-          const specialChance = enemy.type === "brute"
-            ? SPECIAL_PICKUP_CONFIG.bruteDropChance
-            : SPECIAL_PICKUP_CONFIG.normalEnemyDropChance;
-          const activeSpecialCount = runtime.pickups.filter((p) =>
-            p.type === "overclock_core" || p.type === "tesla_cell" || p.type === "toxic_relic" || p.type === "phoenix_fragment"
-          ).length;
-
-          if (activeSpecialCount < SPECIAL_PICKUP_CONFIG.maxActiveSpecialPickups && Math.random() < specialChance) {
-            const specialPool: SpecialPickupType[] = ["overclock_core", "tesla_cell", "toxic_relic", "phoenix_fragment"];
-            const chosenSpecial = specialPool[Math.floor(Math.random() * specialPool.length)];
-            runtime.pickups.push({
-              id: runtime.nextEntityId++,
-              type: chosenSpecial,
-              x: enemy.x + (Math.random() - 0.5) * 0.5,
-              y: 0.45,
-              z: enemy.z + (Math.random() - 0.5) * 0.5,
-              value: SPECIAL_PICKUP_CONFIG.buffDurations[chosenSpecial],
-              radius: 0.6,
-            });
-          }
-
-          // Normal enemy recovery item drop (bounded by maxActivePickups)
+          // Normal enemies ONLY drop recovery items (can NEVER drop SpecialPickupType items)
           const activeRecoveryCount = runtime.pickups.filter((p) =>
-            p.type === "medkit_emergency" || p.type === "medkit_case" || p.type === "shield_potion" || p.type === "shield_battery"
+            p.type === "medkit_emergency" ||
+            p.type === "medkit_case" ||
+            p.type === "shield_potion" ||
+            p.type === "shield_battery"
           ).length;
+
           if (
             activeRecoveryCount < RECOVERY_CONFIG.maxActivePickups &&
             Math.random() < RECOVERY_CONFIG.normalEnemyDropChance
@@ -667,6 +645,27 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         // Shoot hostile projectile (clearly visible red identity)
         if (enemy.shootCooldown !== undefined) {
           enemy.shootCooldown -= delta;
+
+          // Visible charge-up particle feedback before firing
+          if (enemy.shootCooldown <= 0.45 && enemy.shootCooldown > 0 && Math.random() < 0.25) {
+            if (runtime.particles.length < 250) {
+              runtime.particles.push({
+                id: runtime.nextEntityId++,
+                type: "hit",
+                x: enemy.x + (Math.random() - 0.5) * 0.3,
+                y: 1.2 + (Math.random() - 0.5) * 0.3,
+                z: enemy.z + (Math.random() - 0.5) * 0.3,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: 0.5,
+                vz: (Math.random() - 0.5) * 0.5,
+                color: "#ff2222",
+                size: 0.12,
+                life: 0,
+                maxLife: 0.3,
+              });
+            }
+          }
+
           if (enemy.shootCooldown <= 0) {
             enemy.shootCooldown = 2.4;
             const projSpeed = 7.0;
@@ -685,36 +684,197 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
               isEnemy: true,
               pierce: 1,
             });
+
+            // Muzzle flash particles
+            if (runtime.particles.length < 250) {
+              for (let p = 0; p < 3; p++) {
+                runtime.particles.push({
+                  id: runtime.nextEntityId++,
+                  type: "hit",
+                  x: enemy.x + (dx / distToPlayer) * 0.5,
+                  y: 0.8,
+                  z: enemy.z + (dz / distToPlayer) * 0.5,
+                  vx: (dx / distToPlayer) * 2 + (Math.random() - 0.5),
+                  vy: (Math.random() - 0.5) * 0.5,
+                  vz: (dz / distToPlayer) * 2 + (Math.random() - 0.5),
+                  color: "#ff4444",
+                  size: 0.15,
+                  life: 0,
+                  maxLife: 0.25,
+                });
+              }
+            }
           }
         }
-      } else if (enemy.type === "bonklord") {
+      } else if (isBossType(enemy.type)) {
         // Boss moves steadily toward player
         if (distToPlayer > 0.1) {
           enemy.x += (dx / distToPlayer) * currentSpeed * delta;
           enemy.z += (dz / distToPlayer) * currentSpeed * delta;
         }
 
-        // Boss Stomp AOE every 4 seconds
-        if (enemy.stompCooldown !== undefined) {
-          enemy.stompCooldown -= delta;
-          if (enemy.stompCooldown <= 0) {
-            enemy.stompCooldown = 4.2;
-            // Spawn shockwave ring
+        const bossType = enemy.type as BossType;
+        const bCfg = BOSS_CONFIGS[bossType];
+
+        // Boss attack timer
+        if (enemy.bossAttackTimer === undefined) {
+          enemy.bossAttackTimer = bCfg.attackCooldown;
+        }
+        enemy.bossAttackTimer -= delta;
+
+        if (enemy.bossAttackTimer <= 0) {
+          enemy.bossAttackTimer = bCfg.attackCooldown;
+
+          if (bossType === "bonklord") {
+            // Stomp AOE shockwave
             runtime.shockwaves.push({
               id: runtime.nextEntityId++,
               x: enemy.x,
               z: enemy.z,
               radius: 0.5,
               maxRadius: 8.0,
-              color: "#e11d48",
+              color: bCfg.accentColor,
               lifetime: 0,
               maxLifetime: 1.2,
             });
-            // If player inside stomp initial burst, knockback & damage
-            if (distToPlayer < 4.0 && runtime.playerInvulnerableTimer <= 0) {
+            if (distToPlayer < 4.2 && runtime.playerInvulnerableTimer <= 0) {
               useGameStore.getState().takeDamage(15);
               runtime.playerInvulnerableTimer = GAME_CONFIG.playerInvulnerableDuration;
               gameAudio.play("playerDamage");
+            }
+          } else if (bossType === "cindermaw") {
+            // Expanding fire ring shockwave
+            runtime.shockwaves.push({
+              id: runtime.nextEntityId++,
+              x: enemy.x,
+              z: enemy.z,
+              radius: 0.5,
+              maxRadius: 7.5,
+              color: bCfg.accentColor,
+              lifetime: 0,
+              maxLifetime: 1.3,
+            });
+            // Temporary burning ground hazard zone
+            runtime.hazardZones.push({
+              id: runtime.nextEntityId++,
+              type: "fire",
+              x: enemy.x + (Math.random() - 0.5) * 3,
+              z: enemy.z + (Math.random() - 0.5) * 3,
+              radius: 3.0,
+              duration: 4.5,
+              maxDuration: 4.5,
+              damagePerSec: 14,
+            });
+            if (distToPlayer < 3.8 && runtime.playerInvulnerableTimer <= 0) {
+              useGameStore.getState().takeDamage(14);
+              runtime.playerInvulnerableTimer = GAME_CONFIG.playerInvulnerableDuration;
+              gameAudio.play("playerDamage");
+            }
+          } else if (bossType === "stormcoil") {
+            // Charged pulse shockwave
+            runtime.shockwaves.push({
+              id: runtime.nextEntityId++,
+              x: enemy.x,
+              z: enemy.z,
+              radius: 0.5,
+              maxRadius: 5.5,
+              color: bCfg.accentColor,
+              lifetime: 0,
+              maxLifetime: 0.8,
+            });
+            // Radial 8-way electric projectile burst
+            const projSpeed = 7.5;
+            for (let a = 0; a < 8; a++) {
+              const angle = (a / 8) * Math.PI * 2;
+              runtime.projectiles.push({
+                id: runtime.nextEntityId++,
+                x: enemy.x,
+                y: 0.8,
+                z: enemy.z,
+                vx: Math.cos(angle) * projSpeed,
+                vz: Math.sin(angle) * projSpeed,
+                damage: Math.round(enemy.damage * 0.7),
+                radius: 0.3,
+                color: bCfg.accentColor,
+                lifetime: 0,
+                maxLifetime: 3.2,
+                isEnemy: true,
+                effectType: "shock",
+                pierce: 1,
+              });
+            }
+          } else if (bossType === "venomatrix") {
+            // Persistent poison pool hazard zone
+            runtime.hazardZones.push({
+              id: runtime.nextEntityId++,
+              type: "poison",
+              x: enemy.x,
+              z: enemy.z,
+              radius: 2.6,
+              duration: 5.5,
+              maxDuration: 5.5,
+              damagePerSec: 10,
+            });
+            // Toxic projectile volley (3 spread projectiles)
+            const baseAngle = Math.atan2(dx, dz);
+            const projSpeed = 7.0;
+            [-0.26, 0, 0.26].forEach((offset) => {
+              const a = baseAngle + offset;
+              runtime.projectiles.push({
+                id: runtime.nextEntityId++,
+                x: enemy.x,
+                y: 0.8,
+                z: enemy.z,
+                vx: Math.sin(a) * projSpeed,
+                vz: Math.cos(a) * projSpeed,
+                damage: Math.round(enemy.damage * 0.75),
+                radius: 0.32,
+                color: bCfg.accentColor,
+                lifetime: 0,
+                maxLifetime: 3.5,
+                isEnemy: true,
+                effectType: "poison",
+                pierce: 1,
+              });
+            });
+          } else if (bossType === "cryovex") {
+            // Frost nova shockwave
+            runtime.shockwaves.push({
+              id: runtime.nextEntityId++,
+              x: enemy.x,
+              z: enemy.z,
+              radius: 0.5,
+              maxRadius: 7.0,
+              color: bCfg.accentColor,
+              lifetime: 0,
+              maxLifetime: 1.1,
+            });
+            // Ice shard volley (5 spread projectiles)
+            const baseAngle = Math.atan2(dx, dz);
+            const projSpeed = 8.0;
+            [-0.35, -0.17, 0, 0.17, 0.35].forEach((offset) => {
+              const a = baseAngle + offset;
+              runtime.projectiles.push({
+                id: runtime.nextEntityId++,
+                x: enemy.x,
+                y: 0.8,
+                z: enemy.z,
+                vx: Math.sin(a) * projSpeed,
+                vz: Math.cos(a) * projSpeed,
+                damage: Math.round(enemy.damage * 0.7),
+                radius: 0.28,
+                color: bCfg.accentColor,
+                lifetime: 0,
+                maxLifetime: 3.5,
+                isEnemy: true,
+                effectType: "frost",
+                pierce: 1,
+              });
+            });
+            // Frost nova slow on player if caught in burst
+            if (distToPlayer < 7.0) {
+              runtime.playerSlowTimer = 2.5;
+              runtime.playerSlowFactor = 0.55;
             }
           }
         }
@@ -722,7 +882,12 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         // Keep boss health synced with HUD only on meaningful change
         if (lastBossHpRef.current !== enemy.health) {
           lastBossHpRef.current = enemy.health;
-          useGameStore.getState().updateBossHealth(enemy.health, enemy.maxHealth);
+          useGameStore.getState().updateBossHealth(enemy.health, enemy.maxHealth, {
+            name: bCfg.displayName,
+            tier: getBossCycleTier(round),
+            type: bossType,
+            color: bCfg.accentColor,
+          });
         }
       } else {
         // Standard chase
@@ -762,12 +927,10 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
     let runnerCount = 0;
     let bruteCount = 0;
     let shooterCount = 0;
-    let bossEntity: EnemyEntity | null = null;
 
     for (let i = 0; i < runtime.enemies.length; i++) {
       const e = runtime.enemies[i];
-      if (e.type === "bonklord") {
-        bossEntity = e;
+      if (isBossType(e.type)) {
         continue;
       }
 
@@ -815,37 +978,92 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         tempRotation.set(0, angle, 0);
         tempQuaternion.setFromEuler(tempRotation);
         tempScale.set(
-          (1 - 0.1 * bounce) * flashScale,
-          (1 + 0.16 * bounce) * flashScale,
-          (1 - 0.1 * bounce) * flashScale
+          (1 - 0.15 * bounce) * flashScale,
+          (1 + 0.22 * bounce) * flashScale,
+          (1 - 0.15 * bounce) * flashScale
         );
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+        // Slime landing dust particles when bounce hits bottom
+        if (bounce < -0.85 && Math.random() < 0.08 && runtime.particles.length < 250) {
+          runtime.particles.push({
+            id: runtime.nextEntityId++,
+            type: "hit",
+            x: e.x + (Math.random() - 0.5) * 0.4,
+            y: 0.1,
+            z: e.z + (Math.random() - 0.5) * 0.4,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: 0.3,
+            vz: (Math.random() - 0.5) * 0.8,
+            color: "#c084fc",
+            size: 0.1,
+            life: 0,
+            maxLife: 0.25,
+          });
+        }
 
         // Decal on front surface of slime
         decalPosition.set(e.x + sinA * 0.58, 0.5 + bounce * 0.05, e.z + cosA * 0.58);
         decalMatrix.compose(decalPosition, tempQuaternion, tempScale);
       } else if (e.type === "runner") {
-        // High-speed jet banking tilt
+        // High-speed jet banking tilt + forward sprint lean
         const bank = Math.sin(time * 12 + e.id) * 0.15;
+        const forwardLean = 0.25;
         tempPosition.set(e.x, 0.15, e.z);
-        tempRotation.set(0, angle, bank);
+        tempRotation.set(forwardLean, angle, bank);
         tempQuaternion.setFromEuler(tempRotation);
         tempScale.set(flashScale, flashScale, flashScale);
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
 
+        // Speed trail particle behind runner
+        if (Math.random() < 0.15 && runtime.particles.length < 250) {
+          runtime.particles.push({
+            id: runtime.nextEntityId++,
+            type: "hit",
+            x: e.x - sinA * 0.4,
+            y: 0.2,
+            z: e.z - cosA * 0.4,
+            vx: -sinA * 0.6 + (Math.random() - 0.5) * 0.2,
+            vy: 0.2,
+            vz: -cosA * 0.6 + (Math.random() - 0.5) * 0.2,
+            color: "#ff6b35",
+            size: 0.1,
+            life: 0,
+            maxLife: 0.2,
+          });
+        }
+
         // Decal on dorsal surface of runner drone tilted toward overhead camera
-        decalRotation.set(-0.35, angle, bank);
+        decalRotation.set(-0.35 + forwardLean, angle, bank);
         decalQuaternion.setFromEuler(decalRotation);
         decalPosition.set(e.x + sinA * 0.15, 0.62, e.z + cosA * 0.15);
         decalMatrix.compose(decalPosition, decalQuaternion, tempScale);
       } else if (e.type === "brute") {
         // Heavy lumbering stomp sway
-        const sway = Math.sin(time * 5 + e.id) * 0.08;
+        const sway = Math.sin(time * 5 + e.id) * 0.12;
         tempPosition.set(e.x, 0.05, e.z);
         tempRotation.set(0, angle, sway);
         tempQuaternion.setFromEuler(tempRotation);
         tempScale.set(flashScale, flashScale, flashScale);
         tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+        // Footstep impact particles
+        if (Math.abs(sway) > 0.1 && Math.random() < 0.08 && runtime.particles.length < 250) {
+          runtime.particles.push({
+            id: runtime.nextEntityId++,
+            type: "hit",
+            x: e.x + (Math.random() - 0.5) * 0.6,
+            y: 0.1,
+            z: e.z + (Math.random() - 0.5) * 0.6,
+            vx: (Math.random() - 0.5) * 0.6,
+            vy: 0.25,
+            vz: (Math.random() - 0.5) * 0.6,
+            color: "#ef4444",
+            size: 0.12,
+            life: 0,
+            maxLife: 0.25,
+          });
+        }
 
         // Decal on front armored chest plate
         decalPosition.set(e.x + sinA * 0.66, 0.85, e.z + cosA * 0.66);
@@ -873,10 +1091,61 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         activeColor = flashColor;
       } else if (e.burnTimer && e.burnTimer > 0) {
         activeColor = burnStatusColor;
+        // Burning status embers
+        if (Math.random() < 0.12 && runtime.particles.length < 250) {
+          runtime.particles.push({
+            id: runtime.nextEntityId++,
+            type: "burn",
+            x: e.x + (Math.random() - 0.5) * 0.5,
+            y: 0.6 + Math.random() * 0.4,
+            z: e.z + (Math.random() - 0.5) * 0.5,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: 1.0,
+            vz: (Math.random() - 0.5) * 0.3,
+            color: "#f97316",
+            size: 0.12,
+            life: 0,
+            maxLife: 0.45,
+          });
+        }
       } else if (e.poisonTimer && e.poisonTimer > 0) {
         activeColor = poisonStatusColor;
+        // Poison status bubbles
+        if (Math.random() < 0.12 && runtime.particles.length < 250) {
+          runtime.particles.push({
+            id: runtime.nextEntityId++,
+            type: "poison",
+            x: e.x + (Math.random() - 0.5) * 0.5,
+            y: 0.5 + Math.random() * 0.3,
+            z: e.z + (Math.random() - 0.5) * 0.5,
+            vx: (Math.random() - 0.5) * 0.2,
+            vy: 0.5,
+            vz: (Math.random() - 0.5) * 0.2,
+            color: "#22c55e",
+            size: 0.1,
+            life: 0,
+            maxLife: 0.5,
+          });
+        }
       } else if (e.frostTimer && e.frostTimer > 0) {
         activeColor = frostStatusColor;
+        // Frost status crystalline motes
+        if (Math.random() < 0.08 && runtime.particles.length < 250) {
+          runtime.particles.push({
+            id: runtime.nextEntityId++,
+            type: "frost",
+            x: e.x + (Math.random() - 0.5) * 0.5,
+            y: 0.6 + Math.random() * 0.3,
+            z: e.z + (Math.random() - 0.5) * 0.5,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: -0.2,
+            vz: (Math.random() - 0.5) * 0.3,
+            color: "#38bdf8",
+            size: 0.1,
+            life: 0,
+            maxLife: 0.4,
+          });
+        }
       }
       meshRef.current.setColorAt(index, activeColor);
     }
@@ -947,27 +1216,6 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
       deathMeshRef.current.instanceMatrix.needsUpdate = true;
       if (deathMeshRef.current.instanceColor) deathMeshRef.current.instanceColor.needsUpdate = true;
     }
-
-    // =========================================================================
-    // 5. Update Bonklord Boss 3D Group
-    // =========================================================================
-    if (bossGroupRef.current) {
-      if (bossEntity) {
-        bossGroupRef.current.visible = true;
-        bossGroupRef.current.position.set(bossEntity.x, 0, bossEntity.z);
-        const bossAngle = Math.atan2(playerPos.x - bossEntity.x, playerPos.z - bossEntity.z);
-        bossGroupRef.current.rotation.y = bossAngle;
-
-        // Animate fiery ground aura
-        if (bossAuraRef.current) {
-          bossAuraRef.current.rotation.z += delta * 1.5;
-          const pulse = 1.0 + Math.sin(time * 6) * 0.12;
-          bossAuraRef.current.scale.set(pulse, pulse, pulse);
-        }
-      } else {
-        bossGroupRef.current.visible = false;
-      }
-    }
   });
 
   return (
@@ -1030,109 +1278,6 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         args={[geometries.deathRing, materials.deathRing, MAX_DEATH_RINGS]}
         frustumCulled={false}
       />
-
-      {/* ===================================================================== */}
-      {/* THE BONKLORD — Level 10 Royal Titan Boss */}
-      {/* ===================================================================== */}
-      <group ref={bossGroupRef} visible={false}>
-        {/* Pulsating Fiery Boss Ground Aura */}
-        <mesh ref={bossAuraRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-          <ringGeometry args={[2.0, 2.45, 48]} />
-          <meshBasicMaterial color="#e11d48" transparent opacity={0.65} side={THREE.DoubleSide} />
-        </mesh>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
-          <ringGeometry args={[1.5, 1.75, 36]} />
-          <meshBasicMaterial color="#fbbf24" transparent opacity={0.5} side={THREE.DoubleSide} />
-        </mesh>
-
-        {/* Massive Obsidian Body Armor */}
-        <mesh castShadow position={[0, 1.8, 0]}>
-          <capsuleGeometry args={[1.3, 1.5, 8, 16]} />
-          <meshStandardMaterial color="#09090b" roughness={0.3} metalness={0.7} />
-        </mesh>
-
-        {/* Heavy Golden Shoulder Pauldrons */}
-        <mesh castShadow position={[-1.5, 2.4, 0]} rotation={[0, 0, 0.4]}>
-          <boxGeometry args={[0.8, 0.6, 1.1]} />
-          <meshStandardMaterial color="#f59e0b" roughness={0.25} metalness={0.9} />
-        </mesh>
-        <mesh castShadow position={[1.5, 2.4, 0]} rotation={[0, 0, -0.4]}>
-          <boxGeometry args={[0.8, 0.6, 1.1]} />
-          <meshStandardMaterial color="#f59e0b" roughness={0.25} metalness={0.9} />
-        </mesh>
-
-        {/* 5-Spire Royal Golden Crown */}
-        <group position={[0, 3.6, 0]}>
-          {/* Central Tall Spire */}
-          <mesh position={[0, 0.4, 0]}>
-            <coneGeometry args={[0.3, 0.9, 6]} />
-            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
-          </mesh>
-          {/* 4 Perimeter Spires */}
-          <mesh position={[-0.45, 0.25, 0]}>
-            <coneGeometry args={[0.2, 0.6, 5]} />
-            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
-          </mesh>
-          <mesh position={[0.45, 0.25, 0]}>
-            <coneGeometry args={[0.2, 0.6, 5]} />
-            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
-          </mesh>
-          <mesh position={[0, 0.25, -0.45]}>
-            <coneGeometry args={[0.2, 0.6, 5]} />
-            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
-          </mesh>
-          <mesh position={[0, 0.25, 0.45]}>
-            <coneGeometry args={[0.2, 0.6, 5]} />
-            <meshStandardMaterial color="#fbbf24" roughness={0.15} metalness={0.95} />
-          </mesh>
-        </group>
-
-        {/* Glowing Lava Skull Face & Official SVG Emblem */}
-        <mesh position={[0, 2.2, 1.1]}>
-          <planeGeometry args={[1.5, 1.5]} />
-          <meshBasicMaterial
-            map={enemyTextures.bonklord}
-            transparent
-            alphaTest={0.1}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-
-        {/* Menacing Horns */}
-        <mesh position={[-0.95, 3.1, 0.2]} rotation={[0, 0, 0.5]}>
-          <coneGeometry args={[0.3, 1.3, 6]} />
-          <meshStandardMaterial color="#1f2937" metalness={0.85} roughness={0.3} />
-        </mesh>
-        <mesh position={[0.95, 3.1, 0.2]} rotation={[0, 0, -0.5]}>
-          <coneGeometry args={[0.3, 1.3, 6]} />
-          <meshStandardMaterial color="#1f2937" metalness={0.85} roughness={0.3} />
-        </mesh>
-
-        {/* Massive Legendary Bonk Warhammer */}
-        <group position={[1.9, 1.6, 0.5]} rotation={[0.4, 0, -0.2]}>
-          {/* Titanium Shaft */}
-          <mesh position={[0, 0, 0]}>
-            <cylinderGeometry args={[0.12, 0.12, 3.2, 8]} />
-            <meshStandardMaterial color="#334155" metalness={0.8} />
-          </mesh>
-          {/* Double Hammer Head */}
-          <mesh position={[0, 1.4, 0]}>
-            <boxGeometry args={[1.3, 1.1, 1.1]} />
-            <meshStandardMaterial
-              color="#e11d48"
-              emissive="#be123c"
-              emissiveIntensity={0.6}
-              metalness={0.6}
-              roughness={0.3}
-            />
-          </mesh>
-          {/* Front Hammer Spike */}
-          <mesh position={[0, 1.4, 0.7]} rotation={[Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[0.25, 0.6, 6]} />
-            <meshStandardMaterial color="#fbbf24" metalness={0.9} />
-          </mesh>
-        </group>
-      </group>
     </group>
   );
 };
