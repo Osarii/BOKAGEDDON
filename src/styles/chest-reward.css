@@ -1,0 +1,105 @@
+.chest-reward-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.chest-reward-panel {
+  width: min(760px, 96vw);
+  padding: 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(10, 15, 26, 0.96);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+}
+
+.chest-reward-panel.common {
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
+.chest-reward-panel.rare {
+  border-color: rgba(0, 229, 255, 0.75);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65), 0 0 30px rgba(0, 229, 255, 0.22);
+}
+
+.chest-reward-panel.legendary {
+  border-color: rgba(251, 191, 36, 0.9);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65), 0 0 36px rgba(251, 191, 36, 0.28);
+}
+
+.chest-reward-title {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+  color: var(--accent-warm);
+}
+
+.chest-reward-title h2 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.chest-reward-title p {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.chest-reward-title svg:last-child {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.chest-reward-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.chest-reward-card {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  min-height: 170px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.chest-reward-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent-energy);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.18);
+}
+
+.chest-reward-card img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.chest-reward-card strong {
+  font-size: 0.95rem;
+}
+
+.chest-reward-card span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .chest-reward-grid {
+    grid-template-columns: 1fr;
+  }
+}

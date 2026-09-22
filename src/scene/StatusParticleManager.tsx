@@ -21,7 +21,7 @@ export const StatusParticleManager: React.FC<StatusParticleManagerProps> = ({ ru
 
   // Lightweight geometric particle mesh (octahedron)
   const particleGeometry = useMemo(() => {
-    const geo = new THREE.OctahedronGeometry(0.12, 0);
+    const geo = new THREE.OctahedronGeometry(0.18, 0);
     geo.computeBoundingSphere();
     geo.computeBoundingBox();
     return geo;
@@ -32,7 +32,9 @@ export const StatusParticleManager: React.FC<StatusParticleManagerProps> = ({ ru
       new THREE.MeshBasicMaterial({
         color: "#ffffff",
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.95,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       }),
     []
   );
@@ -92,8 +94,10 @@ export const StatusParticleManager: React.FC<StatusParticleManagerProps> = ({ ru
 
       for (let i = 0; i < activeCount; i++) {
         const p: StatusParticle = runtime.particles[i];
-        const remaining = Math.max(0, 1 - p.life / p.maxLife);
-        const scaleFactor = p.size * remaining;
+        const progress = p.life / p.maxLife;
+        const remaining = Math.max(0, 1 - progress);
+        const pop = p.type === "shock" ? 1.25 + Math.sin(progress * Math.PI) : 1 + Math.sin(progress * Math.PI) * 0.55;
+        const scaleFactor = Math.max(0.08, p.size * 1.9 * remaining * pop);
 
         tempPosition.set(p.x, Math.max(0.1, p.y), p.z);
         tempScale.set(scaleFactor, scaleFactor, scaleFactor);

@@ -1,6 +1,14 @@
 import { create } from "zustand";
-import type { BossType, Character, CharacterId, GameStatus, RoundStatus, UpgradeId } from "../types/game";
+import type { BossType, Character, CharacterId, ChestRarity, GameStatus, RoundStatus, SpecialPickupType, UpgradeId } from "../types/game";
 import { getXpRequiredForLevel } from "../game/progression";
+import { MAX_UPGRADE_LEVEL, SPECIAL_PICKUP_CONFIG } from "../game/config";
+
+type PassiveStacks = Record<SpecialPickupType, number>;
+
+interface PendingChestReward {
+  rarity: ChestRarity;
+  choices: UpgradeId[];
+}
 
 interface GameState {
   selectedCharacterId: CharacterId | null;
@@ -25,6 +33,12 @@ interface GameState {
   bossTier: number;
   bossAccentColor: string;
   upgrades: Record<UpgradeId, number>;
+  passives: PassiveStacks;
+  pendingChestReward: PendingChestReward | null;
+  frenzyActive: boolean;
+  frenzyTimer: number;
+  normalEnemyKillsForFrenzy: number;
+  nextFrenzyKillThreshold: number;
   gameStatus: GameStatus;
   notification: { title: string; subtitle: string; timestamp: number } | null;
 
@@ -48,6 +62,15 @@ interface GameState {
   addKills: (count: number, scoreBonus?: number) => void;
   addXp: (amount: number) => void;
   applyUpgrade: (upgradeId: UpgradeId) => void;
+  openChestReward: (rarity: ChestRarity) => void;
+  claimChestReward: (upgradeId: UpgradeId) => void;
+  addPassive: (type: SpecialPickupType) => void;
+  setFrenzyState: (state: {
+    active: boolean;
+    timer: number;
+    kills: number;
+    nextThreshold: number;
+  }) => void;
   setTimeSurvived: (seconds: number) => void;
   setBossActive: (active: boolean) => void;
   updateBossHealth: (
@@ -75,6 +98,13 @@ const INITIAL_UPGRADES: Record<UpgradeId, number> = {
   frost: 0,
 };
 
+const INITIAL_PASSIVES: PassiveStacks = {
+  overclock_core: 0,
+  tesla_cell: 0,
+  toxic_relic: 0,
+  phoenix_fragment: 0,
+};
+
 const INITIAL_RUN_STATE = {
   health: 100,
   maxHealth: 100,
@@ -97,6 +127,12 @@ const INITIAL_RUN_STATE = {
   bossTier: 1,
   bossAccentColor: "#e11d48",
   upgrades: INITIAL_UPGRADES,
+  passives: INITIAL_PASSIVES,
+  pendingChestReward: null,
+  frenzyActive: false,
+  frenzyTimer: 0,
+  normalEnemyKillsForFrenzy: 0,
+  nextFrenzyKillThreshold: 75,
   gameStatus: "idle" as GameStatus,
   notification: null,
 };
@@ -182,8 +218,16 @@ export const useGameStore = create<GameState>((set) => ({
 
       return {
         shield: newShield,
-        health: newHealth,
-        gameStatus: newHealth <= 0 ? "gameover" : state.gameStatus,
+        health: newHealth <= 0 && state.passives.phoenix_fragment > 0 ? Math.ceil(state.maxHealth * 0.4) : newHealth,
+        passives:
+          newHealth <= 0 && state.passives.phoenix_fragment > 0
+            ? { ...state.passives, phoenix_fragment: state.passives.phoenix_fragment - 1 }
+            : state.passives,
+        notification:
+          newHealth <= 0 && state.passives.phoenix_fragment > 0
+            ? { title: "PHOENIX REVIVE", subtitle: "Revived at 40% HP", timestamp: Date.now() }
+            : state.notification,
+        gameStatus: newHealth <= 0 && state.passives.phoenix_fragment <= 0 ? "gameover" : state.gameStatus,
       };
     }),
 
@@ -258,6 +302,77 @@ export const useGameStore = create<GameState>((set) => ({
       };
     }),
 
+  openChestReward: (rarity) =>
+    set((state) => {
+      const choices = (Object.keys(state.upgrades) as UpgradeId[])
+        .filter((id) => state.upgrades[id] < MAX_UPGRADE_LEVEL)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
+
+      if (choices.length === 0) {
+        return {
+          health: Math.min(state.maxHealth, state.health + (rarity === "legendary" ? 35 : 20)),
+          shield: Math.min(state.maxShield, state.shield + (rarity === "common" ? 15 : rarity === "rare" ? 25 : 50)),
+          score: state.score + (rarity === "legendary" ? 500 : rarity === "rare" ? 200 : 100),
+          notification: { title: "CHEST CONVERTED", subtitle: "All upgrades maxed: recovery + score", timestamp: Date.now() },
+          gameStatus: "playing",
+          pendingChestReward: null,
+        };
+      }
+
+      return {
+        pendingChestReward: { rarity, choices },
+        gameStatus: "chest",
+      };
+    }),
+
+  claimChestReward: (upgradeId) =>
+    set((state) => {
+      if (!state.pendingChestReward) return state;
+      const rarity = state.pendingChestReward.rarity;
+      const currentTier = state.upgrades[upgradeId] || 0;
+      const newUpgrades = {
+        ...state.upgrades,
+        [upgradeId]: Math.min(MAX_UPGRADE_LEVEL, currentTier + 1),
+      };
+      const vitalityHp = upgradeId === "vitality" ? 30 : 0;
+      const rarityHp = rarity === "legendary" ? 35 : 0;
+      const rarityShield = rarity === "legendary" ? 50 : rarity === "rare" ? 25 : 0;
+      const newMaxHealth = state.maxHealth + vitalityHp;
+
+      return {
+        upgrades: newUpgrades,
+        maxHealth: newMaxHealth,
+        health: Math.min(newMaxHealth, state.health + vitalityHp + rarityHp),
+        shield: Math.min(state.maxShield, state.shield + rarityShield),
+        score: state.score + (rarity === "legendary" ? 500 : 0),
+        pendingChestReward: null,
+        gameStatus: "playing",
+      };
+    }),
+
+  addPassive: (type) =>
+    set((state) => {
+      const nextCount = Math.min(SPECIAL_PICKUP_CONFIG.maxStacks, state.passives[type] + 1);
+      const visual = SPECIAL_PICKUP_CONFIG.visuals[type];
+      return {
+        passives: { ...state.passives, [type]: nextCount },
+        notification: {
+          title: visual.name.toUpperCase(),
+          subtitle: `${visual.subtitle} · Stack ${nextCount}/${SPECIAL_PICKUP_CONFIG.maxStacks}`,
+          timestamp: Date.now(),
+        },
+      };
+    }),
+
+  setFrenzyState: (frenzy) =>
+    set({
+      frenzyActive: frenzy.active,
+      frenzyTimer: Math.max(0, frenzy.timer),
+      normalEnemyKillsForFrenzy: frenzy.kills,
+      nextFrenzyKillThreshold: frenzy.nextThreshold,
+    }),
+
   setTimeSurvived: (seconds) =>
     set({ timeSurvivedSeconds: Math.max(0, Math.floor(seconds)) }),
 
@@ -285,6 +400,8 @@ export const useGameStore = create<GameState>((set) => ({
     set((state) => ({
       ...INITIAL_RUN_STATE,
       selectedCharacterId: state.selectedCharacterId,
+      upgrades: { ...INITIAL_UPGRADES },
+      passives: { ...INITIAL_PASSIVES },
       gameStatus: "playing",
     })),
 
@@ -312,6 +429,12 @@ export const useGameStore = create<GameState>((set) => ({
       bossTier: 1,
       bossAccentColor: "#e11d48",
       upgrades: { ...INITIAL_UPGRADES },
+      passives: { ...INITIAL_PASSIVES },
+      pendingChestReward: null,
+      frenzyActive: false,
+      frenzyTimer: 0,
+      normalEnemyKillsForFrenzy: 0,
+      nextFrenzyKillThreshold: 75,
       gameStatus: "playing",
       notification: null,
     })),

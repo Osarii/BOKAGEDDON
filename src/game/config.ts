@@ -166,8 +166,8 @@ export const BOSS_CONFIGS: Record<
     name: "bonklord",
     displayName: "Bonklord",
     accentColor: "#e11d48",
-    baseHp: 1200,
-    baseDamage: 25,
+    baseHp: 5000,
+    baseDamage: 31,
     speed: 2.6,
     attackCooldown: 3.5,
     description: "Titan warhammer & shockwave stomp",
@@ -176,8 +176,8 @@ export const BOSS_CONFIGS: Record<
     name: "cindermaw",
     displayName: "Cindermaw",
     accentColor: "#f97316",
-    baseHp: 1350,
-    baseDamage: 28,
+    baseHp: 6000,
+    baseDamage: 35,
     speed: 2.4,
     attackCooldown: 3.8,
     description: "Volcanic fire drake, meteor strikes & burning ground",
@@ -186,8 +186,8 @@ export const BOSS_CONFIGS: Record<
     name: "stormcoil",
     displayName: "Stormcoil",
     accentColor: "#00e5ff",
-    baseHp: 1100,
-    baseDamage: 22,
+    baseHp: 4800,
+    baseDamage: 27,
     speed: 3.0,
     attackCooldown: 3.2,
     description: "Levitating electrical construct & radial volt pulses",
@@ -196,8 +196,8 @@ export const BOSS_CONFIGS: Record<
     name: "venomatrix",
     displayName: "Venomatrix",
     accentColor: "#22c55e",
-    baseHp: 1250,
-    baseDamage: 24,
+    baseHp: 5500,
+    baseDamage: 30,
     speed: 2.7,
     attackCooldown: 3.4,
     description: "Acidic chitin hydra, toxic volleys & poison pools",
@@ -206,8 +206,8 @@ export const BOSS_CONFIGS: Record<
     name: "cryovex",
     displayName: "Cryovex",
     accentColor: "#38bdf8",
-    baseHp: 1400,
-    baseDamage: 20,
+    baseHp: 6500,
+    baseDamage: 25,
     speed: 2.2,
     attackCooldown: 3.6,
     description: "Glacial crystal spire, ice shards & frost slow",
@@ -346,19 +346,32 @@ export const SPECIAL_PICKUP_CONFIG = {
   maxActiveSpecialPickups: 4,
   normalEnemyDropChance: 0, // Normal enemies never drop special items per contract
   bruteDropChance: 0,
-  buffDurations: {
-    overclock_core: 8.0,
-    tesla_cell: 10.0,
-    toxic_relic: 10.0,
-    phoenix_fragment: 8.0,
-  },
+  maxStacks: 5,
   visuals: {
-    overclock_core: { name: "Overclock Core", subtitle: "Attack Speed Overdrive (+50%)!", color: "#ffb020", emissive: "#f59e0b" },
-    tesla_cell: { name: "Tesla Cell", subtitle: "Overcharged Electric Chain Arcs!", color: "#00e5ff", emissive: "#06b6d4" },
-    toxic_relic: { name: "Toxic Relic", subtitle: "2x Poison Toxicity Amplification!", color: "#22c55e", emissive: "#10b981" },
-    phoenix_fragment: { name: "Phoenix Fragment", subtitle: "+50 HP Healed & Flame Damage Surge (+40%)!", color: "#f43f5e", emissive: "#e11d48" },
+    overclock_core: { name: "Overclock Core", subtitle: "+15% permanent attack speed per stack", color: "#ffb020", emissive: "#f59e0b" },
+    tesla_cell: { name: "Tesla Cell", subtitle: "Permanent chain-lightning chance", color: "#00e5ff", emissive: "#06b6d4" },
+    toxic_relic: { name: "Toxic Relic", subtitle: "Permanent poison attacks", color: "#22c55e", emissive: "#10b981" },
+    phoenix_fragment: { name: "Phoenix Fragment", subtitle: "Permanent revive charge", color: "#f43f5e", emissive: "#e11d48" },
   },
 } as const;
+
+export const CHEST_CONFIG = {
+  normalDropChance: 0.025,
+  guaranteedNormalKills: 20,
+  maxActiveChests: 10,
+  weights: {
+    common: 70,
+    rare: 25,
+    legendary: 5,
+  },
+} as const;
+
+export function rollChestRarity(): "common" | "rare" | "legendary" {
+  const roll = Math.random() * 100;
+  if (roll < CHEST_CONFIG.weights.common) return "common";
+  if (roll < CHEST_CONFIG.weights.common + CHEST_CONFIG.weights.rare) return "rare";
+  return "legendary";
+}
 
 /**
  * Exactly one item dropped per boss defeat using one weighted roll (100% total).
@@ -393,6 +406,8 @@ export function rollBossLoot(): RecoveryPickupType | SpecialPickupType {
 export const RECOVERY_CONFIG = {
   maxActivePickups: 24,
   normalEnemyDropChance: 0.07,
+  lifetimeSec: 25,
+  warningSec: 5,
   pickupEffects: {
     medkit_emergency: { hp: 35, shield: 0 },
     medkit_case: { hp: 70, shield: 0 },

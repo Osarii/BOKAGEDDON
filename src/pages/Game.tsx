@@ -4,6 +4,7 @@ import { GameScene } from "../scene/GameScene";
 import { HUDShell } from "../components/game/HUDShell";
 import { LevelUpOverlay } from "../components/game/LevelUpOverlay";
 import { PauseOverlay } from "../components/game/PauseOverlay";
+import { ChestRewardOverlay } from "../components/game/ChestRewardOverlay";
 import { GameOverOverlay } from "../components/game/GameOverOverlay";
 import { VictoryOverlay } from "../components/game/VictoryOverlay";
 import { useGameStore } from "../store/gameStore";
@@ -137,6 +138,9 @@ export const Game: React.FC = () => {
 
       {/* Level Up Choice Overlay */}
       <LevelUpOverlay />
+
+      {/* Chest Reward Overlay */}
+      <ChestRewardOverlay />
 
       {/* Game Over Overlay */}
       <GameOverOverlay

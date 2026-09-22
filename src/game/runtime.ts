@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import type { ElementalEffectType, EnemyType, HazardZoneType, PickupType } from "../types/game";
+import type { ChestRarity, ElementalEffectType, EnemyType, HazardZoneType, PickupType } from "../types/game";
+import { useGameStore } from "../store/gameStore";
 
 export interface EnemyEntity {
   id: number;
@@ -34,6 +35,7 @@ export interface EnemyEntity {
   poisonTickAcc?: number;
   frostTimer?: number;
   frostSlowPercent?: number;
+  frenzyHpBonus?: number;
 }
 
 export interface ProjectileEntity {
@@ -64,6 +66,17 @@ export interface PickupEntity {
   y: number;
   z: number;
   value: number; // For xp: xpValue; for medkit: HP heal; for shield: shield amount; for special: buff duration
+  radius: number;
+  lifetime?: number;
+  maxLifetime?: number;
+}
+
+export interface ChestEntity {
+  id: number;
+  rarity: ChestRarity;
+  x: number;
+  y: number;
+  z: number;
   radius: number;
 }
 
@@ -121,6 +134,7 @@ export interface GameRuntime {
   enemies: EnemyEntity[];
   projectiles: ProjectileEntity[];
   pickups: PickupEntity[];
+  chests: ChestEntity[];
   shockwaves: ShockwaveEffect[];
   delayedBursts: DelayedBurstEffect[];
   hazardZones: HazardZone[];
@@ -146,11 +160,11 @@ export interface GameRuntime {
   playerSlowTimer: number;
   playerSlowFactor: number;
 
-  // Temporary Special Item Buff Timers (decrement only during active gameplay)
-  overclockTimer: number;
-  teslaTimer: number;
-  toxicRelicTimer: number;
-  phoenixTimer: number;
+  normalEnemyKillsForChest: number;
+  normalEnemyKillsForFrenzy: number;
+  nextFrenzyKillThreshold: number;
+  frenzyActive: boolean;
+  frenzyTimer: number;
 
   reset: () => void;
 }
@@ -160,6 +174,7 @@ export function createGameRuntime(): GameRuntime {
     enemies: [],
     projectiles: [],
     pickups: [],
+    chests: [],
     shockwaves: [],
     delayedBursts: [],
     hazardZones: [],
@@ -180,14 +195,16 @@ export function createGameRuntime(): GameRuntime {
     intermissionTimer: 0,
     playerSlowTimer: 0,
     playerSlowFactor: 1.0,
-    overclockTimer: 0,
-    teslaTimer: 0,
-    toxicRelicTimer: 0,
-    phoenixTimer: 0,
+    normalEnemyKillsForChest: 0,
+    normalEnemyKillsForFrenzy: 0,
+    nextFrenzyKillThreshold: 75,
+    frenzyActive: false,
+    frenzyTimer: 0,
     reset: () => {
       runtime.enemies = [];
       runtime.projectiles = [];
       runtime.pickups = [];
+      runtime.chests = [];
       runtime.shockwaves = [];
       runtime.delayedBursts = [];
       runtime.hazardZones = [];
@@ -208,12 +225,42 @@ export function createGameRuntime(): GameRuntime {
       runtime.intermissionTimer = 0;
       runtime.playerSlowTimer = 0;
       runtime.playerSlowFactor = 1.0;
-      runtime.overclockTimer = 0;
-      runtime.teslaTimer = 0;
-      runtime.toxicRelicTimer = 0;
-      runtime.phoenixTimer = 0;
+      runtime.normalEnemyKillsForChest = 0;
+      runtime.normalEnemyKillsForFrenzy = 0;
+      runtime.nextFrenzyKillThreshold = 75;
+      runtime.frenzyActive = false;
+      runtime.frenzyTimer = 0;
     },
   };
 
   return runtime;
+}
+
+export function damagePlayer(runtime: GameRuntime, amount: number, invulnerableSeconds: number): void {
+  const beforePhoenix = useGameStore.getState().passives.phoenix_fragment;
+  useGameStore.getState().takeDamage(amount);
+  const afterPhoenix = useGameStore.getState().passives.phoenix_fragment;
+  const revived = afterPhoenix < beforePhoenix;
+  runtime.playerInvulnerableTimer = Math.max(runtime.playerInvulnerableTimer, revived ? 2 : invulnerableSeconds);
+
+  if (revived) {
+    const p = runtime.playerPosition;
+    for (let i = 0; i < 28 && runtime.particles.length < 250; i++) {
+      const a = (i / 28) * Math.PI * 2;
+      runtime.particles.push({
+        id: runtime.nextEntityId++,
+        type: "burn",
+        x: p.x,
+        y: 0.8,
+        z: p.z,
+        vx: Math.cos(a) * (2.5 + Math.random() * 2),
+        vy: 1.2 + Math.random() * 2,
+        vz: Math.sin(a) * (2.5 + Math.random() * 2),
+        life: 0,
+        maxLife: 0.9,
+        color: i % 2 ? "#f97316" : "#f43f5e",
+        size: 0.32,
+      });
+    }
+  }
 }
