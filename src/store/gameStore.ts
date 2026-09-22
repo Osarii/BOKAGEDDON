@@ -304,6 +304,10 @@ export const useGameStore = create<GameState>((set) => ({
 
   openChestReward: (rarity) =>
     set((state) => {
+      if (state.gameStatus !== "playing" || state.pendingLevelUps > 0) {
+        return state;
+      }
+
       const choices = (Object.keys(state.upgrades) as UpgradeId[])
         .filter((id) => state.upgrades[id] < MAX_UPGRADE_LEVEL)
         .sort(() => Math.random() - 0.5)
@@ -315,7 +319,7 @@ export const useGameStore = create<GameState>((set) => ({
           shield: Math.min(state.maxShield, state.shield + (rarity === "common" ? 15 : rarity === "rare" ? 25 : 50)),
           score: state.score + (rarity === "legendary" ? 500 : rarity === "rare" ? 200 : 100),
           notification: { title: "CHEST CONVERTED", subtitle: "All upgrades maxed: recovery + score", timestamp: Date.now() },
-          gameStatus: "playing",
+          gameStatus: state.pendingLevelUps > 0 ? "levelup" : "playing",
           pendingChestReward: null,
         };
       }
@@ -347,7 +351,7 @@ export const useGameStore = create<GameState>((set) => ({
         shield: Math.min(state.maxShield, state.shield + rarityShield),
         score: state.score + (rarity === "legendary" ? 500 : 0),
         pendingChestReward: null,
-        gameStatus: "playing",
+        gameStatus: state.pendingLevelUps > 0 ? "levelup" : "playing",
       };
     }),
 

@@ -333,11 +333,14 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     }
 
     for (let i = runtime.chests.length - 1; i >= 0; i--) {
+      if (useGameStore.getState().gameStatus !== "playing") break;
       const chest = runtime.chests[i];
       if (Math.hypot(playerPos.x - chest.x, playerPos.z - chest.z) < chest.radius + 0.45) {
         useGameStore.getState().openChestReward(chest.rarity);
-        gameAudio.play("ui");
-        runtime.chests.splice(i, 1);
+        if (useGameStore.getState().gameStatus === "chest") {
+          gameAudio.play("ui");
+          runtime.chests.splice(i, 1);
+        }
       }
     }
 

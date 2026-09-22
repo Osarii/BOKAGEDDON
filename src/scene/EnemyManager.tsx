@@ -144,6 +144,12 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
   // Last synced boss HP
   const lastBossHpRef = useRef<number>(-1);
+  const lastFrenzySyncRef = useRef({
+    active: false,
+    seconds: 0,
+    kills: 0,
+    nextThreshold: 75,
+  });
 
   // Shared reusable 3D geometries with distinct silhouettes
   const geometries = useMemo(() => {
@@ -360,12 +366,27 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
         }
       }
     }
-    useGameStore.getState().setFrenzyState({
-      active: runtime.frenzyActive,
-      timer: runtime.frenzyTimer,
-      kills: runtime.normalEnemyKillsForFrenzy,
-      nextThreshold: runtime.nextFrenzyKillThreshold,
-    });
+    const frenzySeconds = Math.ceil(runtime.frenzyTimer);
+    const lastFrenzy = lastFrenzySyncRef.current;
+    if (
+      lastFrenzy.active !== runtime.frenzyActive ||
+      lastFrenzy.seconds !== frenzySeconds ||
+      lastFrenzy.kills !== runtime.normalEnemyKillsForFrenzy ||
+      lastFrenzy.nextThreshold !== runtime.nextFrenzyKillThreshold
+    ) {
+      lastFrenzySyncRef.current = {
+        active: runtime.frenzyActive,
+        seconds: frenzySeconds,
+        kills: runtime.normalEnemyKillsForFrenzy,
+        nextThreshold: runtime.nextFrenzyKillThreshold,
+      };
+      useGameStore.getState().setFrenzyState({
+        active: runtime.frenzyActive,
+        timer: frenzySeconds,
+        kills: runtime.normalEnemyKillsForFrenzy,
+        nextThreshold: runtime.nextFrenzyKillThreshold,
+      });
+    }
 
     // Player contact damage cooldown
     if (runtime.playerInvulnerableTimer > 0) {
