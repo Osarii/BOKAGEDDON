@@ -12,6 +12,24 @@ interface PlayerPlaceholderProps {
 
 const defaultBlackColor = new THREE.Color("#000000");
 
+// Base attack cooldowns for each weapon
+const WEAPON_COOLDOWNS: Record<string, number> = {
+  bonk: 1.2,
+  byte: 0.4,
+  tank: 0.9,
+  nova: 1.0,
+  hex: 0.8,
+};
+
+// Attack animation phase durations (seconds)
+const ATTACK_TIMINGS: Record<string, { anticipation: number; release: number; recovery: number }> = {
+  bonk: { anticipation: 0.22, release: 0.16, recovery: 0.24 },
+  byte: { anticipation: 0.10, release: 0.08, recovery: 0.10 },
+  tank: { anticipation: 0.20, release: 0.15, recovery: 0.22 },
+  nova: { anticipation: 0.20, release: 0.16, recovery: 0.22 },
+  hex: { anticipation: 0.18, release: 0.14, recovery: 0.20 },
+};
+
 export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   runtimeRef,
 }) => {
@@ -21,6 +39,13 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   const weaponGroupRef = useRef<THREE.Group>(null);
   const coreMeshRef = useRef<THREE.Mesh>(null);
 
+  // Procedural attack release VFX groups
+  const bonkArcGroupRef = useRef<THREE.Group>(null);
+  const bytePulseGroupRef = useRef<THREE.Group>(null);
+  const tankCleaveGroupRef = useRef<THREE.Group>(null);
+  const novaRingGroupRef = useRef<THREE.Group>(null);
+  const hexTrailGroupRef = useRef<THREE.Group>(null);
+
   // References for dynamic hit-flash material tints
   const flashMaterialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
 
@@ -28,6 +53,16 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   const keysRef = useRef<Record<string, boolean>>({});
   const lastFacingRef = useRef<number>(0);
   const walkCycleRef = useRef<number>(0);
+  const animTimeRef = useRef<number>(0);
+
+  // Attack cycle state tracking
+  const prevAttackTimerRef = useRef<number>(0);
+  const releaseTimerRef = useRef<number>(0);
+  const recoveryTimerRef = useRef<number>(0);
+
+  // Damage reaction state tracking
+  const prevInvulnTimerRef = useRef<number>(0);
+  const hitReactionTimerRef = useRef<number>(0);
 
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId) || "bonk";
 
@@ -62,12 +97,11 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   }, []);
 
   // Frame-rate independent movement and visual animation loop
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!bodyRef.current) return;
 
     const runtime = runtimeRef.current;
     const gameStatus = useGameStore.getState().gameStatus;
-    const time = state.clock.elapsedTime;
 
     // Halt physics velocity when paused / level-up / game over
     if (gameStatus !== "playing") {
@@ -78,34 +112,40 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     const upgrades = useGameStore.getState().upgrades;
     const baseSpeed = CHARACTER_BASE_SPEEDS[selectedCharacterId] || 5.0;
 
-    // Decrement player slow timer during active gameplay
-    if (runtime) {
-      if (runtime.playerSlowTimer > 0) {
-        runtime.playerSlowTimer = Math.max(0, runtime.playerSlowTimer - delta);
-        if (runtime.playerSlowTimer === 0) {
-          runtime.playerSlowFactor = 1.0;
-        } else if (Math.random() < 0.1 && runtime.particles.length < 250) {
-          // Subtle chill motes trailing behind slowed player
-          runtime.particles.push({
-            id: runtime.nextEntityId++,
-            type: "frost",
-            x: runtime.playerPosition.x + (Math.random() - 0.5) * 0.5,
-            y: 0.3,
-            z: runtime.playerPosition.z + (Math.random() - 0.5) * 0.5,
-            vx: (Math.random() - 0.5) * 0.3,
-            vy: 0.2,
-            vz: (Math.random() - 0.5) * 0.3,
-            color: "#38bdf8",
-            size: 0.1,
-            life: 0,
-            maxLife: 0.35,
-          });
-        }
+    // Frost slowdown presentation & runtime tracking
+    const isSlowed = !!(runtime && runtime.playerSlowTimer > 0);
+    if (runtime && isSlowed) {
+      runtime.playerSlowTimer = Math.max(0, runtime.playerSlowTimer - delta);
+      if (runtime.playerSlowTimer === 0) {
+        runtime.playerSlowFactor = 1.0;
+      } else if (Math.random() < 0.12 && runtime.particles.length < 250) {
+        // Subtle chill motes trailing behind slowed player
+        runtime.particles.push({
+          id: runtime.nextEntityId++,
+          type: "frost",
+          x: runtime.playerPosition.x + (Math.random() - 0.5) * 0.5,
+          y: 0.3,
+          z: runtime.playerPosition.z + (Math.random() - 0.5) * 0.5,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: 0.2,
+          vz: (Math.random() - 0.5) * 0.3,
+          color: "#38bdf8",
+          size: 0.1,
+          life: 0,
+          maxLife: 0.35,
+        });
       }
     }
 
-    const slowFactor = runtime && runtime.playerSlowTimer > 0 ? runtime.playerSlowFactor : 1.0;
+    // Preserve existing gameplay slow value
+    const slowFactor = isSlowed && runtime ? runtime.playerSlowFactor : 1.0;
     const speed = baseSpeed * (1 + (upgrades.speed || 0) * 0.15) * slowFactor;
+
+    // Animation cadence reduction during active frost slow
+    const cadenceMultiplier = isSlowed ? Math.max(0.45, slowFactor) : 1.0;
+    const animDelta = delta * cadenceMultiplier;
+    animTimeRef.current += animDelta;
+    const animTime = animTimeRef.current;
 
     const keys = keysRef.current;
 
@@ -131,8 +171,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     }
 
     // Circular arena boundary tangential projection:
-    // When near or against the boundary, cancel any outward velocity component so the player
-    // glides smoothly along the perimeter without vibrating or snapping.
+    // Glides smoothly along perimeter without vibrating or snapping.
     const currentPos = bodyRef.current.translation();
     const distanceFromCenter = Math.hypot(currentPos.x, currentPos.z);
 
@@ -179,7 +218,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     // Smooth rotation towards movement direction (persists last facing when stopped)
     if (inputLength > 0) {
       lastFacingRef.current = Math.atan2(moveX, moveZ);
-      walkCycleRef.current += delta * speed * 2.8;
+      walkCycleRef.current += animDelta * speed * 2.8;
     }
 
     if (meshGroupRef.current) {
@@ -191,133 +230,484 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       meshGroupRef.current.rotation.y += diff * t;
     }
 
-    // Subtle walk stride / breathing idle animation on the inner visual anchor
-    if (modelAnchorRef.current) {
-      const isInvulnerable = !!(runtime && runtime.playerInvulnerableTimer > 0);
-      const isMoving = inputLength > 0;
+    // =========================================================================
+    // Attack Cycle Detection & Phase Calculations
+    // =========================================================================
+    const timing = ATTACK_TIMINGS[selectedCharacterId] || ATTACK_TIMINGS.bonk;
+    const baseCooldown = WEAPON_COOLDOWNS[selectedCharacterId] || 1.0;
+    const effectiveCooldown = baseCooldown / (1 + (upgrades.haste || 0) * 0.15);
 
-      if (isMoving) {
-        // Dynamic walking stride with subtle banking tilt
-        const strideBob = Math.abs(Math.sin(walkCycleRef.current)) * 0.1;
-        const strideRoll = Math.sin(walkCycleRef.current) * 0.06;
-        modelAnchorRef.current.position.y = strideBob;
-        modelAnchorRef.current.rotation.z = -strideRoll;
-        modelAnchorRef.current.rotation.x = 0.08; // Lean forward into motion
-      } else {
-        // Idle breathing motion
-        if (selectedCharacterId === "byte") {
-          // BYTE floats smoothly on hover repulsors
-          const hover = Math.sin(time * 3.5) * 0.08;
-          modelAnchorRef.current.position.y = 0.06 + hover;
-          modelAnchorRef.current.rotation.z = Math.sin(time * 2.0) * 0.03;
-          modelAnchorRef.current.rotation.x = 0;
-        } else if (selectedCharacterId === "nova") {
-          // NOVA floats on radiant cosmic repulsion
-          const hover = Math.sin(time * 3.8) * 0.09;
-          modelAnchorRef.current.position.y = 0.08 + hover;
-          modelAnchorRef.current.rotation.z = Math.sin(time * 1.8) * 0.04;
-          modelAnchorRef.current.rotation.x = 0;
-        } else if (selectedCharacterId === "hex") {
-          // HEX hovers with eerie void levitation
-          const hover = Math.sin(time * 2.6) * 0.07;
-          modelAnchorRef.current.position.y = 0.05 + hover;
-          modelAnchorRef.current.rotation.z = Math.sin(time * 2.2) * 0.03;
-          modelAnchorRef.current.rotation.x = 0;
-        } else {
-          // Grounded subtle breath
-          const breath = Math.sin(time * 4) * 0.03;
-          modelAnchorRef.current.position.y = breath;
-          modelAnchorRef.current.rotation.z = 0;
-          modelAnchorRef.current.rotation.x = 0;
-        }
+    if (runtime) {
+      // Attack trigger: CombatManager resets lastAttackTimer to 0 upon attack launch
+      if (runtime.lastAttackTimer < prevAttackTimerRef.current && prevAttackTimerRef.current > 0.05) {
+        releaseTimerRef.current = timing.release;
+        recoveryTimerRef.current = timing.recovery;
       }
+      prevAttackTimerRef.current = runtime.lastAttackTimer;
+    }
 
-      // Hit feedback: squash & stretch pulse on damage
-      if (isInvulnerable) {
-        const pulse = 1.0 + Math.sin(runtime!.playerInvulnerableTimer * 25) * 0.14;
-        modelAnchorRef.current.scale.set(pulse, 2 - pulse, pulse);
+    let attackPhase: "idle" | "movement" | "anticipation" | "release" | "recovery";
+    let phaseProgress: number;
+
+    if (releaseTimerRef.current > 0) {
+      releaseTimerRef.current -= delta;
+      attackPhase = "release";
+      phaseProgress = 1 - Math.max(0, releaseTimerRef.current) / timing.release;
+    } else if (recoveryTimerRef.current > 0) {
+      recoveryTimerRef.current -= delta;
+      attackPhase = "recovery";
+      phaseProgress = 1 - Math.max(0, recoveryTimerRef.current) / timing.recovery;
+    } else if (runtime && effectiveCooldown - runtime.lastAttackTimer <= timing.anticipation) {
+      attackPhase = "anticipation";
+      phaseProgress = 1 - Math.max(0, effectiveCooldown - runtime.lastAttackTimer) / timing.anticipation;
+    } else {
+      attackPhase = inputLength > 0 ? "movement" : "idle";
+      phaseProgress = 0;
+    }
+
+    // =========================================================================
+    // Damage Reaction System (Squash, Visual Kick & Flash)
+    // =========================================================================
+    const currentInvuln = runtime ? runtime.playerInvulnerableTimer : 0;
+    if (currentInvuln > prevInvulnTimerRef.current + 0.25) {
+      hitReactionTimerRef.current = 0.32;
+    }
+    prevInvulnTimerRef.current = currentInvuln;
+
+    let hitSquashY = 1.0;
+    let hitBulgeXZ = 1.0;
+    let hitKickZ = 0;
+
+    if (hitReactionTimerRef.current > 0) {
+      hitReactionTimerRef.current -= delta;
+      const hitProgress = 1 - Math.max(0, hitReactionTimerRef.current) / 0.32;
+      if (hitProgress < 0.35) {
+        // Rapid squash & visual recoil kick backward
+        const t = hitProgress / 0.35;
+        hitSquashY = 0.76 + t * 0.15;
+        hitBulgeXZ = 1.18 - t * 0.1;
+        hitKickZ = -0.18 * (1 - t);
       } else {
-        modelAnchorRef.current.scale.set(1, 1, 1);
+        // Smooth exponential recovery to neutral stance
+        const t = (hitProgress - 0.35) / 0.65;
+        hitSquashY = 0.91 + t * 0.09;
+        hitBulgeXZ = 1.08 - t * 0.08;
+        hitKickZ = -0.05 * (1 - t);
       }
     }
 
-    // Character-specific weapon/core subtle animations
-    if (selectedCharacterId === "bonk") {
-      if (weaponGroupRef.current) {
-        // Hammer idle ready sway
-        const hammerSway = Math.sin(time * 3) * 0.08;
-        weaponGroupRef.current.rotation.z = -0.25 + hammerSway;
-        weaponGroupRef.current.rotation.x = 0.2 + hammerSway * 0.5;
-      }
-      if (coreMeshRef.current) {
-        // Subtle gold chest crest pulse
-        const crestGlow = 0.8 + Math.sin(time * 3.5) * 0.3;
-        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = crestGlow;
-      }
-    } else if (selectedCharacterId === "byte") {
-      if (weaponGroupRef.current) {
-        // Orbiting energy satellite
-        weaponGroupRef.current.rotation.y = time * 3.2;
-        weaponGroupRef.current.position.y = 0.2 + Math.sin(time * 4) * 0.06;
-      }
-      if (coreMeshRef.current) {
-        // Pulsing chest core
-        const coreGlow = 1.3 + Math.sin(time * 6) * 0.5;
-        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = coreGlow;
-      }
-    } else if (selectedCharacterId === "tank") {
-      if (weaponGroupRef.current) {
-        // Heavy ready stance / subtle battleaxe sway
-        const axeSway = Math.sin(time * 2.5) * 0.05;
-        weaponGroupRef.current.rotation.z = 0.15 + axeSway;
-        weaponGroupRef.current.rotation.x = -0.1 + axeSway * 0.4;
-      }
-      if (coreMeshRef.current) {
-        // Pulsing crimson visor slit
-        const slitGlow = 1.4 + Math.sin(time * 3.2) * 0.4;
-        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = slitGlow;
-      }
-    } else if (selectedCharacterId === "nova") {
-      if (weaponGroupRef.current) {
-        // Rotating astral focus ring
-        weaponGroupRef.current.rotation.y = time * 2.4;
-        weaponGroupRef.current.rotation.z = Math.sin(time * 2.0) * 0.15;
-      }
-      if (coreMeshRef.current) {
-        // Pulsing cosmic star core
-        const coreGlow = 1.5 + Math.sin(time * 5.0) * 0.5;
-        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = coreGlow;
-      }
-    } else if (selectedCharacterId === "hex") {
-      if (weaponGroupRef.current) {
-        // Orbiting triad of void runic shards
-        weaponGroupRef.current.rotation.y = -time * 2.6;
-        weaponGroupRef.current.position.y = 0.12 + Math.sin(time * 3.2) * 0.06;
-      }
-      if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
-        // Eerie void eye pulse
-        const eyeGlow = 1.4 + Math.sin(time * 4.0) * 0.5;
-        (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = eyeGlow;
-        const parent = coreMeshRef.current.parent;
-        if (parent) {
-          const children = parent.children;
-          for (let i = 0; i < children.length; i++) {
-            const childMesh = children[i] as THREE.Mesh;
-            if (childMesh !== coreMeshRef.current && childMesh.material) {
-              (childMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = eyeGlow;
-            }
+    // =========================================================================
+    // Playable Character Distinct Procedural Motion Languages
+    // =========================================================================
+    if (modelAnchorRef.current) {
+      const anchor = modelAnchorRef.current;
+      const walk = walkCycleRef.current;
+
+      // Base transforms per character archetype
+      if (selectedCharacterId === "bonk") {
+        // BONK: Heavy Bruiser
+        if (attackPhase === "anticipation") {
+          // Visible hammer wind-up: torso rotation back, slight lift
+          anchor.position.set(0, 0.06 * phaseProgress, hitKickZ);
+          anchor.rotation.set(0.04, -0.32 * phaseProgress, -0.06 * phaseProgress);
+        } else if (attackPhase === "release") {
+          // Fast slam/swing: violent downward slam, forward snap
+          const slam = 1 - phaseProgress;
+          anchor.position.set(0, -0.08 * slam, hitKickZ);
+          anchor.rotation.set(0.35 * slam, 0.22 * slam, 0);
+        } else if (attackPhase === "recovery") {
+          // Heavy recoil vibration returning to ready
+          const rec = 1 - phaseProgress;
+          const vib = Math.sin(phaseProgress * 24) * 0.03 * rec;
+          anchor.position.set(0, vib, hitKickZ);
+          anchor.rotation.set(0.08 * rec, 0.05 * rec, 0);
+        } else if (attackPhase === "movement") {
+          // Strong step rhythm: punchy stride bob, shoulder sway, forward lean
+          const strideBob = Math.abs(Math.sin(walk * 1.1)) * 0.14;
+          const shoulderSway = Math.sin(walk * 0.55) * 0.08;
+          anchor.position.set(0, strideBob, hitKickZ);
+          anchor.rotation.set(0.12, 0, -shoulderSway);
+        } else {
+          // Idle: Heavy breathing, body weight shift, relaxed posture
+          const breath = Math.sin(animTime * 2.8) * 0.045;
+          const weightShift = Math.sin(animTime * 1.4) * 0.035;
+          anchor.position.set(0, breath, hitKickZ);
+          anchor.rotation.set(0.02, 0, weightShift);
+        }
+
+        // Hammer weapon motion
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            // Hammer lifted high over right shoulder
+            w.position.set(0.7, 0.1 + 0.35 * phaseProgress, 0.15 - 0.2 * phaseProgress);
+            w.rotation.set(-0.85 * phaseProgress, -0.2 * phaseProgress, -0.45);
+          } else if (attackPhase === "release") {
+            // Violent slam downward and forward
+            const slam = 1 - phaseProgress;
+            w.position.set(0.7, 0.1 - 0.25 * slam, 0.15 + 0.35 * slam);
+            w.rotation.set(1.2 * slam + 0.3, 0.25 * slam, -0.25);
+          } else if (attackPhase === "recovery") {
+            // Recoil bounce slowly settling back
+            const rec = 1 - phaseProgress;
+            const bounce = Math.sin(phaseProgress * 16) * 0.12 * rec;
+            w.position.set(0.7, 0.1 + bounce, 0.15);
+            w.rotation.set(0.2 + bounce, 0, -0.25);
+          } else if (attackPhase === "movement") {
+            // Hammer inertia trailing step cadence
+            const inertia = Math.sin(walk * 0.55) * 0.10;
+            w.position.set(0.7, 0.1, 0.15);
+            w.rotation.set(0.28 + inertia, 0, -0.22);
+          } else {
+            // Slow idle hammer sway
+            const sway = Math.sin(animTime * 1.8) * 0.08;
+            w.position.set(0.7, 0.1, 0.15);
+            w.rotation.set(0.18 + sway * 0.5, 0, -0.25 + sway);
           }
         }
+
+        // Chest crest glow
+        if (coreMeshRef.current) {
+          const boost = attackPhase === "anticipation" ? 2.2 * phaseProgress : 0;
+          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
+            0.8 + Math.sin(animTime * 3.5) * 0.3 + boost;
+        }
+      } else if (selectedCharacterId === "byte") {
+        // BYTE: Hovering Energy Caster
+        if (attackPhase === "anticipation") {
+          // Hover contraction: lifts slightly, slight back pitch
+          anchor.position.set(0, 0.14 + 0.06 * phaseProgress, hitKickZ);
+          anchor.rotation.set(-0.06 * phaseProgress, 0, 0);
+        } else if (attackPhase === "release") {
+          // Rapid release pulse: lightweight recoil kick
+          const rec = 1 - phaseProgress;
+          anchor.position.set(0, 0.14, hitKickZ - 0.12 * rec);
+          anchor.rotation.set(-0.12 * rec, 0, 0);
+        } else if (attackPhase === "recovery") {
+          const rec = 1 - phaseProgress;
+          anchor.position.set(0, 0.10 + 0.04 * rec, hitKickZ);
+          anchor.rotation.set(-0.04 * rec, 0, 0);
+        } else if (attackPhase === "movement") {
+          // Directional hover lean with banking
+          const hoverWave = Math.sin(animTime * 4.5) * 0.04;
+          anchor.position.set(0, 0.12 + hoverWave, hitKickZ);
+          anchor.rotation.set(0.18, 0, -moveX * 0.12);
+        } else {
+          // Idle: Smooth hover, vertical oscillation
+          const hover = Math.sin(animTime * 3.5) * 0.08;
+          const osc = Math.sin(animTime * 2.0) * 0.035;
+          anchor.position.set(0, 0.10 + hover, hitKickZ);
+          anchor.rotation.set(0, 0, osc);
+        }
+
+        // Energy orb satellite weapon motion
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            // Orb contracts inward closer to chest, spins 3x faster
+            const r = 0.55 - 0.28 * phaseProgress;
+            w.position.set(r, 0.25 + 0.05 * phaseProgress, 0.15);
+            w.rotation.y += animDelta * 12;
+          } else if (attackPhase === "release") {
+            // Rapid pulse expanding outward
+            const r = 0.27 + 0.35 * phaseProgress;
+            w.position.set(r, 0.25, 0.15);
+            w.rotation.y += animDelta * 8;
+          } else {
+            // Smooth orbit with weapon lag
+            const lagX = attackPhase === "movement" ? -moveX * 0.08 : 0;
+            w.position.set(0.55 + lagX, 0.25 + Math.sin(animTime * 4) * 0.06, 0.15);
+            w.rotation.y = animTime * 3.5;
+          }
+        }
+
+        // Core glow
+        if (coreMeshRef.current) {
+          const boost = attackPhase === "anticipation" ? 2.5 * phaseProgress : 0;
+          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
+            1.3 + Math.sin(animTime * 5.0) * 0.5 + boost;
+        }
+      } else if (selectedCharacterId === "tank") {
+        // TANK: Mechanical Axe Juggernaut
+        if (attackPhase === "anticipation") {
+          // Axe wind-back: Torso rotation back, mechanical lock
+          anchor.position.set(0, 0.02, hitKickZ);
+          anchor.rotation.set(0.04, -0.42 * phaseProgress, 0.06 * phaseProgress);
+        } else if (attackPhase === "release") {
+          // Aggressive cleave across
+          const cleave = 1 - phaseProgress;
+          anchor.position.set(0, -0.05 * cleave, hitKickZ);
+          anchor.rotation.set(0.18 * cleave, 0.55 * cleave, -0.1 * cleave);
+        } else if (attackPhase === "recovery") {
+          // Long visual follow-through
+          const rec = 1 - phaseProgress;
+          anchor.position.set(0, 0, hitKickZ);
+          anchor.rotation.set(0.05 * rec, 0.18 * rec, 0);
+        } else if (attackPhase === "movement") {
+          // Heavy stride: stomping body bob, armored lateral sway
+          const strideBob = Math.abs(Math.sin(walk * 0.85)) * 0.16;
+          const lateralSway = Math.sin(walk * 0.42) * 0.11;
+          anchor.position.set(0, strideBob, hitKickZ);
+          anchor.rotation.set(0.10, 0, -lateralSway);
+        } else {
+          // Idle: Restrained mechanical posture, subtle servo twitch
+          const servo = Math.sin(animTime * 2.0) * 0.025;
+          anchor.position.set(0, servo, hitKickZ);
+          anchor.rotation.set(0, 0, 0);
+        }
+
+        // Axe weapon motion
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            // Wind back wide
+            w.position.set(0.72, 0.1 + 0.15 * phaseProgress, -0.1 - 0.2 * phaseProgress);
+            w.rotation.set(0.2, -0.8 * phaseProgress, 0.6 * phaseProgress);
+          } else if (attackPhase === "release") {
+            // Aggressive forward cleave arc
+            const cleave = 1 - phaseProgress;
+            w.position.set(0.72 - 0.2 * cleave, 0.1 - 0.15 * cleave, 0.3 * cleave);
+            w.rotation.set(0.4 * cleave, 1.1 * cleave - 0.2, 0.15);
+          } else if (attackPhase === "recovery") {
+            const rec = 1 - phaseProgress;
+            w.position.set(0.72, 0.1, -0.1);
+            w.rotation.set(0.2, 0.25 * rec, 0.15);
+          } else {
+            // Weighted battleaxe posture
+            const sway = Math.sin(animTime * 2.2) * 0.05;
+            w.position.set(0.72, 0.1, -0.1);
+            w.rotation.set(-0.1 + sway * 0.4, 0.1, 0.18 + sway);
+          }
+        }
+
+        // Visor slit glow
+        if (coreMeshRef.current) {
+          const boost = attackPhase === "anticipation" ? 2.0 * phaseProgress : 0;
+          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
+            1.4 + Math.sin(animTime * 3.2) * 0.4 + boost;
+        }
+      } else if (selectedCharacterId === "nova") {
+        // NOVA: Astral Floating Caster
+        if (attackPhase === "anticipation") {
+          // Orbiting structures contract, body rises
+          anchor.position.set(0, 0.16 + 0.12 * phaseProgress, hitKickZ);
+          anchor.rotation.set(0, 0, 0);
+        } else if (attackPhase === "release") {
+          // Rapid expansion, small upward lift, soft recoil
+          const lift = 1 - phaseProgress;
+          anchor.position.set(0, 0.24 + 0.12 * lift, hitKickZ);
+          anchor.rotation.set(-0.10 * lift, 0, 0);
+        } else if (attackPhase === "recovery") {
+          const rec = 1 - phaseProgress;
+          anchor.position.set(0, 0.16 + 0.08 * rec, hitKickZ);
+          anchor.rotation.set(-0.04 * rec, 0, 0);
+        } else if (attackPhase === "movement") {
+          // Directional floating tilt with smooth recovery
+          const drift = Math.sin(animTime * 3.0) * 0.05;
+          anchor.position.set(0, 0.16 + drift, hitKickZ);
+          anchor.rotation.set(0.18, 0, -moveX * 0.08);
+        } else {
+          // Idle: Continuous levitation, slow astral orbit
+          const hover = Math.sin(animTime * 2.6) * 0.08;
+          const osc = Math.sin(animTime * 1.6) * 0.04;
+          anchor.position.set(0, 0.16 + hover, hitKickZ);
+          anchor.rotation.set(0, 0, osc);
+        }
+
+        // Astral ring weapon motion
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            // Rings contract tightly towards core
+            const s = 1.0 - 0.45 * phaseProgress;
+            w.scale.set(s, s, s);
+            w.rotation.y = animTime * 4.5;
+          } else if (attackPhase === "release") {
+            // Rapid outward burst
+            const s = 0.55 + 0.75 * phaseProgress;
+            w.scale.set(s, s, s);
+            w.rotation.y += animDelta * 6;
+          } else {
+            w.scale.set(1, 1, 1);
+            w.rotation.y = animTime * 2.0;
+            w.rotation.z = Math.sin(animTime * 1.5) * 0.15;
+          }
+        }
+
+        // Astral core glow
+        if (coreMeshRef.current) {
+          const boost = attackPhase === "anticipation" ? 2.8 * phaseProgress : 0;
+          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
+            1.5 + Math.sin(animTime * 4.5) * 0.5 + boost;
+        }
+      } else if (selectedCharacterId === "hex") {
+        // HEX: Unstable Void Controller
+        if (attackPhase === "anticipation") {
+          // Short body twist, rune orbit contraction
+          anchor.position.set(0, 0.08, hitKickZ);
+          anchor.rotation.set(0.04, -0.35 * phaseProgress, 0.08);
+        } else if (attackPhase === "release") {
+          // Violent outward release
+          const violent = 1 - phaseProgress;
+          anchor.position.set(0, 0.08 + 0.10 * violent, hitKickZ);
+          anchor.rotation.set(0.12 * violent, 0.45 * violent, -0.12 * violent);
+        } else if (attackPhase === "recovery") {
+          const rec = 1 - phaseProgress;
+          anchor.position.set(0, 0.08, hitKickZ);
+          anchor.rotation.set(0, 0.1 * rec, 0.07);
+        } else if (attackPhase === "movement") {
+          // Opposing lean: tilts slightly against momentum
+          anchor.position.set(0, 0.08 + Math.sin(animTime * 3.2) * 0.04, hitKickZ);
+          anchor.rotation.set(-0.06, 0, moveX * 0.08);
+        } else {
+          // Idle: Asymmetric hover, subtle rotational drift
+          const hover = Math.sin(animTime * 2.8) * 0.06;
+          const yawDrift = Math.sin(animTime * 1.1) * 0.06;
+          anchor.position.set(0, 0.08 + hover, hitKickZ);
+          anchor.rotation.set(0, yawDrift, 0.07 + Math.sin(animTime * 2.0) * 0.035);
+        }
+
+        // Void runic shards weapon motion
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            // Accelerated rotation & orbit contraction
+            const s = 1.0 - 0.4 * phaseProgress;
+            w.scale.set(s, s, s);
+            w.rotation.y = -animTime * 8.0;
+          } else if (attackPhase === "release") {
+            // Violent fling outward
+            const s = 0.6 + 0.8 * phaseProgress;
+            w.scale.set(s, s, s);
+            w.rotation.y -= animDelta * 10;
+          } else {
+            w.scale.set(1, 1, 1);
+            w.position.y = 0.12 + Math.sin(animTime * 3.2) * 0.06;
+            w.rotation.y = -animTime * 2.6;
+          }
+        }
+
+        // Void eye glow
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
+          const boost = attackPhase === "anticipation" ? 2.5 * phaseProgress : 0;
+          const eyeGlow = 1.4 + Math.sin(animTime * 4.0) * 0.5 + boost;
+          (coreMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = eyeGlow;
+        }
+      }
+
+      // Apply squash and stretch damage deformation
+      anchor.scale.set(hitBulgeXZ, hitSquashY, hitBulgeXZ);
+    }
+
+    // =========================================================================
+    // Procedural Attack Release VFX Animation
+    // =========================================================================
+    const isRelease = attackPhase === "release";
+
+    // 1. BONK: Orange/Gold Hammer Arc
+    if (bonkArcGroupRef.current) {
+      if (selectedCharacterId === "bonk" && isRelease) {
+        bonkArcGroupRef.current.visible = true;
+        const scale = 0.85 + phaseProgress * 0.65;
+        bonkArcGroupRef.current.scale.set(scale, scale, scale);
+        bonkArcGroupRef.current.rotation.y = -0.45 + phaseProgress * 0.9;
+        const mesh = bonkArcGroupRef.current.children[0] as THREE.Mesh;
+        if (mesh && mesh.material) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - phaseProgress);
+        }
+      } else {
+        bonkArcGroupRef.current.visible = false;
       }
     }
 
-    // Visual i-frame hit flash effect across registered materials
-    const isFlashing = !!(runtime && runtime.playerInvulnerableTimer > 0);
+    // 2. BYTE: Cyan Circular Pulse
+    if (bytePulseGroupRef.current) {
+      if (selectedCharacterId === "byte" && isRelease) {
+        bytePulseGroupRef.current.visible = true;
+        const scale = 0.5 + phaseProgress * 2.0;
+        bytePulseGroupRef.current.scale.set(scale, scale, scale);
+        const mesh = bytePulseGroupRef.current.children[0] as THREE.Mesh;
+        if (mesh && mesh.material) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - phaseProgress);
+        }
+      } else {
+        bytePulseGroupRef.current.visible = false;
+      }
+    }
+
+    // 3. TANK: Red/White Metallic Cleave Arc
+    if (tankCleaveGroupRef.current) {
+      if (selectedCharacterId === "tank" && isRelease) {
+        tankCleaveGroupRef.current.visible = true;
+        const scale = 0.85 + phaseProgress * 0.6;
+        tankCleaveGroupRef.current.scale.set(scale, scale, scale);
+        tankCleaveGroupRef.current.rotation.y = -0.55 + phaseProgress * 1.1;
+        const mesh = tankCleaveGroupRef.current.children[0] as THREE.Mesh;
+        if (mesh && mesh.material) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - phaseProgress);
+        }
+      } else {
+        tankCleaveGroupRef.current.visible = false;
+      }
+    }
+
+    // 4. NOVA: Expanding Astral Ring
+    if (novaRingGroupRef.current) {
+      if (selectedCharacterId === "nova" && isRelease) {
+        novaRingGroupRef.current.visible = true;
+        const scale = 0.6 + phaseProgress * 2.2;
+        novaRingGroupRef.current.scale.set(scale, scale, scale);
+        const children = novaRingGroupRef.current.children;
+        for (let i = 0; i < children.length; i++) {
+          const m = children[i] as THREE.Mesh;
+          if (m && m.material) {
+            (m.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - phaseProgress);
+          }
+        }
+      } else {
+        novaRingGroupRef.current.visible = false;
+      }
+    }
+
+    // 5. HEX: Procedural Void/Rune Trail
+    if (hexTrailGroupRef.current) {
+      if (selectedCharacterId === "hex" && isRelease) {
+        hexTrailGroupRef.current.visible = true;
+        const scale = 0.7 + phaseProgress * 1.6;
+        hexTrailGroupRef.current.scale.set(scale, scale, scale);
+        hexTrailGroupRef.current.rotation.y = phaseProgress * Math.PI;
+        const children = hexTrailGroupRef.current.children;
+        for (let i = 0; i < children.length; i++) {
+          const m = children[i] as THREE.Mesh;
+          if (m && m.material) {
+            (m.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - phaseProgress);
+          }
+        }
+      } else {
+        hexTrailGroupRef.current.visible = false;
+      }
+    }
+
+    // =========================================================================
+    // Dynamic Hit Flash, White/Crimson Damage Tint & Frost Feedback
+    // =========================================================================
+    const isFlashing = currentInvuln > 0;
+    const isWhiteFlash = hitReactionTimerRef.current > 0.20;
+
     flashMaterialsRef.current.forEach((mat) => {
       if (mat) {
-        if (isFlashing) {
+        if (isWhiteFlash) {
+          // Strong brief emissive white flash on initial damage impact
+          mat.emissive.set("#ffffff");
+          mat.emissiveIntensity = 1.5;
+        } else if (isFlashing) {
+          // Sustained damage reaction flash
           mat.emissive.set("#ef4444");
           mat.emissiveIntensity = 0.9;
+        } else if (isSlowed) {
+          // Subtle frosty blue/cyan feedback while preserving gameplay slow
+          mat.emissive.set("#38bdf8");
+          mat.emissiveIntensity = 0.35;
         } else {
           mat.emissive.copy(mat.userData.baseEmissive || defaultBlackColor);
           mat.emissiveIntensity = mat.userData.baseIntensity || 0;
@@ -1686,6 +2076,106 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
               transparent
               opacity={0.7}
               side={THREE.DoubleSide}
+            />
+          </mesh>
+        </group>
+
+        {/* ================================================================= */}
+        {/* PROCEDURAL ATTACK RELEASE VFX ARCS & PULSES                       */}
+        {/* ================================================================= */}
+        {/* BONK: Orange/Gold Hammer Arc */}
+        <group ref={bonkArcGroupRef} visible={false} position={[0, 0.25, 0.4]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.75, 1.45, 32, 1, -Math.PI / 3, (2 * Math.PI) / 3]} />
+            <meshBasicMaterial
+              color="#f59e0b"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.85}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* BYTE: Cyan Circular Pulse */}
+        <group ref={bytePulseGroupRef} visible={false} position={[0, 0.35, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.35, 0.55, 32]} />
+            <meshBasicMaterial
+              color="#00e5ff"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.85}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* TANK: Red/White Metallic Cleave Arc */}
+        <group ref={tankCleaveGroupRef} visible={false} position={[0, 0.35, 0.35]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.85, 1.65, 32, 1, -Math.PI / 2.4, (4 * Math.PI) / 5]} />
+            <meshBasicMaterial
+              color="#ef4444"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.85}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* NOVA: Expanding Astral Ring */}
+        <group ref={novaRingGroupRef} visible={false} position={[0, 0.4, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.45, 0.75, 32]} />
+            <meshBasicMaterial
+              color="#e879f9"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.85}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.2, 0.4, 32]} />
+            <meshBasicMaterial
+              color="#fbbf24"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.75}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* HEX: Procedural Void/Rune Trail */}
+        <group ref={hexTrailGroupRef} visible={false} position={[0, 0.3, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.5, 1.15, 32, 1, 0, (4 * Math.PI) / 3]} />
+            <meshBasicMaterial
+              color="#a855f7"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.85}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, Math.PI / 4]}>
+            <ringGeometry args={[0.3, 0.75, 32, 1, 0, Math.PI]} />
+            <meshBasicMaterial
+              color="#22c55e"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.75}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
             />
           </mesh>
         </group>

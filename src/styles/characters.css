@@ -1,0 +1,353 @@
+/* ==========================================================================
+   BONKAGEDDON Character Selection Presentation System
+   ========================================================================== */
+
+.characters-page-main {
+  padding: 3rem 1.5rem 5rem;
+  min-height: calc(100vh - 70px);
+}
+
+.characters-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  position: relative;
+}
+
+.characters-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, #ffffff 20%, var(--accent-orange) 80%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  text-shadow: 0 0 35px rgba(255, 107, 53, 0.35);
+}
+
+.characters-subtitle {
+  max-width: 580px;
+  margin: 0 auto;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.character-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1.75rem;
+  margin-top: 1rem;
+}
+
+/* Character Card */
+.character-select-card {
+  --card-accent: var(--char-color, #ff6b35);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(165deg, rgba(19, 27, 40, 0.96) 0%, rgba(11, 17, 25, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 1.6rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: transform 0.32s var(--ease-snappy),
+              border-color 0.32s ease,
+              box-shadow 0.32s ease;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Ambient dynamic back-glow on the card */
+.character-select-card::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, var(--card-accent) 0%, transparent 70%);
+  opacity: 0.12;
+  filter: blur(28px);
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* Hover and focus states */
+.character-select-card:hover,
+.character-select-card:focus-visible {
+  transform: translateY(-8px) scale(1.015);
+  border-color: var(--card-accent);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.65),
+              0 0 35px color-mix(in srgb, var(--card-accent) 25%, transparent),
+              0 0 0 1px var(--card-accent);
+}
+
+.character-select-card:hover::before,
+.character-select-card:focus-visible::before {
+  opacity: 0.3;
+  transform: scale(1.2);
+}
+
+/* Active / Selected champion state */
+.character-select-card.is-selected {
+  border-color: var(--card-accent);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6),
+              0 0 30px color-mix(in srgb, var(--card-accent) 35%, transparent),
+              0 0 0 2px var(--card-accent);
+}
+
+.selected-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: var(--card-accent);
+  color: #0b1119;
+  font-family: var(--font-heading);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 14px var(--card-accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Card Header */
+.character-card-top {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin-bottom: 1.1rem;
+}
+
+.character-portrait-box {
+  width: 76px;
+  height: 76px;
+  border-radius: 14px;
+  background: var(--bg-surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--card-accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--card-accent) 30%, transparent);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s var(--ease-snappy), box-shadow 0.3s ease;
+  flex-shrink: 0;
+}
+
+.character-select-card:hover .character-portrait-box,
+.character-select-card:focus-visible .character-portrait-box {
+  transform: scale(1.06);
+  box-shadow: 0 0 26px var(--card-accent);
+}
+
+.character-portrait-box img {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.character-select-card:hover .character-portrait-box img {
+  transform: scale(1.08);
+}
+
+.character-meta-info {
+  flex: 1;
+}
+
+.character-name-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--card-accent);
+  margin-bottom: 0.2rem;
+  text-shadow: 0 0 16px color-mix(in srgb, var(--card-accent) 40%, transparent);
+}
+
+.character-role-tag {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Description */
+.character-desc-text {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  min-height: 2.6rem;
+  margin-bottom: 1rem;
+}
+
+/* Stats list */
+.character-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-bottom: 1.1rem;
+  background: rgba(11, 17, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0.85rem;
+  border-radius: 10px;
+}
+
+.character-stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-cell-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-cell-value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+/* Weapon Bar */
+.character-weapon-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.weapon-icon-wrap {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s var(--ease-snappy);
+}
+
+.character-select-card:hover .weapon-icon-wrap,
+.character-select-card:focus-visible .weapon-icon-wrap {
+  transform: scale(1.22) rotate(-8deg);
+}
+
+.weapon-icon-wrap img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px var(--card-accent));
+}
+
+.weapon-name-display {
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Synergy Box */
+.character-synergy-banner {
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-top: 0.85rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.78rem;
+}
+
+.synergy-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.synergy-title-text {
+  font-weight: 700;
+  color: var(--card-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.8rem;
+}
+
+.synergy-req-pill {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--accent-warm);
+  background: rgba(255, 176, 32, 0.12);
+  border: 1px solid rgba(255, 176, 32, 0.25);
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
+.synergy-desc-text {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Select Button */
+.character-select-btn {
+  width: 100%;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.2rem;
+  border-radius: 10px;
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid var(--card-accent);
+  background: color-mix(in srgb, var(--card-accent) 18%, rgba(19, 27, 40, 0.9));
+  color: #ffffff;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.character-select-btn:hover,
+.character-select-card:focus-visible .character-select-btn {
+  background: var(--card-accent);
+  color: #0b1119;
+  box-shadow: 0 0 20px var(--card-accent);
+  transform: translateY(-2px);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .character-select-card,
+  .character-portrait-box,
+  .character-portrait-box img,
+  .weapon-icon-wrap,
+  .character-select-btn {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .character-select-card:hover,
+  .character-select-card:focus-visible {
+    transform: none !important;
+  }
+}
