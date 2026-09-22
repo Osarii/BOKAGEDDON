@@ -171,3 +171,20 @@
     filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
   }
 }
+
+.relic-vault-banner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0.85rem;
+  padding: 0.25rem 0;
+}
+
+.relic-vault-banner-img {
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  max-height: 80px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 14px rgba(251, 191, 36, 0.45));
+}

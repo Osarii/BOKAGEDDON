@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Venom Singularity">
+<title>Venom Singularity</title>
+<defs>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="7" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="3"/>
+  </filter>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset="0.45" stop-color="#8fa6bd"/>
+    <stop offset="1" stop-color="#22303f"/>
+  </linearGradient>
+</defs>
+
+
+<circle cx="128" cy="128" r="83" fill="#071511" stroke="#35f08c" stroke-width="7" filter="url(#glow)"/>
+<circle cx="128" cy="128" r="26" fill="#020707" stroke="#8dffbd" stroke-width="6"/>
+<path d="M49 128c19-39 48-59 79-59s60 20 79 59c-19 39-48 59-79 59s-60-20-79-59z" fill="none" stroke="#39ef8e" stroke-width="7"/>
+<path d="M128 48c31 19 48 45 48 80s-17 61-48 80c-31-19-48-45-48-80s17-61 48-80z" fill="none" stroke="#7a38d4" stroke-width="6"/>
+
+</svg>

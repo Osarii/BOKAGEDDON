@@ -2,12 +2,6 @@ import React from "react";
 import {
   Sparkles,
   X,
-  Shield,
-  Crosshair,
-  Orbit,
-  Heart,
-  Maximize2,
-  PlusCircle,
   Skull,
   Zap,
   Flame,
@@ -42,6 +36,10 @@ export const ChestRewardOverlay: React.FC = () => {
       : "Upgrade selection";
 
   const renderUpgradeIcon = (id: UpgradeId) => {
+    const src = (ASSETS.upgrades as Record<string, string>)[id];
+    if (src) {
+      return <img src={src} alt={id} />;
+    }
     switch (id) {
       case "fire":
         return <Flame size={44} color="#f97316" />;
@@ -51,26 +49,8 @@ export const ChestRewardOverlay: React.FC = () => {
         return <Zap size={44} color="#00e5ff" />;
       case "frost":
         return <Snowflake size={44} color="#38bdf8" />;
-      case "regeneration":
-        return <Heart size={44} color="#10b981" />;
-      case "barrier":
-        return <Shield size={44} color="#38bdf8" />;
-      case "area":
-        return <Maximize2 size={44} color="#a855f7" />;
-      case "recovery":
-        return <PlusCircle size={44} color="#34d399" />;
-      case "boss_hunter":
-        return <Crosshair size={44} color="#f43f5e" />;
-      case "executioner":
-        return <Skull size={44} color="#fbbf24" />;
-      case "precision":
-        return <Zap size={44} color="#f59e0b" />;
-      case "fortune":
-        return <Sparkles size={44} color="#eab308" />;
-      default: {
-        const src = (ASSETS.upgrades as Record<string, string>)[id];
-        return src ? <img src={src} alt="" /> : <Sparkles size={44} color="#23d5ff" />;
-      }
+      default:
+        return <Sparkles size={44} color="#23d5ff" />;
     }
   };
 
@@ -85,13 +65,13 @@ export const ChestRewardOverlay: React.FC = () => {
       case "phoenix_fragment":
         return <img src={ASSETS.items.phoenixFragment} alt="" />;
       case "aegis_capacitor":
-        return <Shield size={44} color="#06b6d4" />;
+        return <img src={ASSETS.items.aegisCapacitor} alt="" />;
       case "apex_lens":
-        return <Crosshair size={44} color="#f59e0b" />;
+        return <img src={ASSETS.items.apexLens} alt="" />;
       case "echo_prism":
-        return <Sparkles size={44} color="#a855f7" />;
+        return <img src={ASSETS.items.echoPrism} alt="" />;
       case "gravity_seed":
-        return <Orbit size={44} color="#6366f1" />;
+        return <img src={ASSETS.items.gravitySeed} alt="" />;
       default:
         return <Sparkles size={44} color="#fbbf24" />;
     }
@@ -100,6 +80,15 @@ export const ChestRewardOverlay: React.FC = () => {
   return (
     <div className="chest-reward-backdrop" role="dialog" aria-modal="true" aria-label="Chest Reward Selection">
       <section className={`chest-reward-panel ${pending.rarity}`}>
+        {pending.rarity === "legendary" && (
+          <div className="relic-vault-banner-container">
+            <img
+              src={ASSETS.ui.relicVaultBanner}
+              alt="Legendary Relic Vault"
+              className="relic-vault-banner-img"
+            />
+          </div>
+        )}
         <div className="chest-reward-title">
           <Sparkles size={24} className={pending.rarity === "legendary" ? "relic-vault-sparkle" : ""} />
           <div>

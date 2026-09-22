@@ -3,7 +3,7 @@ import type { Character } from "../../types/game";
 import { ASSETS } from "../../config/assets";
 import { UPGRADE_DETAILS } from "../../game/config";
 import { WEAPON_SYNERGIES } from "../../game/weaponSynergies";
-import { Heart, Zap, Swords, Clock, ArrowRight, ShieldCheck, Disc, Bomb, Sun } from "lucide-react";
+import { Heart, Zap, Swords, Clock, ArrowRight, ShieldCheck } from "lucide-react";
 
 interface CharacterCardProps {
   character: Character;
@@ -17,6 +17,9 @@ const WEAPON_ASSET_MAP: Record<string, string> = {
   axe: ASSETS.weapons.axe,
   "nova-burst": ASSETS.weapons.novaBurst,
   "hex-chain": ASSETS.weapons.hexChain,
+  "rift-disc": ASSETS.weapons.riftDisc,
+  "pulse-mine": ASSETS.weapons.pulseMine,
+  "light-lance": ASSETS.weapons.lightLance,
 };
 
 export const CharacterCard: React.FC<CharacterCardProps> = ({
@@ -67,10 +70,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             <img src={portraitUrl} alt={`${character.name} portrait`} loading="lazy" />
           ) : (
             <div className="character-portrait-fallback" style={{ color: character.color }}>
-              {character.id === "rift" && <Disc size={38} className="char-fallback-glyph" />}
-              {character.id === "fuse" && <Bomb size={38} className="char-fallback-glyph" />}
-              {character.id === "lux" && <Sun size={38} className="char-fallback-glyph" />}
-              {!["rift", "fuse", "lux"].includes(character.id) && <Swords size={38} className="char-fallback-glyph" />}
+              <Swords size={38} className="char-fallback-glyph" />
             </div>
           )}
         </div>
@@ -120,10 +120,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             <img src={weaponIcon} alt={character.weapon} />
           ) : (
             <span className="weapon-fallback-icon" style={{ color: character.color }}>
-              {character.weapon === "rift-disc" && <Disc size={20} />}
-              {character.weapon === "pulse-mine" && <Bomb size={20} />}
-              {character.weapon === "light-lance" && <Sun size={20} />}
-              {!["rift-disc", "pulse-mine", "light-lance"].includes(character.weapon) && <Swords size={20} />}
+              <Swords size={20} />
             </span>
           )}
         </div>

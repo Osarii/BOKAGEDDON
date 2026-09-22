@@ -43,11 +43,15 @@ Object.values(itemTextures).forEach((t) => {
 });
 
 // Shared textures loaded once at module scope for Special pickups
-const specialTextures: Partial<Record<SpecialPickupType, THREE.Texture>> = {
+const specialTextures: Record<SpecialPickupType, THREE.Texture> = {
   overclock_core: textureLoader.load(ASSETS.items.overclockCore),
   tesla_cell: textureLoader.load(ASSETS.items.teslaCell),
   toxic_relic: textureLoader.load(ASSETS.items.toxicRelic),
   phoenix_fragment: textureLoader.load(ASSETS.items.phoenixFragment),
+  aegis_capacitor: textureLoader.load(ASSETS.items.aegisCapacitor),
+  apex_lens: textureLoader.load(ASSETS.items.apexLens),
+  echo_prism: textureLoader.load(ASSETS.items.echoPrism),
+  gravity_seed: textureLoader.load(ASSETS.items.gravitySeed),
 };
 Object.values(specialTextures).forEach((t) => {
   t.colorSpace = THREE.SRGBColorSpace;
@@ -74,28 +78,7 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
   const gravityMeshRef = useRef<THREE.InstancedMesh>(null);
   const chestMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  // Procedural geometries for the 4 new relics
-  const aegisGeometry = useMemo(() => new THREE.CylinderGeometry(0.28, 0.28, 0.45, 12), []);
-  const apexGeometry = useMemo(() => new THREE.TorusGeometry(0.32, 0.1, 12, 24), []);
-  const echoGeometry = useMemo(() => new THREE.ConeGeometry(0.3, 0.5, 4), []);
-  const gravityGeometry = useMemo(() => new THREE.IcosahedronGeometry(0.32), []);
 
-  const aegisMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#06b6d4", emissive: "#22d3ee", emissiveIntensity: 0.6, roughness: 0.3 }),
-    []
-  );
-  const apexMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#f59e0b", emissive: "#ef4444", emissiveIntensity: 0.6, roughness: 0.3 }),
-    []
-  );
-  const echoMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#a855f7", emissive: "#8b5cf6", emissiveIntensity: 0.6, roughness: 0.2 }),
-    []
-  );
-  const gravityMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#6366f1", emissive: "#4338ca", emissiveIntensity: 0.7, roughness: 0.4 }),
-    []
-  );
 
   // Emerald gem geometry & material with computed bounds
   const gemGeometry = useMemo(() => {
@@ -207,6 +190,34 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       }),
       phoenix_fragment: new THREE.MeshBasicMaterial({
         map: specialTextures.phoenix_fragment,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      aegis_capacitor: new THREE.MeshBasicMaterial({
+        map: specialTextures.aegis_capacitor,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      apex_lens: new THREE.MeshBasicMaterial({
+        map: specialTextures.apex_lens,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      echo_prism: new THREE.MeshBasicMaterial({
+        map: specialTextures.echo_prism,
+        transparent: true,
+        alphaTest: 0.05,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      gravity_seed: new THREE.MeshBasicMaterial({
+        map: specialTextures.gravity_seed,
         transparent: true,
         alphaTest: 0.05,
         side: THREE.DoubleSide,
@@ -474,18 +485,8 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
         if (meshRef.current && count < MAX_SPECIAL_INSTANCES) {
           const bob = Math.sin(time * 4.5 + i * 0.9) * 0.12;
           tempPosition.set(p.x, 0.55 + bob, p.z);
-          // 2D image assets billboard facing camera; 3D procedural relics rotate
-          const isProcedural =
-            type === "aegis_capacitor" ||
-            type === "apex_lens" ||
-            type === "echo_prism" ||
-            type === "gravity_seed";
-
-          if (isProcedural) {
-            tempQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), time * 2.5 + i);
-          } else {
-            tempQuaternion.copy(state.camera.quaternion);
-          }
+          // All special pickups billboard facing the camera directly
+          tempQuaternion.copy(state.camera.quaternion);
 
           const pulse = 1.25 + Math.sin(time * 5 + i) * 0.1;
           tempScale.set(pulse, pulse, pulse);
@@ -635,28 +636,28 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       {/* Aegis Capacitor */}
       <instancedMesh
         ref={aegisMeshRef}
-        args={[aegisGeometry, aegisMaterial, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.aegis_capacitor, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 
       {/* Apex Lens */}
       <instancedMesh
         ref={apexMeshRef}
-        args={[apexGeometry, apexMaterial, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.apex_lens, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 
       {/* Echo Prism */}
       <instancedMesh
         ref={echoMeshRef}
-        args={[echoGeometry, echoMaterial, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.echo_prism, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 
       {/* Gravity Seed */}
       <instancedMesh
         ref={gravityMeshRef}
-        args={[gravityGeometry, gravityMaterial, MAX_SPECIAL_INSTANCES]}
+        args={[itemPlaneGeometry, specialMaterials.gravity_seed, MAX_SPECIAL_INSTANCES]}
         frustumCulled={false}
       />
 

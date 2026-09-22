@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="RIFT Portrait">
+<title>RIFT Portrait</title>
+<defs>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="7" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="3"/>
+  </filter>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset="0.45" stop-color="#8fa6bd"/>
+    <stop offset="1" stop-color="#22303f"/>
+  </linearGradient>
+</defs>
+<circle cx="256" cy="250" r="198" fill="#120a24" stroke="#8b5cf6" stroke-width="10"/>
+<ellipse cx="256" cy="258" rx="170" ry="55" fill="none" stroke="#8b5cf6" stroke-width="13" transform="rotate(-17 256 258)" filter="url(#glow)"/>
+<path d="M176 386c12-92 44-155 80-155s68 63 80 155z" fill="#1d1636" stroke="#aa84ff" stroke-width="9"/>
+<path d="M194 214 224 126h64l30 88-62 44z" fill="#211542" stroke="#d7c6ff" stroke-width="9"/>
+<path d="m222 176 34-23 34 23-13 37h-42z" fill="#7c3aed" filter="url(#glow)"/>
+<path d="M184 318 125 352M328 318l59 34" stroke="#aa84ff" stroke-width="18" stroke-linecap="round"/>
+<ellipse cx="377" cy="352" rx="55" ry="22" fill="#120a24" stroke="#b994ff" stroke-width="8" transform="rotate(-12 377 352)"/>
+
+</svg>

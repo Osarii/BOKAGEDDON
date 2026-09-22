@@ -18,10 +18,6 @@ import {
   Shield,
   Zap,
   Snowflake,
-  Maximize2,
-  PlusCircle,
-  Crosshair,
-  Orbit,
 } from "lucide-react";
 import { SECRET_PASSIVES } from "../../game/secretPassives";
 import type { SecretPassiveId, SpecialPickupType } from "../../types/game";
@@ -63,6 +59,10 @@ export const HUDShell: React.FC = () => {
   }, [notification]);
 
   const renderSmallUpgradeIcon = (id: UpgradeId) => {
+    const iconSrc = (ASSETS.upgrades as Record<string, string>)[id];
+    if (iconSrc) {
+      return <img src={iconSrc} alt={id} style={{ width: 16, height: 16, objectFit: "contain" }} />;
+    }
     switch (id) {
       case "fire":
         return <Flame size={14} color="#f97316" />;
@@ -72,26 +72,8 @@ export const HUDShell: React.FC = () => {
         return <Zap size={14} color="#00e5ff" />;
       case "frost":
         return <Snowflake size={14} color="#38bdf8" />;
-      case "regeneration":
-        return <Heart size={14} color="#10b981" />;
-      case "barrier":
-        return <Shield size={14} color="#38bdf8" />;
-      case "area":
-        return <Maximize2 size={14} color="#a855f7" />;
-      case "recovery":
-        return <PlusCircle size={14} color="#34d399" />;
-      case "boss_hunter":
-        return <Crosshair size={14} color="#f43f5e" />;
-      case "executioner":
-        return <Skull size={14} color="#fbbf24" />;
-      case "precision":
-        return <Zap size={14} color="#f59e0b" />;
-      case "fortune":
-        return <Sparkles size={14} color="#eab308" />;
-      default: {
-        const iconSrc = (ASSETS.upgrades as Record<string, string>)[id];
-        return iconSrc ? <img src={iconSrc} alt={id} style={{ width: 16, height: 16 }} /> : <Sparkles size={14} color="#23d5ff" />;
-      }
+      default:
+        return <Sparkles size={14} color="#23d5ff" />;
     }
   };
 
@@ -435,7 +417,11 @@ export const HUDShell: React.FC = () => {
                   }}
                   title={`${SECRET_PASSIVES[id].name}: ${SECRET_PASSIVES[id].effectDescription}`}
                 >
-                  <Sparkles size={15} color="#fbbf24" />
+                  <img
+                    src={ASSETS.secretPassives[id]}
+                    alt=""
+                    style={{ width: 16, height: 16, objectFit: "contain" }}
+                  />
                   <span style={{ color: "#fbbf24", fontWeight: 700 }}>{SECRET_PASSIVES[id].name}</span>
                 </div>
               ) : null
@@ -447,10 +433,10 @@ export const HUDShell: React.FC = () => {
             ["tesla_cell", "Tesla Cell", <img key="tc" src={ASSETS.items.teslaCell} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
             ["toxic_relic", "Toxic Relic", <img key="tr" src={ASSETS.items.toxicRelic} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
             ["phoenix_fragment", "Phoenix Charges", <img key="pf" src={ASSETS.items.phoenixFragment} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
-            ["aegis_capacitor", "Aegis Capacitor", <Shield key="ac" size={16} color="#06b6d4" />],
-            ["apex_lens", "Apex Lens", <Crosshair key="al" size={16} color="#f59e0b" />],
-            ["echo_prism", "Echo Prism", <Sparkles key="ep" size={16} color="#a855f7" />],
-            ["gravity_seed", "Gravity Seed", <Orbit key="gs" size={16} color="#6366f1" />],
+            ["aegis_capacitor", "Aegis Capacitor", <img key="ac" src={ASSETS.items.aegisCapacitor} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
+            ["apex_lens", "Apex Lens", <img key="al" src={ASSETS.items.apexLens} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
+            ["echo_prism", "Echo Prism", <img key="ep" src={ASSETS.items.echoPrism} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
+            ["gravity_seed", "Gravity Seed", <img key="gs" src={ASSETS.items.gravitySeed} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />],
           ] as Array<[SpecialPickupType, string, React.ReactNode]>).map(([id, label, iconNode]) =>
             (passives[id] || 0) > 0 ? (
               <div

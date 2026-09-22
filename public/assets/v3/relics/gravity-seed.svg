@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Gravity Seed">
+<title>Gravity Seed</title>
+<defs>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="7" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="3"/>
+  </filter>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset="0.45" stop-color="#8fa6bd"/>
+    <stop offset="1" stop-color="#22303f"/>
+  </linearGradient>
+</defs>
+
+
+<circle cx="128" cy="128" r="78" fill="#09091c" stroke="#6d5cff" stroke-width="7" filter="url(#glow)"/>
+<circle cx="128" cy="128" r="31" fill="#02030d" stroke="#d3c8ff" stroke-width="6"/>
+<path d="M40 128c28-25 57-38 88-38s60 13 88 38c-28 25-57 38-88 38s-60-13-88-38z" fill="none" stroke="#7565ff" stroke-width="7"/>
+<path d="M128 40c25 28 38 57 38 88s-13 60-38 88c-25-28-38-57-38-88s13-60 38-88z" fill="none" stroke="#a697ff" stroke-width="5" opacity=".8"/>
+<circle cx="128" cy="128" r="10" fill="#8b7cff" filter="url(#glow)"/>
+
+</svg>

@@ -33,3 +33,62 @@ The WebP assets are fully integrated into runtime 3D item billboards and HUD pas
 | `ASSETS.enemies.cryovex` | `/assets/enemies/cryovex.webp` | Integrated: Round 50 Boss (Frost) |
 
 The full 5-boss visual asset roster: Bonklord SVG plus four WebP boss identities are fully integrated into the 5-boss rotating encounter system with procedural 3D shells, decal emblems, telegraphs, and distinct combat mechanics.
+
+## V3 Expansion Visual Assets
+
+Source pack: `BONKAGEDDON_ASSET_PACK_V2_INTEGRATION_READY` (23 SVG assets).
+
+### Playable Survivors
+
+| Key | Public path | Status |
+| --- | --- | --- |
+| `ASSETS.characters.rift` / `portraits.rift` | `/assets/v3/characters/rift.svg` | Integrated: Character selection portrait & HUD run icon |
+| `ASSETS.characters.fuse` / `portraits.fuse` | `/assets/v3/characters/fuse.svg` | Integrated: Character selection portrait & HUD run icon |
+| `ASSETS.characters.lux` / `portraits.lux` | `/assets/v3/characters/lux.svg` | Integrated: Character selection portrait & HUD run icon |
+
+### Weapons
+
+| Key | Public path | Status |
+| --- | --- | --- |
+| `ASSETS.weapons.riftDisc` | `/assets/v3/weapons/rift-disc.svg` | Integrated: Character card & HUD loadout display |
+| `ASSETS.weapons.pulseMine` | `/assets/v3/weapons/pulse-mine.svg` | Integrated: Character card & HUD loadout display |
+| `ASSETS.weapons.lightLance` | `/assets/v3/weapons/light-lance.svg` | Integrated: Character card & HUD loadout display |
+
+### Expanded Normal Upgrades
+
+| Key | Public path | Status |
+| --- | --- | --- |
+| `ASSETS.upgrades.regeneration` | `/assets/v3/upgrades/regeneration.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+| `ASSETS.upgrades.barrier` | `/assets/v3/upgrades/barrier-matrix.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+| `ASSETS.upgrades.area` | `/assets/v3/upgrades/area-amplifier.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+| `ASSETS.upgrades.recovery` | `/assets/v3/upgrades/field-medic.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+| `ASSETS.upgrades.boss_hunter` | `/assets/v3/upgrades/boss-hunter.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+| `ASSETS.upgrades.executioner` | `/assets/v3/upgrades/execution-protocol.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+| `ASSETS.upgrades.precision` | `/assets/v3/upgrades/critical-power.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+| `ASSETS.upgrades.fortune` | `/assets/v3/upgrades/fortune.svg` | Integrated: Level-up, Chest reward, and HUD upgrade stack list |
+
+### Special Relics
+
+| Key | Public path | Status |
+| --- | --- | --- |
+| `ASSETS.items.aegisCapacitor` | `/assets/v3/relics/aegis-capacitor.svg` | Integrated: 3D world billboard pickup, Chest reward selection, and HUD passive inventory |
+| `ASSETS.items.apexLens` | `/assets/v3/relics/apex-lens.svg` | Integrated: 3D world billboard pickup, Chest reward selection, and HUD passive inventory |
+| `ASSETS.items.echoPrism` | `/assets/v3/relics/echo-prism.svg` | Integrated: 3D world billboard pickup, Chest reward selection, and HUD passive inventory |
+| `ASSETS.items.gravitySeed` | `/assets/v3/relics/gravity-seed.svg` | Integrated: 3D world billboard pickup, Chest reward selection, and HUD passive inventory |
+
+### Secret Passives
+
+| Key | Public path | Status |
+| --- | --- | --- |
+| `ASSETS.secretPassives.storm_engine` | `/assets/v3/secret-passives/storm-engine.svg` | Integrated: HUD secret passive emblem (displays only upon unlock) |
+| `ASSETS.secretPassives.venom_singularity` | `/assets/v3/secret-passives/venom-singularity.svg` | Integrated: HUD secret passive emblem (displays only upon unlock) |
+| `ASSETS.secretPassives.radiant_bastion` | `/assets/v3/secret-passives/radiant-bastion.svg` | Integrated: HUD secret passive emblem (displays only upon unlock) |
+| `ASSETS.secretPassives.apex_echo` | `/assets/v3/secret-passives/apex-echo.svg` | Integrated: HUD secret passive emblem (displays only upon unlock) |
+
+### UI & Chest Branding
+
+| Key | Public path | Status |
+| --- | --- | --- |
+| `ASSETS.ui.relicVaultBanner` | `/assets/v3/ui/relic-vault-banner.svg` | Integrated: Legendary Relic Vault modal banner branding in ChestRewardOverlay |
+
+All 23 expansion SVG assets are verified with transparent backgrounds, centralized in `src/config/assets.ts`, and cleanly supersede previous temporary procedural/Lucide fallbacks without runtime `/public` path references.

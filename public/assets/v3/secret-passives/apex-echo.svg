@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Apex Echo">
+<title>Apex Echo</title>
+<defs>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="7" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="3"/>
+  </filter>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset="0.45" stop-color="#8fa6bd"/>
+    <stop offset="1" stop-color="#22303f"/>
+  </linearGradient>
+</defs>
+
+
+<path d="m128 31 67 53-25 95-42 46-42-46-25-95z" fill="#120c23" stroke="#b176ff" stroke-width="8" filter="url(#glow)"/>
+<circle cx="128" cy="125" r="44" fill="none" stroke="#ff6d54" stroke-width="7"/>
+<circle cx="128" cy="125" r="19" fill="#ffd36e"/>
+<path d="M128 54v34M128 162v34M57 125h34M165 125h34" stroke="#eee3ff" stroke-width="5"/>
+
+</svg>

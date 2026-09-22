@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Echo Prism">
+<title>Echo Prism</title>
+<defs>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="7" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="3"/>
+  </filter>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset="0.45" stop-color="#8fa6bd"/>
+    <stop offset="1" stop-color="#22303f"/>
+  </linearGradient>
+</defs>
+
+
+<path d="m128 34 53 66-18 103H93L75 100z" fill="#150d24" stroke="#a675ff" stroke-width="8" filter="url(#glow)"/>
+<path d="m128 34 0 169M75 100h106M93 203l35-103 35 103" fill="none" stroke="#e8ddff" stroke-width="5"/>
+<path d="m128 100-35 103h70z" fill="#8b5cf6" opacity=".35"/>
+
+</svg>
