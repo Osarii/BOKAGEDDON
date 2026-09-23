@@ -23,11 +23,31 @@ const tempPosition = new THREE.Vector3();
 const tempScale = new THREE.Vector3();
 const tempQuaternion = new THREE.Quaternion();
 const tempRotation = new THREE.Euler();
+const tempChestMatrix = new THREE.Matrix4();
+const tempPartMatrix = new THREE.Matrix4();
+const tempPartPosition = new THREE.Vector3();
+const tempPartScale = new THREE.Vector3();
+const tempPartQuaternion = new THREE.Quaternion();
 const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -999, 0);
-const chestColors: Record<ChestRarity, THREE.Color> = {
-  common: new THREE.Color("#94a3b8"),
-  rare: new THREE.Color("#00e5ff"),
-  legendary: new THREE.Color("#fbbf24"),
+const chestPalette: Record<ChestRarity, { body: THREE.Color; lid: THREE.Color; trim: THREE.Color; core: THREE.Color }> = {
+  common: {
+    body: new THREE.Color("#1f2937"),
+    lid: new THREE.Color("#b9d7ff"),
+    trim: new THREE.Color("#5b6b80"),
+    core: new THREE.Color("#7dd3fc"),
+  },
+  rare: {
+    body: new THREE.Color("#06141f"),
+    lid: new THREE.Color("#0e7490"),
+    trim: new THREE.Color("#22d3ee"),
+    core: new THREE.Color("#67e8f9"),
+  },
+  legendary: {
+    body: new THREE.Color("#18130a"),
+    lid: new THREE.Color("#b7791f"),
+    trim: new THREE.Color("#f59e0b"),
+    core: new THREE.Color("#fde68a"),
+  },
 };
 
 // Shared textures loaded once at module scope strictly for Recovery pickups
@@ -76,7 +96,10 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
   const apexMeshRef = useRef<THREE.InstancedMesh>(null);
   const echoMeshRef = useRef<THREE.InstancedMesh>(null);
   const gravityMeshRef = useRef<THREE.InstancedMesh>(null);
-  const chestMeshRef = useRef<THREE.InstancedMesh>(null);
+  const chestBaseRef = useRef<THREE.InstancedMesh>(null);
+  const chestLidRef = useRef<THREE.InstancedMesh>(null);
+  const chestTrimRef = useRef<THREE.InstancedMesh>(null);
+  const chestCoreRef = useRef<THREE.InstancedMesh>(null);
 
 
 
@@ -110,21 +133,31 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
     return geo;
   }, []);
 
-  const chestGeometry = useMemo(() => {
-    const base = new THREE.BoxGeometry(0.9, 0.5, 0.6).translate(0, 0.25, 0);
-    base.computeBoundingSphere();
-    base.computeBoundingBox();
-    return base;
+  const chestUnitGeometry = useMemo(() => {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    geo.computeBoundingSphere();
+    geo.computeBoundingBox();
+    return geo;
   }, []);
 
-  const chestMaterial = useMemo(
+  const chestBodyMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: "#ffffff",
-        emissive: "#ffffff",
-        emissiveIntensity: 0.45,
-        roughness: 0.35,
-        metalness: 0.45,
+        roughness: 0.28,
+        metalness: 0.72,
+      }),
+    []
+  );
+
+  const chestCoreMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ffffff",
+        emissive: "#7dd3fc",
+        emissiveIntensity: 0.85,
+        roughness: 0.18,
+        metalness: 0.55,
       }),
     []
   );
@@ -273,13 +306,21 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       }
     });
 
-    if (chestMeshRef.current) {
-      chestMeshRef.current.count = 0;
-      for (let i = 0; i < MAX_CHEST_INSTANCES; i++) {
-        chestMeshRef.current.setMatrixAt(i, hiddenMatrix);
+    const chestRefs = [
+      chestBaseRef,
+      chestLidRef,
+      chestTrimRef,
+      chestCoreRef,
+    ];
+    chestRefs.forEach((ref) => {
+      if (ref.current) {
+        ref.current.count = 0;
+        for (let i = 0; i < MAX_CHEST_INSTANCES; i++) {
+          ref.current.setMatrixAt(i, hiddenMatrix);
+        }
+        ref.current.instanceMatrix.needsUpdate = true;
       }
-      chestMeshRef.current.instanceMatrix.needsUpdate = true;
-    }
+    });
   }, []);
 
   useFrame((state, delta) => {
@@ -545,24 +586,54 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       }
     });
 
-    if (chestMeshRef.current) {
+    if (chestBaseRef.current && chestLidRef.current && chestTrimRef.current && chestCoreRef.current) {
       const count = Math.min(runtime.chests.length, MAX_CHEST_INSTANCES);
-      chestMeshRef.current.count = count;
+      chestBaseRef.current.count = count;
+      chestLidRef.current.count = count;
+      chestTrimRef.current.count = count;
+      chestCoreRef.current.count = count;
+
+      const setChestPart = (
+        mesh: THREE.InstancedMesh,
+        index: number,
+        x: number,
+        y: number,
+        z: number,
+        sx: number,
+        sy: number,
+        sz: number,
+        color: THREE.Color
+      ) => {
+        tempPartPosition.set(x, y, z);
+        tempPartScale.set(sx, sy, sz);
+        tempPartMatrix.compose(tempPartPosition, tempPartQuaternion, tempPartScale);
+        tempPartMatrix.premultiply(tempChestMatrix);
+        mesh.setMatrixAt(index, tempPartMatrix);
+        mesh.setColorAt(index, color);
+      };
+
       for (let i = 0; i < count; i++) {
         const chest = runtime.chests[i];
         const bob = Math.sin(time * 3 + i) * 0.12;
-        tempPosition.set(chest.x, chest.y + bob, chest.z);
+        tempPosition.set(chest.x, chest.y + 0.38 + bob, chest.z);
         tempRotation.set(0, time * 1.5 + i, 0);
         tempQuaternion.setFromEuler(tempRotation);
         const pulse = 1 + Math.sin(time * 5 + i) * 0.08;
         tempScale.set(pulse, pulse, pulse);
-        tempMatrix.compose(tempPosition, tempQuaternion, tempScale);
-        chestMeshRef.current.setMatrixAt(i, tempMatrix);
-        chestMeshRef.current.setColorAt(i, chestColors[chest.rarity]);
+        tempChestMatrix.compose(tempPosition, tempQuaternion, tempScale);
+
+        const colors = chestPalette[chest.rarity];
+        setChestPart(chestBaseRef.current, i, 0, -0.12, 0, 1.05, 0.48, 0.72, colors.body);
+        setChestPart(chestLidRef.current, i, 0, 0.26, -0.03, 1.14, 0.30, 0.80, colors.lid);
+        setChestPart(chestTrimRef.current, i, 0, 0.07, -0.40, 1.22, 0.14, 0.10, colors.trim);
+        setChestPart(chestCoreRef.current, i, 0, 0.05, -0.46, 0.28, 0.28, 0.12, colors.core);
       }
       if (count > 0) {
-        chestMeshRef.current.instanceMatrix.needsUpdate = true;
-        if (chestMeshRef.current.instanceColor) chestMeshRef.current.instanceColor.needsUpdate = true;
+        [chestBaseRef, chestLidRef, chestTrimRef, chestCoreRef].forEach((ref) => {
+          if (!ref.current) return;
+          ref.current.instanceMatrix.needsUpdate = true;
+          if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
+        });
       }
     }
   });
@@ -662,8 +733,23 @@ export const PickupManager: React.FC<PickupManagerProps> = ({ runtimeRef }) => {
       />
 
       <instancedMesh
-        ref={chestMeshRef}
-        args={[chestGeometry, chestMaterial, MAX_CHEST_INSTANCES]}
+        ref={chestBaseRef}
+        args={[chestUnitGeometry, chestBodyMaterial, MAX_CHEST_INSTANCES]}
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={chestLidRef}
+        args={[chestUnitGeometry, chestBodyMaterial, MAX_CHEST_INSTANCES]}
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={chestTrimRef}
+        args={[chestUnitGeometry, chestBodyMaterial, MAX_CHEST_INSTANCES]}
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={chestCoreRef}
+        args={[chestUnitGeometry, chestCoreMaterial, MAX_CHEST_INSTANCES]}
         frustumCulled={false}
       />
     </group>
