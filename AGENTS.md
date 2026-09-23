@@ -319,7 +319,7 @@ Size limit
 
 Total custom asset size must remain under:
 
-5 MB
+15 MB (temporarily increased from 5 MB for the visual-overhaul phase)
 
 Prefer SVG and procedural content.
 

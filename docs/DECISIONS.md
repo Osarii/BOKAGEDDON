@@ -166,3 +166,14 @@
   3. Render survivors with distinct procedural 3D silhouettes, attack anticipation, movement lean, and recovery animations.
   4. Maintain designed Lucide React and CSS fallback presentations in `CharacterCard` and HUD until the final external art pass.
 - **Consequences**: 8 distinct gameplay identities with signature weapons and synergies, fully compatible with all 20 upgrades, 8 relics, and 4 secret passives.
+
+## ADR-028: Procedural Spaceship Combat Deck Arena Architecture
+- **Context**: The previous Arena V2 visual presentation utilized flat vertical 2D WebP planes for obstacles that looked like pasted isometric stickers and suffered from weak environmental depth.
+- **Decision**:
+  1. Replace elevated obstacle WebP billboard planes with lightweight, modular procedural 3D Three.js geometry in `src/scene/arena/ProceduralObstacles.tsx`.
+  2. Preserve 100% of authoritative gameplay topology, radius 44 / boundary limit 42.4, 18 obstacle coordinates, collision footprints, and projectile-blocking flags in `src/game/arenaLayout.ts`.
+  3. Structure the environment around 5 distinct futuristic ship sectors: Central Command Core (with rotating 3D holographic star-map), Reactor Bay (tokamak plasma core with amber glow), Hangar Deck (shuttle docking cradles & gantries), Cargo / Logistics Sector (intermodal containers & freight elevator hub), and Defense Battery (artillery platform & ablative blast barriers).
+  4. Implement curved structural bulkhead ribs along the perimeter with camera-facing ribs kept low-profile to guarantee 0% foreground occlusion.
+  5. Provide a visual-only containment forcefield at `ARENA_BOUNDARY_LIMIT = 42.4` explaining boundary deflection in-world without duplicate physics colliders.
+  6. Retire obsolete 2D prop WebPs while preserving official floor decals (`warningRingDecal` and `laneConnectorDecal`).
+- **Consequences**: Cohesive futuristic orbital battle-station aesthetic, rich 3D depth, crystal-clear silhouette readability across 48-enemy hordes, and bounded draw calls (~140-152) at high framerates.

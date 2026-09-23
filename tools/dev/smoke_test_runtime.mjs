@@ -16,7 +16,8 @@ import CDP from "chrome-remote-interface";
 import { execFile } from "child_process";
 import os from "os";
 
-const GAME_URL = "http://127.0.0.1:5190/game/bonk?qa=1";
+const GAME_PORT = process.env.GAME_PORT || "5190";
+const GAME_URL = `http://127.0.0.1:${GAME_PORT}/game/bonk?qa=1`;
 const CDP_PORT = 9222;
 
 function getBravePath() {
