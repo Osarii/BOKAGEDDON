@@ -1,4 +1,10 @@
-# Medical, Special Pickup, and Boss Assets
+# Asset Integration Status
+
+Temporary visual-overhaul budget: 15 MB total custom assets. Current checked public assets remain below that budget.
+
+All registered paths below are centralized in `src/config/assets.ts`. Gameplay simulation, collision, balance, and procedural 3D rendering remain code-driven.
+
+## Medical, Special Pickup, and Boss Assets
 
 Source pack: `BONKAGEDDON_assets_medical_special_bosses` (12 WebP assets with transparency).
 
@@ -32,7 +38,7 @@ The WebP assets are fully integrated into runtime 3D item billboards and HUD pas
 | `ASSETS.enemies.venomatrix` | `/assets/enemies/venomatrix.webp` | Integrated: Round 40 Boss (Poison) |
 | `ASSETS.enemies.cryovex` | `/assets/enemies/cryovex.webp` | Integrated: Round 50 Boss (Frost) |
 
-The full 5-boss visual asset roster: Bonklord SVG plus four WebP boss identities are fully integrated into the 5-boss rotating encounter system with procedural 3D shells, decal emblems, telegraphs, and distinct combat mechanics.
+The full 5-boss visual asset roster is integrated into the rotating boss encounter system. Current in-world boss identity is primarily procedural 3D in `src/scene/BossRenderer.tsx`, with the flat assets retained as secondary decals/emblems.
 
 ## V3 Expansion Visual Assets
 
@@ -91,7 +97,7 @@ Source pack: `BONKAGEDDON_ASSET_PACK_V2_INTEGRATION_READY` (23 SVG assets).
 | --- | --- | --- |
 | `ASSETS.ui.relicVaultBanner` | `/assets/v3/ui/relic-vault-banner.svg` | Integrated: Legendary Relic Vault modal banner branding in ChestRewardOverlay |
 
-All 23 expansion SVG assets are verified with transparent backgrounds, centralized in `src/config/assets.ts`, and cleanly supersede previous temporary procedural/Lucide fallbacks without runtime `/public` path references.
+All 23 expansion SVG assets are verified with transparent backgrounds and centralized in `src/config/assets.ts`. They support character cards, HUD identity, weapon cards, upgrades, relics, secret passive icons, and Relic Vault branding. Current in-world survivor presentation is procedural 3D in `src/scene/PlayerPlaceholder.tsx`.
 
 ## Arena V2 Environmental Assets
 
@@ -102,4 +108,14 @@ Source pack: `BONKAGEDDON_ARENA_V2_ASSET_PACK_READY` (Floor decals preserved; 3D
 | `ASSETS.arenaV2.warningRingDecal` | `/assets/arena-v2/warning-ring-decal.webp` | Integrated: Central Command & sector perimeter warning rings |
 | `ASSETS.arenaV2.laneConnectorDecal` | `/assets/arena-v2/lane-connector-decal.webp` | Integrated: Open cardinal connector lane floor markings |
 
-The obsolete 2D vertical billboard obstacle WebPs have been superseded by lightweight procedural modular 3D Three.js geometry in `src/scene/arena/ProceduralObstacles.tsx`. All gameplay collisions, projectile blocking, and spawn validation remain driven by `src/game/arenaLayout.ts`.
+The obsolete 2D vertical billboard obstacle WebPs have been superseded by lightweight procedural modular 3D Three.js geometry in `src/scene/arena/ProceduralObstacles.tsx`. The current arena is the spaceship / orbital battle-station combat deck with `ARENA_RADIUS = 44` and `ARENA_BOUNDARY_LIMIT = 42.4`. All gameplay collisions, projectile blocking, and spawn validation remain driven by `src/game/arenaLayout.ts`.
+
+## Current Procedural Visual Overhaul
+
+| Area | Runtime file | Status |
+| --- | --- | --- |
+| 8 survivors | `src/scene/PlayerPlaceholder.tsx` | Integrated: Bonk, Byte, Tank, Nova, Hex, Rift, Fuse, Lux have distinct in-world procedural silhouettes and weapon hardware |
+| 4 normal enemies | `src/scene/EnemyManager.tsx` | Integrated: Slime Bot, Runner Drone, Iron Brute, Beam Sentry use instanced procedural 3D silhouettes with decals |
+| 5 bosses | `src/scene/BossRenderer.tsx` | Integrated: Bonklord, Cindermaw, Stormcoil, Venomatrix, Cryovex have unique procedural 3D silhouettes with telegraphs |
+
+No additional external visual asset pack is currently pending in this branch.
