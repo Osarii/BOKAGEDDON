@@ -9,6 +9,9 @@ export const ASSETS = {
     fuse: "/assets/v3/characters/fuse.svg",
     lux: "/assets/v3/characters/lux.svg",
   },
+  models: {
+    tank: "/assets/characters/tank-v2.glb",
+  },
   portraits: {
     bonk: "/assets/characters/bonk.svg",
     byte: "/assets/characters/byte.svg",
