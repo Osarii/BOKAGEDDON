@@ -117,5 +117,6 @@ The obsolete 2D vertical billboard obstacle WebPs have been superseded by lightw
 | 8 survivors | `src/scene/PlayerPlaceholder.tsx` | Integrated: Bonk, Byte, Tank, Nova, Hex, Rift, Fuse, Lux have distinct in-world procedural silhouettes and weapon hardware |
 | 4 normal enemies | `src/scene/EnemyManager.tsx` | Integrated: Slime Bot, Runner Drone, Iron Brute, Beam Sentry use instanced procedural 3D silhouettes with decals |
 | 5 bosses | `src/scene/BossRenderer.tsx` | Integrated: Bonklord, Cindermaw, Stormcoil, Venomatrix, Cryovex have unique procedural 3D silhouettes with telegraphs |
+| Loot chests | `src/scene/PickupManager.tsx` | Integrated: Common, Rare, and Legendary chests use shared procedural 3D instanced crate geometry with rarity-specific sci-fi palettes |
 
 No additional external visual asset pack is currently pending in this branch.
