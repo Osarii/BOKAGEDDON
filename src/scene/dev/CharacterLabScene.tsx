@@ -30,7 +30,6 @@ interface CharacterLabSceneProps {
   showShadows: boolean;
   onTelemetryUpdate: (telemetry: ModelTelemetry) => void;
   onTimeUpdate: (time: number, duration: number) => void;
-  onClipsDetected: (clips: string[]) => void;
   onCameraMovedToFree: () => void;
 }
 
@@ -108,21 +107,23 @@ const CameraDirector: React.FC<{
       dampingFactor={0.08}
       minDistance={0.5}
       maxDistance={25}
-      maxPolarAngle={Math.PI / 2 + 0.12} // Allow looking slightly below the ground plane to inspect feet soles
+      maxPolarAngle={Math.PI / 2 + 0.12} // Allow inspecting feet soles
       onStart={() => {
         if (isTransitioning.current) isTransitioning.current = false;
-        onCameraMovedToFree();
+        if (cameraPreset !== "free") {
+          onCameraMovedToFree();
+        }
       }}
     />
   );
 };
 
-// Ground and horizon visuals
+// Ground stage visuals: floor disk, Y=0 horizon ring, and grid
 const GroundStage: React.FC<{
   showGrid: boolean;
   showOrigin: boolean;
   showHorizonRing: boolean;
-}> = ({ showGrid, showOrigin, showHorizonRing }) => {
+}> = React.memo(({ showGrid, showOrigin, showHorizonRing }) => {
   return (
     <group name="GroundStage">
       {/* Dark metallic floor disc */}
@@ -168,7 +169,6 @@ const GroundStage: React.FC<{
       {/* Root / Origin Coordinate Gizmo */}
       {showOrigin && (
         <group position={[0, 0.002, 0]} name="OriginGizmo">
-          {/* Origin central marker */}
           <mesh position={[0, 0.02, 0]}>
             <sphereGeometry args={[0.03, 16, 16]} />
             <meshBasicMaterial color="#ffffff" />
@@ -192,7 +192,9 @@ const GroundStage: React.FC<{
       )}
     </group>
   );
-};
+});
+
+GroundStage.displayName = "GroundStage";
 
 // Grounding Distance Indicator (3D vertical line + metric callout when feetMinY != 0)
 const GroundingDistanceHelper: React.FC<{
@@ -208,12 +210,10 @@ const GroundingDistanceHelper: React.FC<{
 
   return (
     <group position={[0.45, 0, 0]} name="GroundingDistanceHelper">
-      {/* Vertical line connecting floor to lowest vertex */}
       <mesh position={[0, midY, 0]}>
         <cylinderGeometry args={[0.006, 0.006, height, 8]} />
         <meshBasicMaterial color={color} />
       </mesh>
-      {/* End caps */}
       <mesh position={[0, 0, 0]}>
         <sphereGeometry args={[0.02, 12, 12]} />
         <meshBasicMaterial color="#00e5ff" />
@@ -222,7 +222,6 @@ const GroundingDistanceHelper: React.FC<{
         <sphereGeometry args={[0.02, 12, 12]} />
         <meshBasicMaterial color={color} />
       </mesh>
-      {/* Numeric callout in 3D */}
       <Html position={[0.1, midY, 0]} center>
         <div
           className="grounding-distance-label"
@@ -235,7 +234,7 @@ const GroundingDistanceHelper: React.FC<{
   );
 };
 
-// Model Content Host: Clones GLTF scene or renders Procedural Dummy, handles AnimationMixer and Box3 telemetry
+// Model Content Host: Clones GLTF once per loaded asset, caches AnimationMixer actions, and drives frame updates
 const ModelHost: React.FC<{
   modelData: LoadedGLBData | null;
   useDummy: boolean;
@@ -248,9 +247,9 @@ const ModelHost: React.FC<{
   rotationY: number;
   autoRotate: boolean;
   showBoundingBox: boolean;
+  showGroundingLine: boolean;
   onTelemetryUpdate: (telemetry: ModelTelemetry) => void;
   onTimeUpdate: (time: number, duration: number) => void;
-  onClipsDetected: (clips: string[]) => void;
 }> = ({
   modelData,
   useDummy,
@@ -263,19 +262,23 @@ const ModelHost: React.FC<{
   rotationY,
   autoRotate,
   showBoundingBox,
+  showGroundingLine,
   onTelemetryUpdate,
   onTimeUpdate,
-  onClipsDetected,
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const boxHelperRef = useRef<THREE.Box3Helper | null>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
-  const currentActionRef = useRef<THREE.AnimationAction | null>(null);
+  const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
+  const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+  const activeClipNameRef = useRef<string>("");
   const lastTelemetryTick = useRef<number>(0);
+  const lastTimeTick = useRef<number>(0);
   const box3 = useMemo(() => new THREE.Box3(), []);
   const sizeVec = useMemo(() => new THREE.Vector3(), []);
+  const [feetMinY, setFeetMinY] = useState<number>(0);
 
-  // Process GLB model whenever modelData changes
+  // 1. Process GLB model ONLY when modelData or useDummy changes
   const clonedScene = useMemo(() => {
     if (!modelData || useDummy) return null;
 
@@ -304,9 +307,6 @@ const ModelHost: React.FC<{
       }
     });
 
-    const clipNames = modelData.animations.map((a) => a.name);
-    onClipsDetected(clipNames);
-
     return {
       scene: clone,
       meshCount,
@@ -314,100 +314,118 @@ const ModelHost: React.FC<{
       triangleCount,
       clips: modelData.animations,
     };
-  }, [modelData, useDummy, onClipsDetected]);
+  }, [modelData, useDummy]);
 
-  // Notify clips if using dummy
-  useEffect(() => {
-    if (useDummy) {
-      onClipsDetected(DUMMY_CLIPS);
-    }
-  }, [useDummy, onClipsDetected]);
-
-  // Setup AnimationMixer for cloned GLB
+  // 2. Setup AnimationMixer and Action Cache ONCE per clonedScene
   useEffect(() => {
     if (!clonedScene) {
       mixerRef.current = null;
-      currentActionRef.current = null;
+      actionsRef.current = {};
+      activeActionRef.current = null;
+      activeClipNameRef.current = "";
       return;
     }
 
     const mixer = new THREE.AnimationMixer(clonedScene.scene);
+    const actions: Record<string, THREE.AnimationAction> = {};
+
+    for (const clip of clonedScene.clips) {
+      actions[clip.name] = mixer.clipAction(clip);
+    }
+
     mixerRef.current = mixer;
+    actionsRef.current = actions;
 
     return () => {
       mixer.stopAllAction();
+      mixer.uncacheRoot(clonedScene.scene);
       mixerRef.current = null;
-      currentActionRef.current = null;
+      actionsRef.current = {};
+      activeActionRef.current = null;
+      activeClipNameRef.current = "";
     };
-  }, [clonedScene]);
+  }, [clonedScene]); // ONLY clonedScene!
 
-  // Handle active clip switching
+  // 3. Switch active clip: ONLY crossfade actions without recreating mixer
   useEffect(() => {
-    if (!mixerRef.current || !clonedScene) return;
+    const mixer = mixerRef.current;
+    const actions = actionsRef.current;
+    if (!mixer || !actions || !clonedScene) return;
 
-    const clips = clonedScene.clips;
-    if (clips.length === 0) return;
+    const targetName =
+      Object.keys(actions).find((k) => k.toLowerCase() === activeClip.toLowerCase()) ||
+      Object.keys(actions).find((k) => k.toLowerCase().includes(activeClip.toLowerCase())) ||
+      Object.keys(actions)[0];
 
-    // Find clip by exact or case-insensitive match
-    const targetClip =
-      clips.find((c) => c.name.toLowerCase() === activeClip.toLowerCase()) ||
-      clips.find((c) => c.name.toLowerCase().includes(activeClip.toLowerCase())) ||
-      clips[0];
+    if (!targetName || !actions[targetName]) return;
+    if (targetName === activeClipNameRef.current && activeActionRef.current?.isRunning()) return;
 
-    if (!targetClip) return;
-
-    const nextAction = mixerRef.current.clipAction(targetClip);
-    const prevAction = currentActionRef.current;
+    const nextAction = actions[targetName];
+    const prevAction = activeActionRef.current;
 
     if (prevAction && prevAction !== nextAction) {
-      prevAction.fadeOut(0.2);
+      prevAction.fadeOut(0.15);
     }
 
-    nextAction.reset().fadeIn(0.2).play();
-    currentActionRef.current = nextAction;
-    onTimeUpdate(0, targetClip.duration);
+    nextAction.reset().fadeIn(0.15).play();
+    activeActionRef.current = nextAction;
+    activeClipNameRef.current = targetName;
+    onTimeUpdate(0, nextAction.getClip().duration);
   }, [activeClip, clonedScene, onTimeUpdate]);
 
-  // Handle Scrubbing when paused
+  // 4. Scrubbing when paused
   useEffect(() => {
-    if (isPlaying || !currentActionRef.current || !mixerRef.current) return;
-    currentActionRef.current.time = animTime;
-    mixerRef.current.update(0);
+    if (isPlaying) return;
+    const action = activeActionRef.current;
+    const mixer = mixerRef.current;
+    if (!action || !mixer) return;
+
+    action.time = animTime;
+    mixer.update(0);
   }, [animTime, isPlaying]);
 
-  // Frame simulation loop
+  // 5. High-frequency frame simulation loop
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    // Auto rotate
+    // Auto rotate (pure Three.js property mutation)
     if (autoRotate) {
       groupRef.current.rotation.y += delta * 0.8;
     }
 
-    // Mixer update
+    // Mixer update (pure Three.js simulation)
     if (mixerRef.current && isPlaying) {
       mixerRef.current.update(delta * animSpeed);
-
-      if (currentActionRef.current) {
-        const clip = currentActionRef.current.getClip();
-        onTimeUpdate(currentActionRef.current.time % clip.duration, clip.duration);
-      }
-    } else if (useDummy && isPlaying) {
-      // Dummy has standard 2.0s loop cycle
-      onTimeUpdate((Date.now() / 1000 * animSpeed) % 2.0, 2.0);
     }
 
-    // Calculate model world bounding box and grounding metrics (throttled to ~15Hz for high performance)
     const now = performance.now();
-    if (now - lastTelemetryTick.current > 66) {
+
+    // Throttle playback time update to ~5 Hz (every 200ms)
+    if (isPlaying && now - lastTimeTick.current >= 200) {
+      lastTimeTick.current = now;
+      if (activeActionRef.current) {
+        const clip = activeActionRef.current.getClip();
+        onTimeUpdate(activeActionRef.current.time % clip.duration, clip.duration);
+      } else if (useDummy) {
+        onTimeUpdate((Date.now() / 1000 * animSpeed) % 2.0, 2.0);
+      }
+    }
+
+    // Throttle telemetry update to ~6 Hz (every 160ms) using fast bounds
+    if (now - lastTelemetryTick.current >= 160) {
       lastTelemetryTick.current = now;
 
-      box3.setFromObject(groupRef.current, true);
+      box3.setFromObject(groupRef.current, false);
       box3.getSize(sizeVec);
 
       const minY = box3.min.y;
       const maxY = box3.max.y;
-      const feetMinY = minY;
+      const currentFeet = Math.round(minY * 1000) / 1000;
+
+      // Update visual grounding line state only if delta exceeds 3mm
+      if (Math.abs(feetMinY - currentFeet) > 0.003) {
+        setFeetMinY(currentFeet);
+      }
 
       const meshCount = clonedScene ? clonedScene.meshCount : 12;
       const clipCount = clonedScene ? clonedScene.clips.length : DUMMY_CLIPS.length;
@@ -420,14 +438,13 @@ const ModelHost: React.FC<{
         depth: Math.round(sizeVec.z * 1000) / 1000,
         minY: Math.round(minY * 1000) / 1000,
         maxY: Math.round(maxY * 1000) / 1000,
-        feetMinY: Math.round(feetMinY * 1000) / 1000,
+        feetMinY: currentFeet,
         meshCount,
         clipCount,
         vertexCount,
         triangleCount,
       });
 
-      // Update box helper wireframe
       if (boxHelperRef.current) {
         boxHelperRef.current.box.copy(box3);
       }
@@ -464,11 +481,17 @@ const ModelHost: React.FC<{
           args={[box3, new THREE.Color("#00e5ff")]}
         />
       )}
+
+      {/* Grounding vertical distance indicator */}
+      <GroundingDistanceHelper
+        feetMinY={feetMinY}
+        visible={showGroundingLine}
+      />
     </>
   );
 };
 
-export const CharacterLabScene: React.FC<CharacterLabSceneProps> = ({
+export const CharacterLabScene: React.FC<CharacterLabSceneProps> = React.memo(({
   modelData,
   useDummy,
   activeClip,
@@ -487,16 +510,9 @@ export const CharacterLabScene: React.FC<CharacterLabSceneProps> = ({
   showShadows,
   onTelemetryUpdate,
   onTimeUpdate,
-  onClipsDetected,
   onCameraMovedToFree,
 }) => {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
-  const [currentFeetMinY, setCurrentFeetMinY] = useState<number>(0);
-
-  const handleTelemetry = (t: ModelTelemetry) => {
-    setCurrentFeetMinY(t.feetMinY);
-    onTelemetryUpdate(t);
-  };
 
   return (
     <Canvas
@@ -510,7 +526,7 @@ export const CharacterLabScene: React.FC<CharacterLabSceneProps> = ({
     >
       <color attach="background" args={["#030712"]} />
 
-      {/* Ambient Lighting */}
+      {/* Ambient & Hemisphere Lighting */}
       <ambientLight intensity={0.5} />
       <hemisphereLight args={["#7dd3fc", "#030712", 0.4]} />
 
@@ -556,13 +572,7 @@ export const CharacterLabScene: React.FC<CharacterLabSceneProps> = ({
         />
       )}
 
-      {/* Grounding vertical distance indicator */}
-      <GroundingDistanceHelper
-        feetMinY={currentFeetMinY}
-        visible={showGroundingLine}
-      />
-
-      {/* Model renderer & animator */}
+      {/* Model renderer, animator, and grounding diagnostics */}
       <ModelHost
         modelData={modelData}
         useDummy={useDummy}
@@ -575,9 +585,9 @@ export const CharacterLabScene: React.FC<CharacterLabSceneProps> = ({
         rotationY={rotationY}
         autoRotate={autoRotate}
         showBoundingBox={showBoundingBox}
-        onTelemetryUpdate={handleTelemetry}
+        showGroundingLine={showGroundingLine}
+        onTelemetryUpdate={onTelemetryUpdate}
         onTimeUpdate={onTimeUpdate}
-        onClipsDetected={onClipsDetected}
       />
 
       {/* Camera Presets & Interactive Orbit Controls */}
@@ -588,4 +598,6 @@ export const CharacterLabScene: React.FC<CharacterLabSceneProps> = ({
       />
     </Canvas>
   );
-};
+});
+
+CharacterLabScene.displayName = "CharacterLabScene";

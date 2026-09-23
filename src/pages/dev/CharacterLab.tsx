@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
+import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { CharacterLabScene } from "../../scene/dev/CharacterLabScene";
 import {
@@ -24,7 +25,7 @@ import {
 import "../../styles/character-lab.css";
 
 export const CharacterLab: React.FC = () => {
-  // Asset state - start in 'loading' so we don't need a synchronous setState in the mount effect
+  // Asset state
   const [assetPath, setAssetPath] = useState<string>(DEFAULT_ASSET_PATH);
   const [assetStatus, setAssetStatus] = useState<"loading" | "loaded" | "error" | "dummy">("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export const CharacterLab: React.FC = () => {
   const [showGroundingLine, setShowGroundingLine] = useState<boolean>(true);
   const [showShadows, setShowShadows] = useState<boolean>(true);
 
-  // Telemetry
+  // Telemetry (initialized with neutral baseline)
   const [telemetry, setTelemetry] = useState<ModelTelemetry>({
     width: 0.8,
     height: 1.85,
@@ -71,56 +72,68 @@ export const CharacterLab: React.FC = () => {
     triangleCount: 1180,
   });
 
-  // Load GLB file from URL or Blob
-  const loadGLB = useCallback((url: string, isBlob: boolean = false) => {
-    setAssetStatus("loading");
+  // Apply parsed GLTF data and extract clips directly without render side effects
+  const applyLoadedGLTF = useCallback((gltf: { scene: THREE.Group; animations: THREE.AnimationClip[] }) => {
+    setModelData({
+      scene: gltf.scene,
+      animations: gltf.animations,
+    });
+    setUseDummy(false);
+    setAssetStatus("loaded");
     setErrorMessage(null);
 
-    const performLoad = async () => {
-      // If it's a relative URL, test availability with fetch first to prevent noisy console crashes
-      if (!isBlob) {
-        try {
-          const headCheck = await fetch(url, { method: "HEAD" });
-          if (!headCheck.ok) {
+    const clipNames = gltf.animations.map((a) => a.name);
+    const clips = clipNames.length > 0 ? clipNames : STANDARD_CLIPS;
+    setAvailableClips(clips);
+    setActiveClip((prev) => {
+      const match = clips.find((c) => c.toLowerCase() === prev.toLowerCase());
+      return match || clips[0] || "Idle";
+    });
+  }, []);
+
+  // Load GLB file from URL or Blob
+  const loadGLB = useCallback(
+    (url: string, isBlob: boolean = false) => {
+      const performLoad = async () => {
+        setAssetStatus("loading");
+        setErrorMessage(null);
+
+        if (!isBlob) {
+          try {
+            const headCheck = await fetch(url, { method: "HEAD" });
+            if (!headCheck.ok) {
+              setAssetStatus("error");
+              setErrorMessage(`Asset unavailable: ${url} (HTTP ${headCheck.status})`);
+              setModelData(null);
+              return;
+            }
+          } catch (err) {
             setAssetStatus("error");
-            setErrorMessage(`Asset unavailable: ${url} (HTTP ${headCheck.status})`);
+            setErrorMessage(`Error conectando con ${url}: ${(err as Error).message}`);
             setModelData(null);
             return;
           }
-        } catch (err) {
-          setAssetStatus("error");
-          setErrorMessage(`Error conectando con ${url}: ${(err as Error).message}`);
-          setModelData(null);
-          return;
         }
-      }
 
-      const loader = new GLTFLoader();
-      loader.load(
-        url,
-        (gltf) => {
-          setModelData({
-            scene: gltf.scene,
-            animations: gltf.animations,
-          });
-          setUseDummy(false);
-          setAssetStatus("loaded");
-          if (gltf.animations.length > 0) {
-            const firstClip = gltf.animations[0].name;
-            setActiveClip(firstClip);
+        const loader = new GLTFLoader();
+        loader.load(
+          url,
+          (gltf) => {
+            applyLoadedGLTF(gltf);
+          },
+          undefined,
+          (error) => {
+            setAssetStatus("error");
+            setErrorMessage(`Error parseando GLB: ${error instanceof Error ? error.message : "Formato inválido"}`);
+            setModelData(null);
           }
-        },
-        undefined,
-        (error) => {
-          setAssetStatus("error");
-          setErrorMessage(`Error parseando GLB: ${error instanceof Error ? error.message : "Formato inválido"}`);
-          setModelData(null);
-        }
-      );
-    };
+        );
+      };
 
-    void performLoad();
-  }, []);
+      void performLoad();
+    },
+    [applyLoadedGLTF]
+  );
 
   // Initial load on mount using async probe
   useEffect(() => {
@@ -142,15 +155,7 @@ export const CharacterLab: React.FC = () => {
           DEFAULT_ASSET_PATH,
           (gltf) => {
             if (cancelled) return;
-            setModelData({
-              scene: gltf.scene,
-              animations: gltf.animations,
-            });
-            setUseDummy(false);
-            setAssetStatus("loaded");
-            if (gltf.animations.length > 0) {
-              setActiveClip(gltf.animations[0].name);
-            }
+            applyLoadedGLTF(gltf);
           },
           undefined,
           (err) => {
@@ -174,10 +179,10 @@ export const CharacterLab: React.FC = () => {
         URL.revokeObjectURL(blobUrlRef.current);
       }
     };
-  }, []);
+  }, [applyLoadedGLTF]);
 
   // Handle local file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -189,21 +194,48 @@ export const CharacterLab: React.FC = () => {
     blobUrlRef.current = blobUrl;
     setAssetPath(file.name);
     loadGLB(blobUrl, true);
-  };
+  }, [loadGLB]);
 
   // Switch to procedural dummy
-  const activateDummy = () => {
+  const activateDummy = useCallback(() => {
     setUseDummy(true);
     setAssetStatus("dummy");
     setErrorMessage(null);
-    setActiveClip("Idle");
     setAvailableClips(STANDARD_CLIPS);
-  };
+    setActiveClip("Idle");
+  }, []);
 
   // Auto-ground calculation: set visualYOffset to cancel out feetMinY
-  const handleAutoGround = () => {
+  const handleAutoGround = useCallback(() => {
     setVisualYOffset((prev) => Math.round((prev - telemetry.feetMinY) * 1000) / 1000);
-  };
+  }, [telemetry.feetMinY]);
+
+  // Stabilized callbacks passed to 3D scene
+  const handleCameraMovedToFree = useCallback(() => {
+    setCameraPreset((prev) => (prev === "free" ? prev : "free"));
+  }, []);
+
+  const handleTelemetryUpdate = useCallback((next: ModelTelemetry) => {
+    setTelemetry((prev) => {
+      // Bail out if values haven't changed meaningfully
+      if (
+        Math.abs(prev.feetMinY - next.feetMinY) < 0.002 &&
+        Math.abs(prev.minY - next.minY) < 0.002 &&
+        Math.abs(prev.maxY - next.maxY) < 0.002 &&
+        Math.abs(prev.width - next.width) < 0.002 &&
+        prev.meshCount === next.meshCount &&
+        prev.clipCount === next.clipCount
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, []);
+
+  const handleTimeUpdate = useCallback((time: number, duration: number) => {
+    setAnimTime(time);
+    setAnimDuration((prev) => (Math.abs(prev - duration) > 0.01 ? duration : prev));
+  }, []);
 
   // Keyboard hotkeys
   useEffect(() => {
@@ -332,15 +364,9 @@ export const CharacterLab: React.FC = () => {
           showBoundingBox={showBoundingBox}
           showGroundingLine={showGroundingLine}
           showShadows={showShadows}
-          onTelemetryUpdate={setTelemetry}
-          onTimeUpdate={(t, d) => {
-            setAnimTime(t);
-            setAnimDuration(d);
-          }}
-          onClipsDetected={(clips) => {
-            if (clips.length > 0) setAvailableClips(clips);
-          }}
-          onCameraMovedToFree={() => setCameraPreset("free")}
+          onTelemetryUpdate={handleTelemetryUpdate}
+          onTimeUpdate={handleTimeUpdate}
+          onCameraMovedToFree={handleCameraMovedToFree}
         />
       </div>
 
@@ -352,9 +378,8 @@ export const CharacterLab: React.FC = () => {
             <span>Asset 3D no disponible aún</span>
           </div>
           <p className="asset-unavailable-desc">
-            El archivo GLB configurado no se encuentra en el servidor. Si Codex está construyendo
-            el modelo de <strong>TANK V2</strong> en paralelo, puedes probar todas las herramientas
-            de QA de inmediato con el maniquí procedural o cargar un archivo local.
+            El archivo GLB configurado no se encuentra en el servidor. Puedes probar todas las
+            herramientas de QA de inmediato con el maniquí procedural o cargar un archivo local.
           </p>
           <div className="asset-unavailable-path">{assetPath}</div>
           <div className="asset-unavailable-actions">
