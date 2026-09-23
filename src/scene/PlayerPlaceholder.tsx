@@ -7,6 +7,7 @@ import { CHARACTER_BASE_SPEEDS, ARENA_BOUNDARY_LIMIT, WEAPON_CONFIGS } from "../
 import { spawnStatusParticle, type GameRuntime } from "../game/runtime";
 import type { WeaponType } from "../types/game";
 import { TankModel, type TankMotion } from "./TankModel";
+import { RiftModel, type RiftMotion } from "./RiftModel";
 
 interface PlayerPlaceholderProps {
   runtimeRef: React.RefObject<GameRuntime>;
@@ -63,6 +64,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   const prevInvulnTimerRef = useRef<number>(0);
   const hitReactionTimerRef = useRef<number>(0);
   const tankMotionRef = useRef<TankMotion>({ phase: "idle", moving: false, speed: 0, attackDuration: 0.57, hitSerial: 0, slowed: false });
+  const riftMotionRef = useRef<RiftMotion>({ phase: "idle", moving: false, speed: 0, attackDuration: 0.46, hitSerial: 0, slowed: false });
 
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId) || "bonk";
 
@@ -297,6 +299,13 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       motion.speed = speed;
       motion.attackDuration = anticipationDuration + timing.release + timing.recovery;
       motion.slowed = isSlowed;
+    } else if (selectedCharacterId === "rift") {
+      const motion = riftMotionRef.current;
+      motion.phase = attackPhase;
+      motion.moving = inputLength > 0;
+      motion.speed = speed;
+      motion.attackDuration = anticipationDuration + timing.release + timing.recovery;
+      motion.slowed = isSlowed;
     }
 
     // =========================================================================
@@ -306,6 +315,7 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     if (currentInvuln > prevInvulnTimerRef.current + 0.25) {
       hitReactionTimerRef.current = 0.32;
       if (selectedCharacterId === "tank") tankMotionRef.current.hitSerial++;
+      if (selectedCharacterId === "rift") riftMotionRef.current.hitSerial++;
     }
     prevInvulnTimerRef.current = currentInvuln;
 
@@ -457,8 +467,8 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
           mat.userData.currentAnimatedIntensity = intensity;
           mat.emissiveIntensity = intensity;
         }
-      } else if (selectedCharacterId === "tank") {
-        // The GLB owns TANK's articulation; the shared actor only owns facing and physics.
+      } else if (selectedCharacterId === "tank" || selectedCharacterId === "rift") {
+        // The GLB owns the survivor's articulation; the shared actor only owns facing and physics.
         anchor.position.set(0, 0, 0);
         anchor.rotation.set(0, 0, 0);
       } else if (selectedCharacterId === "nova") {
@@ -568,43 +578,6 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
           const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
           mat.userData.currentAnimatedIntensity = intensity;
           mat.emissiveIntensity = intensity;
-        }
-      } else if (selectedCharacterId === "rift") {
-        const hover = Math.sin(animTime * 3.6) * 0.06;
-        if (attackPhase === "anticipation") {
-          anchor.position.set(0, 0.12 + 0.06 * phaseProgress, hitKickZ);
-          anchor.rotation.set(0.06, -0.22 * phaseProgress, 0.08);
-        } else if (attackPhase === "release") {
-          const whip = 1 - phaseProgress;
-          anchor.position.set(0, 0.12, hitKickZ - 0.15 * whip);
-          anchor.rotation.set(-0.12 * whip, 0.35 * whip, -0.06 * whip);
-        } else if (attackPhase === "movement") {
-          anchor.position.set(0, 0.12 + hover, hitKickZ);
-          anchor.rotation.set(0.16, 0, -moveX * 0.1);
-        } else {
-          anchor.position.set(0, 0.12 + hover, hitKickZ);
-          anchor.rotation.set(0, Math.sin(animTime * 1.4) * 0.04, 0.04);
-        }
-
-        if (weaponGroupRef.current) {
-          const w = weaponGroupRef.current;
-          if (attackPhase === "anticipation") {
-            w.position.set(0.55, 0.22, 0.15);
-            w.rotation.y += animDelta * 11;
-          } else if (attackPhase === "release") {
-            const fwd = 0.15 + phaseProgress * 0.45;
-            w.position.set(0.55, 0.22, fwd);
-            w.rotation.y += animDelta * 16;
-          } else {
-            w.position.set(0.55, 0.22 + Math.sin(animTime * 3.0) * 0.05, 0.15);
-            w.rotation.y = animTime * 4.0;
-          }
-        }
-
-        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
-          const boost = attackPhase === "anticipation" ? 2.4 * phaseProgress : 0;
-          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
-          mat.emissiveIntensity = 1.6 + Math.sin(animTime * 5.5) * 0.45 + boost;
         }
       } else if (selectedCharacterId === "fuse") {
         if (attackPhase === "anticipation") {
@@ -1927,229 +1900,10 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
           {/* ================================================================= */}
           {/* CHARACTER 6: RIFT — Slender Dimensional Warrior, Phase Violet     */}
           {/* ================================================================= */}
-          {selectedCharacterId === "rift" && (
-            <group>
-              {/* --- LOWER BODY: BOOTS & LEGS (Slender Phase Humanoid) --- */}
-              {/* Left Phase Boot */}
-              <group position={[-0.18, -0.68, 0.02]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.13, 0.14, 0.28]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.8} roughness={0.3} />
-                </mesh>
-                <mesh position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[0.08, 0.015, 6, 16]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#8b5cf6", 0.6)} color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={0.6} />
-                </mesh>
-              </group>
-
-              {/* Right Phase Boot */}
-              <group position={[0.18, -0.68, 0.02]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.13, 0.14, 0.28]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.8} roughness={0.3} />
-                </mesh>
-                <mesh position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[0.08, 0.015, 6, 16]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#8b5cf6", 0.6)} color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={0.6} />
-                </mesh>
-              </group>
-
-              {/* Left Split-Plate Greave */}
-              <group position={[-0.18, -0.46, 0]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.13, 0.28, 0.15]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
-                </mesh>
-                <mesh position={[0, 0, 0.08]}>
-                  <boxGeometry args={[0.11, 0.24, 0.04]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.8} />
-                </mesh>
-                <mesh position={[0, 0.14, 0.08]}>
-                  <boxGeometry args={[0.13, 0.08, 0.06]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#38bdf8", 0.5)} color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.5} />
-                </mesh>
-              </group>
-
-              {/* Right Split-Plate Greave */}
-              <group position={[0.18, -0.46, 0]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.13, 0.28, 0.15]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
-                </mesh>
-                <mesh position={[0, 0, 0.08]}>
-                  <boxGeometry args={[0.11, 0.24, 0.04]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.8} />
-                </mesh>
-                <mesh position={[0, 0.14, 0.08]}>
-                  <boxGeometry args={[0.13, 0.08, 0.06]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#38bdf8", 0.5)} color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.5} />
-                </mesh>
-              </group>
-
-              {/* Left Thigh */}
-              <group position={[-0.16, -0.17, 0]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.13, 0.22, 0.14]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
-                </mesh>
-              </group>
-
-              {/* Right Thigh */}
-              <group position={[0.16, -0.17, 0]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.13, 0.22, 0.14]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
-                </mesh>
-              </group>
-
-              {/* --- WAIST / PHASE HARNESS BELT --- */}
-              <group position={[0, 0.00, 0]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.36, 0.10, 0.23]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} />
-                </mesh>
-                <mesh position={[-0.19, 0, 0]}>
-                  <boxGeometry args={[0.05, 0.14, 0.14]} />
-                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
-                </mesh>
-                <mesh position={[0.19, 0, 0]}>
-                  <boxGeometry args={[0.05, 0.14, 0.14]} />
-                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
-                </mesh>
-              </group>
-
-              {/* --- TORSO & SPLIT DIAGONAL CUIRASS --- */}
-              <group position={[0, 0.24, 0]}>
-                {/* Lower Abdomen */}
-                <mesh castShadow position={[0, -0.12, 0]}>
-                  <boxGeometry args={[0.33, 0.14, 0.23]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.8} />
-                </mesh>
-                {/* Left Split Chestplate Panel */}
-                <mesh castShadow position={[-0.12, 0.04, 0.02]} rotation={[0.08, 0, 0.08]}>
-                  <boxGeometry args={[0.24, 0.25, 0.28]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
-                </mesh>
-                {/* Right Split Chestplate Panel */}
-                <mesh castShadow position={[0.12, 0.04, 0.02]} rotation={[0.08, 0, -0.08]}>
-                  <boxGeometry args={[0.24, 0.25, 0.28]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
-                </mesh>
-                {/* Central Dimensional Rift Fissure */}
-                <mesh ref={coreMeshRef} position={[0, 0.04, 0.15]}>
-                  <boxGeometry args={[0.08, 0.26, 0.08]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#c084fc", 1.8, true)} color="#c084fc" emissive="#c084fc" emissiveIntensity={1.8} />
-                </mesh>
-                {/* Dorsal Phase Vanes */}
-                <mesh castShadow position={[0, 0.04, -0.16]}>
-                  <boxGeometry args={[0.34, 0.26, 0.12]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
-                </mesh>
-              </group>
-
-              {/* --- SHOULDERS & PHASE-BLADE PAULDRONS --- */}
-              {/* Left Phase Blade */}
-              <group position={[-0.48, 0.38, 0]} rotation={[0, 0.15, 0.22]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.26, 0.14, 0.38]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.85} roughness={0.2} />
-                </mesh>
-                <mesh position={[-0.04, 0, -0.18]}>
-                  <boxGeometry args={[0.24, 0.06, 0.04]} />
-                  <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.8} />
-                </mesh>
-              </group>
-
-              {/* Right Phase Blade */}
-              <group position={[0.48, 0.38, 0]} rotation={[0, -0.15, -0.22]}>
-                <mesh castShadow position={[0, 0, 0]}>
-                  <boxGeometry args={[0.26, 0.14, 0.38]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.85} roughness={0.2} />
-                </mesh>
-                <mesh position={[0.04, 0, -0.18]}>
-                  <boxGeometry args={[0.24, 0.06, 0.04]} />
-                  <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.8} />
-                </mesh>
-              </group>
-
-              {/* --- ARMS & PRECISION GAUNTLETS --- */}
-              {/* Left Arm */}
-              <group position={[-0.37, 0.18, 0]}>
-                <mesh castShadow position={[0, 0.04, 0]}>
-                  <boxGeometry args={[0.10, 0.18, 0.12]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
-                </mesh>
-                <mesh castShadow position={[0, -0.16, 0.03]}>
-                  <boxGeometry args={[0.12, 0.20, 0.14]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.85} />
-                </mesh>
-              </group>
-
-              {/* Right Arm (Disc Cradle) */}
-              <group position={[0.37, 0.18, 0]}>
-                <mesh castShadow position={[0, 0.04, 0]}>
-                  <boxGeometry args={[0.10, 0.18, 0.12]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
-                </mesh>
-                <mesh castShadow position={[0, -0.16, 0.03]}>
-                  <boxGeometry args={[0.12, 0.20, 0.14]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.85} />
-                </mesh>
-                <mesh position={[0.04, -0.16, 0.08]}>
-                  <boxGeometry args={[0.06, 0.14, 0.06]} />
-                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
-                </mesh>
-              </group>
-
-              {/* --- HEAD & PHASE HELMET --- */}
-              <group position={[0, 0.55, 0.02]}>
-                {/* Neck */}
-                <mesh position={[0, -0.11, 0]}>
-                  <cylinderGeometry args={[0.10, 0.12, 0.07, 8]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} />
-                </mesh>
-                {/* Helmet Facets */}
-                <mesh castShadow position={[0, 0.02, 0]}>
-                  <boxGeometry args={[0.24, 0.23, 0.27]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} roughness={0.2} />
-                </mesh>
-                {/* Vertical Tachyon Rift Visor Slit */}
-                <mesh position={[0, 0.02, 0.14]}>
-                  <boxGeometry args={[0.06, 0.18, 0.06]} />
-                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#c084fc", 1.8)} color="#c084fc" emissive="#c084fc" emissiveIntensity={1.8} />
-                </mesh>
-                {/* Swept Dimensional Crest Fins */}
-                <mesh position={[-0.10, 0.14, -0.06]} rotation={[-0.3, 0, -0.1]}>
-                  <boxGeometry args={[0.03, 0.20, 0.18]} />
-                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
-                </mesh>
-                <mesh position={[0.10, 0.14, -0.06]} rotation={[-0.3, 0, 0.1]}>
-                  <boxGeometry args={[0.03, 0.20, 0.18]} />
-                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
-                </mesh>
-              </group>
-
-              {/* --- SIGNATURE WEAPON: FLOATING RIFT DISC --- */}
-              <group ref={weaponGroupRef} position={[0.55, 0.22, 0.15]}>
-                {/* Rotating Dimensional Circular Disc */}
-                <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <cylinderGeometry args={[0.26, 0.26, 0.03, 16]} />
-                  <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={1.2} metalness={0.9} />
-                </mesh>
-                {/* Outer Arc Cutting Blades */}
-                <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
-                  <torusGeometry args={[0.26, 0.02, 6, 20]} />
-                  <meshStandardMaterial color="#c084fc" metalness={0.95} />
-                </mesh>
-                {/* Glowing Tachyon Core */}
-                <mesh>
-                  <sphereGeometry args={[0.08, 12, 12]} />
-                  <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={2.0} />
-                </mesh>
-              </group>
-            </group>
-          )}
+          {/* CHARACTER 6: RIFT — Dimensional Anomaly Warrior, 3D GLB Model     */}
           {/* ================================================================= */}
+          {selectedCharacterId === "rift" && <RiftModel motionRef={riftMotionRef} />}
+
           {/* CHARACTER 7: FUSE — Demolition Specialist, Hazard Orange/Charcoal  */}
           {/* ================================================================= */}
           {selectedCharacterId === "fuse" && (

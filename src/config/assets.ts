@@ -11,6 +11,7 @@ export const ASSETS = {
   },
   models: {
     tank: "/assets/characters/tank-v3.glb",
+    rift: "/assets/characters/rift-v1.glb",
   },
   portraits: {
     bonk: "/assets/characters/bonk.svg",

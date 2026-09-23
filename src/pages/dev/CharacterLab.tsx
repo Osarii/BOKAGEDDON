@@ -266,11 +266,13 @@ export const CharacterLab: React.FC = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Compute grounding status classification
+  // Compute grounding status classification (with intentional hover exception for RIFT/levitating archetypes)
+  const isRiftHover = assetPath.toLowerCase().includes("rift");
   const isGrounded = Math.abs(telemetry.feetMinY) < 0.015;
-  const isFloating = telemetry.feetMinY >= 0.015;
+  const isHovering = isRiftHover && telemetry.feetMinY >= 0.12 && telemetry.feetMinY <= 0.45;
+  const isFloating = !isHovering && telemetry.feetMinY >= 0.015;
   const isSinking = telemetry.feetMinY <= -0.015;
-  const groundingStateClass = isGrounded ? "grounded" : isFloating ? "floating" : "sinking";
+  const groundingStateClass = isGrounded || isHovering ? "grounded" : isFloating ? "floating" : "sinking";
 
   return (
     <div className="character-lab-container">
@@ -448,6 +450,30 @@ export const CharacterLab: React.FC = () => {
                 <Box size={12} /> Maniquí Test
               </button>
             </div>
+            <div className="asset-actions-row" style={{ marginTop: "4px" }}>
+              <button
+                className="asset-btn"
+                style={{ flex: 1, borderColor: assetPath.includes("tank") ? "#ef4444" : undefined }}
+                onClick={() => {
+                  setAssetPath("/assets/characters/tank-v3.glb");
+                  loadGLB("/assets/characters/tank-v3.glb");
+                }}
+                title="Cargar TANK V3 (Heavy Mech)"
+              >
+                TANK V3
+              </button>
+              <button
+                className="asset-btn"
+                style={{ flex: 1, borderColor: assetPath.includes("rift") ? "#a855f7" : undefined }}
+                onClick={() => {
+                  setAssetPath("/assets/characters/rift-v1.glb");
+                  loadGLB("/assets/characters/rift-v1.glb");
+                }}
+                title="Cargar RIFT V1 (Dimensional Warrior)"
+              >
+                RIFT V1
+              </button>
+            </div>
             {errorMessage && (
               <div style={{ color: "#f87171", fontSize: "0.65rem", marginTop: "2px" }}>
                 {errorMessage}
@@ -592,9 +618,11 @@ export const CharacterLab: React.FC = () => {
             <div className="grounding-tag-row">
               <span className="grounding-tag">
                 {isGrounded && <CheckCircle2 size={15} />}
+                {isHovering && <CheckCircle2 size={15} color="#c084fc" />}
                 {isFloating && <AlertTriangle size={15} />}
                 {isSinking && <AlertTriangle size={15} />}
                 {isGrounded && "GROUNDED (Pies en suelo)"}
+                {isHovering && "HOVERING (Levitación Intencional)"}
                 {isFloating && "FLOATING (Pies flotando)"}
                 {isSinking && "SINKING (Pies hundidos)"}
               </span>
@@ -820,10 +848,10 @@ export const CharacterLab: React.FC = () => {
         <div className="bottom-bar-segment">
           <span className="hint">Grounding:</span>
           <span style={{
-            color: isGrounded ? "#34d399" : isFloating ? "#fbbf24" : "#f87171",
+            color: isGrounded ? "#34d399" : isHovering ? "#c084fc" : isFloating ? "#fbbf24" : "#f87171",
             fontWeight: 700,
           }}>
-            {isGrounded ? "GROUNDED" : isFloating ? "FLOATING" : "SINKING"} ({telemetry.feetMinY > 0 ? `+${telemetry.feetMinY.toFixed(3)}m` : `${telemetry.feetMinY.toFixed(3)}m`})
+            {isGrounded ? "GROUNDED" : isHovering ? "HOVERING (OK)" : isFloating ? "FLOATING" : "SINKING"} ({telemetry.feetMinY > 0 ? `+${telemetry.feetMinY.toFixed(3)}m` : `${telemetry.feetMinY.toFixed(3)}m`})
           </span>
         </div>
         <div className="bottom-bar-segment">
