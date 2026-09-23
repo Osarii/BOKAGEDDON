@@ -13,8 +13,6 @@ interface PlayerPlaceholderProps {
 
 const defaultBlackColor = new THREE.Color("#000000");
 
-
-
 // Attack animation phase durations (seconds)
 const ATTACK_TIMINGS: Record<string, { anticipation: number; release: number; recovery: number }> = {
   bonk: { anticipation: 0.22, release: 0.16, recovery: 0.24 },
@@ -65,6 +63,11 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
   const hitReactionTimerRef = useRef<number>(0);
 
   const selectedCharacterId = useGameStore((s) => s.selectedCharacterId) || "bonk";
+
+  // Reset registered flash materials when switching character
+  useEffect(() => {
+    flashMaterialsRef.current = [];
+  }, [selectedCharacterId]);
 
   // Setup keyboard input listeners with blur protection
   useEffect(() => {
@@ -349,87 +352,78 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
           anchor.position.set(0, strideBob, hitKickZ);
           anchor.rotation.set(0.12, 0, -shoulderSway);
         } else {
-          // Idle: Heavy breathing, body weight shift, relaxed posture
-          const breath = Math.sin(animTime * 2.8) * 0.045;
-          const weightShift = Math.sin(animTime * 1.4) * 0.035;
+          // Idle: Heavy breathing rhythm, settled athletic brawler stance
+          const breath = Math.sin(animTime * 2.4) * 0.025;
           anchor.position.set(0, breath, hitKickZ);
-          anchor.rotation.set(0.02, 0, weightShift);
+          anchor.rotation.set(0.02, 0, 0);
         }
 
         // Hammer weapon motion
         if (weaponGroupRef.current) {
           const w = weaponGroupRef.current;
           if (attackPhase === "anticipation") {
-            // Hammer lifted high over right shoulder
-            w.position.set(0.7, 0.1 + 0.35 * phaseProgress, 0.15 - 0.2 * phaseProgress);
-            w.rotation.set(-0.85 * phaseProgress, -0.2 * phaseProgress, -0.45);
+            // High back overhead raise
+            w.position.set(0.68, 0.2 + 0.2 * phaseProgress, 0.1 - 0.25 * phaseProgress);
+            w.rotation.set(0.2 - 0.65 * phaseProgress, 0, -0.2 - 0.4 * phaseProgress);
           } else if (attackPhase === "release") {
-            // Violent slam downward and forward
+            // Powerful downward impact slam
             const slam = 1 - phaseProgress;
-            w.position.set(0.7, 0.1 - 0.25 * slam, 0.15 + 0.35 * slam);
-            w.rotation.set(1.2 * slam + 0.3, 0.25 * slam, -0.25);
+            w.position.set(0.68, 0.2 - 0.35 * slam, 0.1 + 0.35 * slam);
+            w.rotation.set(-0.45 + 1.25 * slam, 0, -0.6 + 0.7 * slam);
           } else if (attackPhase === "recovery") {
-            // Recoil bounce slowly settling back
+            // Return to ready
             const rec = 1 - phaseProgress;
-            const bounce = Math.sin(phaseProgress * 16) * 0.12 * rec;
-            w.position.set(0.7, 0.1 + bounce, 0.15);
-            w.rotation.set(0.2 + bounce, 0, -0.25);
-          } else if (attackPhase === "movement") {
-            // Hammer inertia trailing step cadence
-            const inertia = Math.sin(walk * 0.55) * 0.10;
-            w.position.set(0.7, 0.1, 0.15);
-            w.rotation.set(0.28 + inertia, 0, -0.22);
+            w.position.set(0.68, 0.1, 0.1);
+            w.rotation.set(0.2 + 0.3 * rec, 0, -0.2);
           } else {
-            // Slow idle hammer sway
-            const sway = Math.sin(animTime * 1.8) * 0.08;
-            w.position.set(0.7, 0.1, 0.15);
-            w.rotation.set(0.18 + sway * 0.5, 0, -0.25 + sway);
+            // Idle/movement weapon sway
+            const sway = Math.sin(animTime * 2.4) * 0.06;
+            w.position.set(0.68, 0.1 + sway * 0.4, 0.1);
+            w.rotation.set(0.2 + sway, 0, -0.2);
           }
         }
 
-        // Chest crest glow
+        // Visor pulse
         if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
-          const boost = attackPhase === "anticipation" ? 2.2 * phaseProgress : 0;
-          const intensity = 0.8 + Math.sin(animTime * 3.5) * 0.3 + boost;
+          const boost = attackPhase === "anticipation" ? 2.0 * phaseProgress : 0;
+          const intensity = 1.1 + Math.sin(animTime * 3.5) * 0.3 + boost;
           const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
           mat.userData.currentAnimatedIntensity = intensity;
           mat.emissiveIntensity = intensity;
         }
       } else if (selectedCharacterId === "byte") {
-        // BYTE: Hovering Energy Caster
+        // BYTE: Agile Cyber Caster
         if (attackPhase === "anticipation") {
-          // Hover contraction: lifts slightly, slight back pitch
-          anchor.position.set(0, 0.14 + 0.06 * phaseProgress, hitKickZ);
-          anchor.rotation.set(-0.06 * phaseProgress, 0, 0);
+          // Drone convergence: slight forward compression, rapid orbit acceleration
+          anchor.position.set(0, 0.04, hitKickZ);
+          anchor.rotation.set(0.08 * phaseProgress, 0, 0);
         } else if (attackPhase === "release") {
-          // Rapid release pulse: lightweight recoil kick
-          const rec = 1 - phaseProgress;
-          anchor.position.set(0, 0.14, hitKickZ - 0.12 * rec);
-          anchor.rotation.set(-0.12 * rec, 0, 0);
+          // Sharp snap back: caster recoil
+          const recoil = 1 - phaseProgress;
+          anchor.position.set(0, -0.04 * recoil, hitKickZ - 0.12 * recoil);
+          anchor.rotation.set(-0.15 * recoil, 0, 0);
         } else if (attackPhase === "recovery") {
           const rec = 1 - phaseProgress;
-          anchor.position.set(0, 0.10 + 0.04 * rec, hitKickZ);
+          anchor.position.set(0, 0, hitKickZ);
           anchor.rotation.set(-0.04 * rec, 0, 0);
         } else if (attackPhase === "movement") {
-          // Directional hover lean with banking
-          const hoverWave = Math.sin(animTime * 4.5) * 0.04;
-          anchor.position.set(0, 0.12 + hoverWave, hitKickZ);
-          anchor.rotation.set(0.18, 0, -moveX * 0.12);
+          // Agile sprint: low forward lean, fast lateral banking
+          const sprintBob = Math.sin(walk * 1.6) * 0.06;
+          anchor.position.set(0, sprintBob, hitKickZ);
+          anchor.rotation.set(0.22, 0, -moveX * 0.12);
         } else {
-          // Idle: Smooth hover, vertical oscillation
-          const hover = Math.sin(animTime * 3.5) * 0.08;
-          const osc = Math.sin(animTime * 2.0) * 0.035;
-          anchor.position.set(0, 0.10 + hover, hitKickZ);
-          anchor.rotation.set(0, 0, osc);
+          // Idle: Floating hover bob with slight rhythmic roll
+          const hover = Math.sin(animTime * 3.2) * 0.05;
+          anchor.position.set(0, hover, hitKickZ);
+          anchor.rotation.set(0, 0, Math.sin(animTime * 1.8) * 0.03);
         }
 
-        // Energy orb satellite weapon motion
+        // Energy Orb weapon motion
         if (weaponGroupRef.current) {
           const w = weaponGroupRef.current;
           if (attackPhase === "anticipation") {
-            // Orb contracts inward closer to chest, spins 3x faster
-            const r = 0.55 - 0.28 * phaseProgress;
-            w.position.set(r, 0.25 + 0.05 * phaseProgress, 0.15);
+            // Tight orbit, rapid spin
+            w.position.set(0.27, 0.25, 0.15);
             w.rotation.y += animDelta * 12;
           } else if (attackPhase === "release") {
             // Rapid pulse expanding outward
@@ -600,71 +594,56 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
         if (weaponGroupRef.current) {
           const w = weaponGroupRef.current;
           if (attackPhase === "anticipation") {
-            // Accelerated rotation & orbit contraction
-            const s = 1.0 - 0.4 * phaseProgress;
-            w.scale.set(s, s, s);
-            w.rotation.y = -animTime * 8.0;
+            w.position.set(0.55, 0.22, 0.15);
+            w.rotation.y += animDelta * 9;
           } else if (attackPhase === "release") {
-            // Violent fling outward
-            const s = 0.6 + 0.8 * phaseProgress;
-            w.scale.set(s, s, s);
-            w.rotation.y -= animDelta * 10;
+            const spread = 0.55 + 0.4 * phaseProgress;
+            w.position.set(spread, 0.22, 0.15 + phaseProgress * 0.2);
+            w.rotation.y += animDelta * 14;
           } else {
-            w.scale.set(1, 1, 1);
-            w.position.y = 0.12 + Math.sin(animTime * 3.2) * 0.06;
-            w.rotation.y = -animTime * 2.6;
+            w.position.set(0.55, 0.22 + Math.sin(animTime * 3.5) * 0.07, 0.15);
+            w.rotation.y = animTime * 2.8;
+            w.rotation.x = Math.sin(animTime * 1.8) * 0.12;
           }
         }
 
-        // Void eye glow
+        // Runic core glow
         if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
-          const boost = attackPhase === "anticipation" ? 2.5 * phaseProgress : 0;
-          const eyeGlow = 1.4 + Math.sin(animTime * 4.0) * 0.5 + boost;
+          const boost = attackPhase === "anticipation" ? 2.6 * phaseProgress : 0;
+          const intensity = 1.4 + Math.sin(animTime * 4.0) * 0.45 + boost;
           const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
-          mat.userData.currentAnimatedIntensity = eyeGlow;
-          mat.emissiveIntensity = eyeGlow;
-          const parent = coreMeshRef.current.parent;
-          if (parent) {
-            const children = parent.children;
-            for (let i = 0; i < children.length; i++) {
-              const childMesh = children[i] as THREE.Mesh;
-              if (childMesh.material) {
-                const cm = childMesh.material as THREE.MeshStandardMaterial;
-                cm.userData.currentAnimatedIntensity = eyeGlow;
-                cm.emissiveIntensity = eyeGlow;
-              }
-            }
-          }
+          mat.userData.currentAnimatedIntensity = intensity;
+          mat.emissiveIntensity = intensity;
         }
       } else if (selectedCharacterId === "rift") {
-        const hover = Math.sin(animTime * 3.8) * 0.045;
+        const hover = Math.sin(animTime * 3.6) * 0.06;
         if (attackPhase === "anticipation") {
-          anchor.position.set(0, 0.14 + 0.06 * phaseProgress, hitKickZ);
-          anchor.rotation.set(0, -0.45 * phaseProgress, 0.12 * phaseProgress);
+          anchor.position.set(0, 0.12 + 0.06 * phaseProgress, hitKickZ);
+          anchor.rotation.set(0.06, -0.22 * phaseProgress, 0.08);
         } else if (attackPhase === "release") {
-          const snap = 1 - phaseProgress;
-          anchor.position.set(0, 0.16, hitKickZ - 0.14 * snap);
-          anchor.rotation.set(-0.12 * snap, 0.55 * snap, -0.08 * snap);
+          const whip = 1 - phaseProgress;
+          anchor.position.set(0, 0.12, hitKickZ - 0.15 * whip);
+          anchor.rotation.set(-0.12 * whip, 0.35 * whip, -0.06 * whip);
         } else if (attackPhase === "movement") {
-          anchor.position.set(0, 0.14 + hover, hitKickZ);
-          anchor.rotation.set(0.16, 0, -moveX * 0.12);
+          anchor.position.set(0, 0.12 + hover, hitKickZ);
+          anchor.rotation.set(0.16, 0, -moveX * 0.1);
         } else {
-          anchor.position.set(0, 0.14 + hover, hitKickZ);
-          anchor.rotation.set(0, Math.sin(animTime * 1.6) * 0.08, Math.sin(animTime * 2.1) * 0.04);
+          anchor.position.set(0, 0.12 + hover, hitKickZ);
+          anchor.rotation.set(0, Math.sin(animTime * 1.4) * 0.04, 0.04);
         }
 
         if (weaponGroupRef.current) {
           const w = weaponGroupRef.current;
           if (attackPhase === "anticipation") {
-            w.scale.setScalar(1 - 0.25 * phaseProgress);
-            w.rotation.y = animTime * 8;
+            w.position.set(0.55, 0.22, 0.15);
+            w.rotation.y += animDelta * 11;
           } else if (attackPhase === "release") {
-            w.scale.setScalar(0.8 + phaseProgress * 0.7);
-            w.rotation.y += animDelta * 12;
+            const fwd = 0.15 + phaseProgress * 0.45;
+            w.position.set(0.55, 0.22, fwd);
+            w.rotation.y += animDelta * 16;
           } else {
-            w.scale.setScalar(1);
-            w.rotation.y = animTime * 3.2;
-            w.rotation.z = Math.sin(animTime * 2.4) * 0.22;
+            w.position.set(0.55, 0.22 + Math.sin(animTime * 3.0) * 0.05, 0.15);
+            w.rotation.y = animTime * 4.0;
           }
         }
 
@@ -896,15 +875,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
     flashMaterialsRef.current.forEach((mat) => {
       if (mat) {
         if (isWhiteFlash) {
-          // Strong brief emissive white flash on initial damage impact
           mat.emissive.set("#ffffff");
           mat.emissiveIntensity = 1.5;
         } else if (isFlashing) {
-          // Sustained damage reaction flash
           mat.emissive.set("#ef4444");
           mat.emissiveIntensity = 0.9;
         } else if (isSlowed) {
-          // Subtle frosty blue/cyan feedback while preserving gameplay slow
           mat.emissive.set("#38bdf8");
           mat.emissiveIntensity = 0.35;
         } else {
@@ -945,246 +921,281 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
       <CapsuleCollider args={[0.5, 0.38]} position={[0, 0, 0]} />
       <group ref={meshGroupRef}>
         <group ref={modelAnchorRef}>
+
           {/* ================================================================= */}
           {/* CHARACTER 1: BONK — Heavy Bruiser, Orange/Gold, Mega Warhammer   */}
           {/* ================================================================= */}
           {selectedCharacterId === "bonk" && (
             <group>
-              {/* Torso: Broad heavy armored chassis */}
-              <mesh castShadow position={[0, 0, 0]}>
-                <capsuleGeometry args={[0.5, 0.48, 8, 16]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#1e293b"
-                  roughness={0.35}
-                  metalness={0.5}
-                />
-              </mesh>
-
-              {/* Layered Heavy Orange Breastplate */}
-              <mesh castShadow position={[0, 0.06, 0.12]} rotation={[0.12, 0, 0]}>
-                <boxGeometry args={[0.74, 0.44, 0.48]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#c2410c", 0.2)}
-                  color="#ea580c"
-                  roughness={0.28}
-                  metalness={0.65}
-                />
-              </mesh>
-
-              {/* Heavy Armored Belt & Hip Tassets */}
-              <group position={[0, -0.22, 0]}>
-                {/* Belt hoop */}
-                <mesh position={[0, 0, 0]}>
-                  <cylinderGeometry args={[0.52, 0.54, 0.16, 12]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#0f172a"
-                    metalness={0.8}
-                    roughness={0.3}
-                  />
+              {/* --- LOWER BODY: BOOTS & LEGS (Humanoid Separation) --- */}
+              {/* Left Boot */}
+              <group position={[-0.23, -0.66, 0.04]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.18, 0.16, 0.32]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.7} roughness={0.3} />
                 </mesh>
-                {/* Center Gold Buckle */}
-                <mesh position={[0, 0, 0.5]}>
-                  <boxGeometry args={[0.22, 0.14, 0.1]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)}
-                    color="#f59e0b"
-                    metalness={0.9}
-                    roughness={0.2}
-                  />
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.20, 0.04, 0.34]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.5} roughness={0.4} />
                 </mesh>
-                {/* Left Hip Tasset */}
-                <mesh position={[-0.5, -0.1, 0.05]} rotation={[0, 0, 0.2]}>
-                  <boxGeometry args={[0.14, 0.28, 0.38]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#ea580c"
-                    metalness={0.6}
-                    roughness={0.3}
-                  />
-                </mesh>
-                {/* Right Hip Tasset */}
-                <mesh position={[0.5, -0.1, 0.05]} rotation={[0, 0, -0.2]}>
-                  <boxGeometry args={[0.14, 0.28, 0.38]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#ea580c"
-                    metalness={0.6}
-                    roughness={0.3}
-                  />
+                <mesh position={[0, 0.02, 0.13]}>
+                  <boxGeometry args={[0.18, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.2)} color="#f59e0b" metalness={0.8} roughness={0.2} />
                 </mesh>
               </group>
 
-              {/* Double-Tiered Chunky Bruiser Pauldrons */}
+              {/* Right Boot */}
+              <group position={[0.23, -0.66, 0.04]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.18, 0.16, 0.32]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.7} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.20, 0.04, 0.34]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.5} roughness={0.4} />
+                </mesh>
+                <mesh position={[0, 0.02, 0.13]}>
+                  <boxGeometry args={[0.18, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.2)} color="#f59e0b" metalness={0.8} roughness={0.2} />
+                </mesh>
+              </group>
+
+              {/* Left Lower Leg & Greave */}
+              <group position={[-0.23, -0.44, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.17, 0.28, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.65} roughness={0.35} />
+                </mesh>
+                <mesh position={[0, 0, 0.08]}>
+                  <boxGeometry args={[0.15, 0.26, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.6} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.19, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.3)} color="#fbbf24" metalness={0.85} roughness={0.2} />
+                </mesh>
+              </group>
+
+              {/* Right Lower Leg & Greave */}
+              <group position={[0.23, -0.44, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.17, 0.28, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.65} roughness={0.35} />
+                </mesh>
+                <mesh position={[0, 0, 0.08]}>
+                  <boxGeometry args={[0.15, 0.26, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.6} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.19, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.3)} color="#fbbf24" metalness={0.85} roughness={0.2} />
+                </mesh>
+              </group>
+
+              {/* Left Upper Leg / Thigh */}
+              <group position={[-0.20, -0.16, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.16, 0.24, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.6} roughness={0.4} />
+                </mesh>
+                <mesh position={[-0.08, 0, 0]}>
+                  <boxGeometry args={[0.04, 0.18, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.6} />
+                </mesh>
+              </group>
+
+              {/* Right Upper Leg / Thigh */}
+              <group position={[0.20, -0.16, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.16, 0.24, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.6} roughness={0.4} />
+                </mesh>
+                <mesh position={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.04, 0.18, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.6} />
+                </mesh>
+              </group>
+
+              {/* --- WAIST / ARMORED BELT & TASSETS --- */}
+              <group position={[0, 0.00, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.46, 0.12, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.3} />
+                </mesh>
+                {/* Center Golden Buckle */}
+                <mesh position={[0, 0, 0.15]}>
+                  <boxGeometry args={[0.18, 0.14, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.4)} color="#fbbf24" metalness={0.9} roughness={0.2} />
+                </mesh>
+                {/* Left Hip Tasset */}
+                <mesh position={[-0.26, -0.06, 0]} rotation={[0, 0, 0.18]}>
+                  <boxGeometry args={[0.08, 0.22, 0.26]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.65} roughness={0.3} />
+                </mesh>
+                {/* Right Hip Tasset */}
+                <mesh position={[0.26, -0.06, 0]} rotation={[0, 0, -0.18]}>
+                  <boxGeometry args={[0.08, 0.22, 0.26]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#ea580c" metalness={0.65} roughness={0.3} />
+                </mesh>
+              </group>
+
+              {/* --- TORSO & CHESTPLATE (V-Taper Combat Armor) --- */}
+              <group position={[0, 0.24, 0]}>
+                {/* Lower Abdomen */}
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <boxGeometry args={[0.42, 0.16, 0.26]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.65} roughness={0.35} />
+                </mesh>
+                {/* Broad Upper Chestplate (Angular V-Shape) */}
+                <mesh castShadow position={[0, 0.05, 0.03]} rotation={[0.10, 0, 0]}>
+                  <boxGeometry args={[0.62, 0.26, 0.36]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.7} roughness={0.3} />
+                </mesh>
+                {/* Layered Orange Breastplate */}
+                <mesh castShadow position={[0, 0.06, 0.16]} rotation={[0.10, 0, 0]}>
+                  <boxGeometry args={[0.54, 0.22, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#c2410c", 0.2)} color="#ea580c" metalness={0.7} roughness={0.25} />
+                </mesh>
+                {/* Golden Chevron Core / Crest */}
+                <mesh ref={coreMeshRef} position={[0, 0.07, 0.24]} rotation={[0.10, 0, 0]}>
+                  <boxGeometry args={[0.28, 0.16, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 1.0, true)} color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1.0} metalness={0.9} roughness={0.15} />
+                </mesh>
+                {/* Rear Power Backpack with Vents */}
+                <group position={[0, 0.06, -0.18]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.44, 0.28, 0.14]} />
+                    <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.25} />
+                  </mesh>
+                  <mesh position={[-0.14, 0.06, -0.07]}>
+                    <cylinderGeometry args={[0.04, 0.04, 0.12, 6]} />
+                    <meshStandardMaterial color="#ea580c" metalness={0.9} />
+                  </mesh>
+                  <mesh position={[0.14, 0.06, -0.07]}>
+                    <cylinderGeometry args={[0.04, 0.04, 0.12, 6]} />
+                    <meshStandardMaterial color="#ea580c" metalness={0.9} />
+                  </mesh>
+                </group>
+              </group>
+
+              {/* --- SHOULDERS & PAULDRONS (Broad Readable Combat Width) --- */}
               {/* Left Pauldron */}
-              <group position={[-0.66, 0.26, 0]} rotation={[0, 0, 0.25]}>
-                {/* Base tier dark plate */}
-                <mesh castShadow position={[0, -0.06, 0]}>
-                  <boxGeometry args={[0.36, 0.2, 0.52]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#1e293b"
-                    metalness={0.8}
-                  />
+              <group position={[-0.52, 0.38, 0]} rotation={[0, 0, 0.22]}>
+                <mesh castShadow position={[0, -0.04, 0]}>
+                  <boxGeometry args={[0.30, 0.18, 0.44]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.8} />
                 </mesh>
-                {/* Upper heavy gold-trimmed plate */}
-                <mesh castShadow position={[-0.04, 0.08, 0]}>
-                  <boxGeometry args={[0.42, 0.28, 0.54]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)}
-                    color="#f59e0b"
-                    roughness={0.2}
-                    metalness={0.85}
-                  />
+                <mesh castShadow position={[-0.04, 0.06, 0]}>
+                  <boxGeometry args={[0.34, 0.14, 0.46]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)} color="#ea580c" metalness={0.75} roughness={0.25} />
                 </mesh>
-                {/* Pauldron studs */}
-                <mesh position={[-0.24, 0.1, 0.18]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
+                <mesh position={[-0.18, 0.08, 0.15]}>
+                  <boxGeometry args={[0.05, 0.05, 0.08]} />
                   <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
-                <mesh position={[-0.24, 0.1, -0.18]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
+                <mesh position={[-0.18, 0.08, -0.15]}>
+                  <boxGeometry args={[0.05, 0.05, 0.08]} />
                   <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
               </group>
 
               {/* Right Pauldron */}
-              <group position={[0.66, 0.26, 0]} rotation={[0, 0, -0.25]}>
-                {/* Base tier dark plate */}
-                <mesh castShadow position={[0, -0.06, 0]}>
-                  <boxGeometry args={[0.36, 0.2, 0.52]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#1e293b"
-                    metalness={0.8}
-                  />
+              <group position={[0.52, 0.38, 0]} rotation={[0, 0, -0.22]}>
+                <mesh castShadow position={[0, -0.04, 0]}>
+                  <boxGeometry args={[0.30, 0.18, 0.44]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.8} />
                 </mesh>
-                {/* Upper heavy gold-trimmed plate */}
-                <mesh castShadow position={[0.04, 0.08, 0]}>
-                  <boxGeometry args={[0.42, 0.28, 0.54]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)}
-                    color="#f59e0b"
-                    roughness={0.2}
-                    metalness={0.85}
-                  />
+                <mesh castShadow position={[0.04, 0.06, 0]}>
+                  <boxGeometry args={[0.34, 0.14, 0.46]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)} color="#ea580c" metalness={0.75} roughness={0.25} />
                 </mesh>
-                {/* Pauldron studs */}
-                <mesh position={[0.24, 0.1, 0.18]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
+                <mesh position={[0.18, 0.08, 0.15]}>
+                  <boxGeometry args={[0.05, 0.05, 0.08]} />
                   <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
-                <mesh position={[0.24, 0.1, -0.18]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
+                <mesh position={[0.18, 0.08, -0.15]}>
+                  <boxGeometry args={[0.05, 0.05, 0.08]} />
                   <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
               </group>
 
-              {/* Bruiser Helmet with Spiky Hair Crest, Iconic Beard Guard & Horn Exhausts */}
-              <group position={[0, 0.52, 0.05]}>
-                {/* Main Helmet Dome */}
-                <mesh castShadow>
-                  <sphereGeometry args={[0.36, 16, 14]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#1e293b"
-                    metalness={0.7}
-                    roughness={0.25}
-                  />
+              {/* --- ARMS & FOREARMS (Separated Negative Space) --- */}
+              {/* Left Arm & Gauntlet */}
+              <group position={[-0.44, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.06, 0]}>
+                  <boxGeometry args={[0.14, 0.20, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.6} />
                 </mesh>
-
-                {/* Swept-Back Hair / Crest Silhouette (Front, Mid, Rear) */}
-                <group position={[0, 0.24, -0.02]}>
-                  {/* Front hair lock */}
-                  <mesh position={[0, 0.08, 0.18]} rotation={[-0.35, 0, 0]}>
-                    <coneGeometry args={[0.08, 0.26, 4]} />
-                    <meshStandardMaterial color="#f59e0b" metalness={0.65} roughness={0.3} />
-                  </mesh>
-                  {/* Mid hair lock (tallest) */}
-                  <mesh position={[0, 0.14, 0]} rotation={[-0.1, 0, 0]}>
-                    <coneGeometry args={[0.09, 0.32, 4]} />
-                    <meshStandardMaterial color="#fbbf24" metalness={0.7} roughness={0.25} />
-                  </mesh>
-                  {/* Rear swept hair lock */}
-                  <mesh position={[0, 0.06, -0.2]} rotation={[0.4, 0, 0]}>
-                    <coneGeometry args={[0.09, 0.28, 4]} />
-                    <meshStandardMaterial color="#ea580c" metalness={0.65} roughness={0.3} />
-                  </mesh>
-                </group>
-
-                {/* Iconic Silver-White Beard / Chin Armor Guard (from bonk.svg) */}
-                <group position={[0, -0.18, 0.26]} rotation={[0.15, 0, 0]}>
-                  <mesh castShadow>
-                    <boxGeometry args={[0.34, 0.22, 0.18]} />
-                    <meshStandardMaterial
-                      ref={(m) => registerFlashMaterial(m)}
-                      color="#f4f7fb"
-                      roughness={0.2}
-                      metalness={0.4}
-                    />
-                  </mesh>
-                  {/* Golden Beard Plate Bottom Rim */}
-                  <mesh position={[0, -0.11, 0.02]}>
-                    <boxGeometry args={[0.36, 0.06, 0.2]} />
-                    <meshStandardMaterial
-                      ref={(m) => registerFlashMaterial(m, "#f59e0b", 0.3)}
-                      color="#f59e0b"
-                      metalness={0.85}
-                      roughness={0.25}
-                    />
-                  </mesh>
-                </group>
-
-                {/* Dominant Forward-Pointing Golden Visor (Top-Down Facing Readability) */}
-                <mesh position={[0, 0.04, 0.33]}>
-                  <boxGeometry args={[0.44, 0.13, 0.14]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#fbbf24", 1.1)}
-                    color="#fbbf24"
-                    emissive="#fbbf24"
-                    emissiveIntensity={1.1}
-                  />
+                <mesh castShadow position={[-0.02, -0.16, 0.04]}>
+                  <boxGeometry args={[0.16, 0.22, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} />
                 </mesh>
-
-                {/* Dual Bruiser Horn Exhausts */}
-                <mesh position={[-0.32, 0.2, -0.05]} rotation={[0, 0, 0.5]}>
-                  <coneGeometry args={[0.1, 0.34, 6]} />
-                  <meshStandardMaterial color="#f59e0b" metalness={0.9} roughness={0.2} />
-                </mesh>
-                <mesh position={[0.32, 0.2, -0.05]} rotation={[0, 0, -0.5]}>
-                  <coneGeometry args={[0.1, 0.34, 6]} />
-                  <meshStandardMaterial color="#f59e0b" metalness={0.9} roughness={0.2} />
+                <mesh position={[-0.02, -0.16, 0.13]}>
+                  <boxGeometry args={[0.14, 0.14, 0.06]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} />
                 </mesh>
               </group>
 
-              {/* Heavy Chest Chevron Crest (Directional Facing Indicator with subtle pulse) */}
-              <group position={[0, 0.08, 0.46]} rotation={[0.2, 0, 0]}>
-                <mesh ref={coreMeshRef}>
-                  <boxGeometry args={[0.38, 0.24, 0.14]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.8, true)}
-                    color="#fbbf24"
-                    emissive="#fbbf24"
-                    emissiveIntensity={0.8}
-                    metalness={0.9}
-                    roughness={0.2}
-                  />
+              {/* Right Arm & Gauntlet */}
+              <group position={[0.44, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.06, 0]}>
+                  <boxGeometry args={[0.14, 0.20, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.6} />
                 </mesh>
-                {/* Flanking gold collar plates */}
-                <mesh position={[-0.24, 0.08, -0.04]} rotation={[0, 0, -0.3]}>
-                  <boxGeometry args={[0.12, 0.18, 0.1]} />
-                  <meshStandardMaterial color="#f59e0b" metalness={0.85} />
+                <mesh castShadow position={[0.02, -0.16, 0.04]}>
+                  <boxGeometry args={[0.16, 0.22, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} />
                 </mesh>
-                <mesh position={[0.24, 0.08, -0.04]} rotation={[0, 0, 0.3]}>
-                  <boxGeometry args={[0.12, 0.18, 0.1]} />
-                  <meshStandardMaterial color="#f59e0b" metalness={0.85} />
+                <mesh position={[0.02, -0.16, 0.13]}>
+                  <boxGeometry args={[0.14, 0.14, 0.06]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} />
                 </mesh>
               </group>
 
-              {/* Ornate Kinetic Mega Warhammer Attachment */}
-              <group ref={weaponGroupRef} position={[0.7, 0.1, 0.15]} rotation={[0.2, 0, -0.2]}>
-                {/* Dark Textured Titanium Haft */}
+              {/* --- HEAD & HELMET (Compact Humanoid Proportion) --- */}
+              <group position={[0, 0.56, 0.02]}>
+                {/* Neck Collar */}
+                <mesh position={[0, -0.12, 0]}>
+                  <cylinderGeometry args={[0.12, 0.14, 0.08, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} />
+                </mesh>
+                {/* Angular Combat Helmet */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.28, 0.24, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e293b" metalness={0.75} roughness={0.25} />
+                </mesh>
+                {/* Dominant Forward Golden Visor */}
+                <mesh position={[0, 0.02, 0.15]}>
+                  <boxGeometry args={[0.32, 0.08, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 1.2)} color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1.2} />
+                </mesh>
+                {/* Iconic Beard / Chin Armor Guard (from bonk.svg) */}
+                <mesh castShadow position={[0, -0.09, 0.14]} rotation={[0.12, 0, 0]}>
+                  <boxGeometry args={[0.22, 0.12, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f1f5f9" metalness={0.4} roughness={0.2} />
+                </mesh>
+                <mesh position={[0, -0.14, 0.15]}>
+                  <boxGeometry args={[0.24, 0.04, 0.12]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} />
+                </mesh>
+                {/* Swept Crest & Dual Exhaust Horns */}
+                <mesh position={[0, 0.16, -0.02]} rotation={[-0.25, 0, 0]}>
+                  <boxGeometry args={[0.08, 0.12, 0.26]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.8} />
+                </mesh>
+                <mesh position={[-0.18, 0.12, -0.06]} rotation={[0, 0, 0.4]}>
+                  <coneGeometry args={[0.05, 0.20, 5]} />
+                  <meshStandardMaterial color="#f59e0b" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.18, 0.12, -0.06]} rotation={[0, 0, -0.4]}>
+                  <coneGeometry args={[0.05, 0.20, 5]} />
+                  <meshStandardMaterial color="#f59e0b" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- SIGNATURE WEAPON: KINETIC MEGA WARHAMMER --- */}
+              <group ref={weaponGroupRef} position={[0.68, 0.15, 0.15]} rotation={[0.2, 0, -0.2]}>
+                {/* Dark Titanium Haft */}
                 <mesh position={[0, 0.15, 0]}>
                   <cylinderGeometry args={[0.045, 0.045, 1.25, 8]} />
                   <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.3} />
@@ -1192,270 +1203,291 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                 {/* Gold Grip Rings */}
                 <mesh position={[0, 0.05, 0]}>
                   <torusGeometry args={[0.055, 0.015, 6, 12]} />
-                  <meshStandardMaterial color="#f59e0b" metalness={0.95} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
                 <mesh position={[0, 0.35, 0]}>
                   <torusGeometry args={[0.055, 0.015, 6, 12]} />
-                  <meshStandardMaterial color="#f59e0b" metalness={0.95} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
-                {/* Counterweight Spiked Pommel at base */}
+                {/* Counterweight Spiked Pommel */}
                 <mesh position={[0, -0.48, 0]}>
                   <octahedronGeometry args={[0.09]} />
-                  <meshStandardMaterial color="#f59e0b" metalness={0.9} roughness={0.2} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.2} />
                 </mesh>
                 {/* Massive Double Hammer Head */}
-                <mesh castShadow position={[0, 0.7, 0]}>
-                  <boxGeometry args={[0.52, 0.36, 0.36]} />
-                  <meshStandardMaterial
-                    color="#ea580c"
-                    emissive="#c2410c"
-                    emissiveIntensity={0.35}
-                    roughness={0.25}
-                    metalness={0.7}
-                  />
+                <mesh castShadow position={[0, 0.70, 0]}>
+                  <boxGeometry args={[0.54, 0.36, 0.38]} />
+                  <meshStandardMaterial color="#ea580c" emissive="#c2410c" emissiveIntensity={0.35} roughness={0.25} metalness={0.7} />
                 </mesh>
-                {/* Front Heavy Impact Strike Plate */}
-                <mesh position={[0, 0.7, 0.22]}>
-                  <boxGeometry args={[0.42, 0.28, 0.1]} />
+                {/* Front & Rear Heavy Impact Strike Plates */}
+                <mesh position={[0, 0.70, 0.22]}>
+                  <boxGeometry args={[0.44, 0.28, 0.08]} />
                   <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
                 </mesh>
-                {/* Rear Heavy Impact Strike Plate */}
-                <mesh position={[0, 0.7, -0.22]}>
-                  <boxGeometry args={[0.42, 0.28, 0.1]} />
+                <mesh position={[0, 0.70, -0.22]}>
+                  <boxGeometry args={[0.44, 0.28, 0.08]} />
                   <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
                 </mesh>
-                {/* Crown Top Spike */}
+                {/* Crown Spike */}
                 <mesh position={[0, 0.94, 0]}>
                   <coneGeometry args={[0.08, 0.22, 5]} />
-                  <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
                 {/* Glowing Hammer Energy Core Conduit */}
-                <mesh position={[0, 0.7, 0]}>
-                  <cylinderGeometry args={[0.09, 0.09, 0.4, 8]} />
-                  <meshStandardMaterial
-                    color="#fbbf24"
-                    emissive="#fbbf24"
-                    emissiveIntensity={1.6}
-                  />
+                <mesh position={[0, 0.70, 0]}>
+                  <cylinderGeometry args={[0.09, 0.09, 0.40, 8]} />
+                  <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1.6} />
                 </mesh>
               </group>
             </group>
           )}
-
           {/* ================================================================= */}
           {/* CHARACTER 2: BYTE — Agile Futuristic Caster, Cyan/Purple Core    */}
           {/* ================================================================= */}
           {selectedCharacterId === "byte" && (
             <group>
-              {/* Sleek Aerodynamic Caster-Tech Chassis */}
-              <mesh castShadow position={[0, 0, 0]}>
-                <capsuleGeometry args={[0.38, 0.46, 8, 16]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#0f172a"
-                  roughness={0.25}
-                  metalness={0.75}
-                />
-              </mesh>
-
-              {/* Cyan Circuit Inset Panels */}
-              <mesh position={[0, 0.02, 0.12]}>
-                <boxGeometry args={[0.42, 0.44, 0.38]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#06b6d4", 0.5)}
-                  color="#06b6d4"
-                  roughness={0.2}
-                  metalness={0.6}
-                />
-              </mesh>
-
-              {/* Violet Aerodynamic Flank Winglets */}
-              <mesh castShadow position={[-0.46, 0.14, -0.06]} rotation={[0.2, 0.3, 0.4]}>
-                <boxGeometry args={[0.14, 0.42, 0.28]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#a855f7", 0.5)}
-                  color="#a855f7"
-                  metalness={0.8}
-                  roughness={0.25}
-                />
-              </mesh>
-              <mesh castShadow position={[0.46, 0.14, -0.06]} rotation={[0.2, -0.3, -0.4]}>
-                <boxGeometry args={[0.14, 0.42, 0.28]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#a855f7", 0.5)}
-                  color="#a855f7"
-                  metalness={0.8}
-                  roughness={0.25}
-                />
-              </mesh>
-
-              {/* Floating Tech Diamond Shoulder Nodes */}
-              <group position={[-0.56, 0.26, 0]} rotation={[0, 0, 0.3]}>
-                <mesh>
-                  <octahedronGeometry args={[0.15]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 0.8)}
-                    color="#0f172a"
-                    emissive="#22d3ee"
-                    emissiveIntensity={0.8}
-                    metalness={0.85}
-                  />
+              {/* --- LOWER BODY: BOOTS & LEGS (Slender Cybernetic Humanoid) --- */}
+              {/* Left Cyber Boot */}
+              <group position={[-0.18, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.25} />
                 </mesh>
-                <mesh position={[0, 0, 0]}>
-                  <torusGeometry args={[0.18, 0.015, 6, 16]} />
-                  <meshBasicMaterial color="#a855f7" />
-                </mesh>
-              </group>
-              <group position={[0.56, 0.26, 0]} rotation={[0, 0, -0.3]}>
-                <mesh>
-                  <octahedronGeometry args={[0.15]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 0.8)}
-                    color="#0f172a"
-                    emissive="#22d3ee"
-                    emissiveIntensity={0.8}
-                    metalness={0.85}
-                  />
-                </mesh>
-                <mesh position={[0, 0, 0]}>
-                  <torusGeometry args={[0.18, 0.015, 6, 16]} />
-                  <meshBasicMaterial color="#a855f7" />
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.11, 0.03, 0.26]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#00e5ff", 1.2)} color="#00e5ff" emissive="#00e5ff" emissiveIntensity={1.2} />
                 </mesh>
               </group>
 
-              {/* Pulsing Arc Reactor Chest Core */}
-              <group position={[0, 0.06, 0.36]}>
-                {/* Outer tech bezel */}
-                <mesh>
-                  <torusGeometry args={[0.18, 0.025, 8, 20]} />
-                  <meshStandardMaterial color="#1e293b" metalness={0.9} />
+              {/* Right Cyber Boot */}
+              <group position={[0.18, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.25} />
                 </mesh>
-                {/* Glowing reactor core */}
-                <mesh ref={coreMeshRef}>
-                  <cylinderGeometry args={[0.15, 0.15, 0.1, 16]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8, true)}
-                    color="#22d3ee"
-                    emissive="#22d3ee"
-                    emissiveIntensity={1.8}
-                  />
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.11, 0.03, 0.26]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#00e5ff", 1.2)} color="#00e5ff" emissive="#00e5ff" emissiveIntensity={1.2} />
                 </mesh>
               </group>
 
-              {/* Sleek Cybernetic Helmet with Sharp Tech Hood & Forehead Chevron */}
-              <group position={[0, 0.5, 0]}>
-                {/* Inner head base */}
-                <mesh castShadow>
-                  <sphereGeometry args={[0.29, 16, 14]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#0b0f19"
-                    metalness={0.85}
-                    roughness={0.2}
-                  />
+              {/* Left Lower Leg & Greave */}
+              <group position={[-0.18, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.12, 0.28, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.2} />
                 </mesh>
+                <mesh position={[0, 0, 0.07]}>
+                  <boxGeometry args={[0.06, 0.24, 0.02]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22d3ee", 0.6)} color="#22d3ee" emissive="#22d3ee" emissiveIntensity={0.6} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.07]} rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[0.06, 0.06, 0.04, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#a855f7" metalness={0.9} />
+                </mesh>
+              </group>
 
-                {/* Sharp Tech Cowl / Hood (framing the head) */}
-                <mesh position={[0, 0.06, -0.04]} rotation={[-0.15, 0, 0]}>
-                  <cylinderGeometry args={[0.34, 0.38, 0.38, 6]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#171d2b"
-                    metalness={0.8}
-                    roughness={0.3}
-                  />
+              {/* Right Lower Leg & Greave */}
+              <group position={[0.18, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.12, 0.28, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.2} />
                 </mesh>
+                <mesh position={[0, 0, 0.07]}>
+                  <boxGeometry args={[0.06, 0.24, 0.02]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22d3ee", 0.6)} color="#22d3ee" emissive="#22d3ee" emissiveIntensity={0.6} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.07]} rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[0.06, 0.06, 0.04, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#a855f7" metalness={0.9} />
+                </mesh>
+              </group>
 
-                {/* Iconic Forehead Chevron Crest (direct from byte.svg) */}
-                <mesh position={[0, 0.22, 0.26]} rotation={[0, 0, Math.PI]}>
-                  <coneGeometry args={[0.08, 0.18, 3]} />
-                  <meshStandardMaterial
-                    color="#f4f7fb"
-                    metalness={0.5}
-                    roughness={0.15}
-                  />
+              {/* Left Upper Leg / Thigh */}
+              <group position={[-0.16, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.22, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.3} />
                 </mesh>
+              </group>
 
-                {/* Wide Neon Cyan Cyber Visor (Dominant Facing Readability) */}
-                <mesh position={[0, 0.02, 0.25]}>
-                  <boxGeometry args={[0.44, 0.12, 0.14]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8, true)}
-                    color="#22d3ee"
-                    emissive="#22d3ee"
-                    emissiveIntensity={1.8}
-                  />
+              {/* Right Upper Leg / Thigh */}
+              <group position={[0.16, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.22, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.3} />
                 </mesh>
+              </group>
 
-                {/* Twin Cyber Optic Pupils (direct from byte.svg) */}
-                <mesh position={[-0.1, 0.02, 0.31]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.04, 8]} />
-                  <meshBasicMaterial color="#080b12" />
+              {/* --- WAIST / CYBER CHASSIS LINK --- */}
+              <group position={[0, 0.00, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.34, 0.10, 0.22]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.2} />
                 </mesh>
-                <mesh position={[0.1, 0.02, 0.31]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.04, 8]} />
-                  <meshBasicMaterial color="#080b12" />
+                <mesh position={[-0.18, 0, 0]}>
+                  <boxGeometry args={[0.04, 0.12, 0.16]} />
+                  <meshStandardMaterial color="#a855f7" metalness={0.9} />
                 </mesh>
-
-                {/* Swept Dorsal Fin pointing backward */}
-                <mesh position={[0, 0.24, -0.16]} rotation={[-0.45, 0, 0]}>
-                  <boxGeometry args={[0.06, 0.28, 0.36]} />
+                <mesh position={[0.18, 0, 0]}>
+                  <boxGeometry args={[0.04, 0.12, 0.16]} />
                   <meshStandardMaterial color="#a855f7" metalness={0.9} />
                 </mesh>
               </group>
 
-              {/* Dual Rear Mag-Lev Thrusters with Ion Cones */}
-              <group position={[0, -0.15, -0.32]}>
-                <mesh position={[-0.2, 0, 0]} rotation={[0.3, 0, 0]}>
-                  <cylinderGeometry args={[0.08, 0.12, 0.3, 8]} />
-                  <meshStandardMaterial color="#0f172a" metalness={0.9} />
+              {/* --- TORSO & CYBERNETIC CHASSIS (Narrow Agile V-Taper) --- */}
+              <group position={[0, 0.23, 0]}>
+                {/* Lower Torso */}
+                <mesh castShadow position={[0, -0.11, 0]}>
+                  <boxGeometry args={[0.32, 0.14, 0.22]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} />
                 </mesh>
-                <mesh position={[0.2, 0, 0]} rotation={[0.3, 0, 0]}>
-                  <cylinderGeometry args={[0.08, 0.12, 0.3, 8]} />
-                  <meshStandardMaterial color="#0f172a" metalness={0.9} />
+                {/* Upper Chest Chassis */}
+                <mesh castShadow position={[0, 0.04, 0.02]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.46, 0.24, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.2} />
                 </mesh>
-                {/* Glowing Ion Exhaust Cones */}
-                <mesh position={[-0.2, -0.15, -0.05]} rotation={[Math.PI, 0, 0]}>
-                  <coneGeometry args={[0.07, 0.16, 8]} />
-                  <meshBasicMaterial color="#38bdf8" />
+                {/* Cyan Circuit Inset Panels */}
+                <mesh position={[0, 0.04, 0.15]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.38, 0.18, 0.04]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#06b6d4", 0.5)} color="#06b6d4" roughness={0.2} metalness={0.6} />
                 </mesh>
-                <mesh position={[0.2, -0.15, -0.05]} rotation={[Math.PI, 0, 0]}>
-                  <coneGeometry args={[0.07, 0.16, 8]} />
-                  <meshBasicMaterial color="#38bdf8" />
+                {/* Pulsing Arc Reactor Chest Core */}
+                <group position={[0, 0.05, 0.18]} rotation={[Math.PI / 2, 0, 0]}>
+                  <mesh>
+                    <torusGeometry args={[0.12, 0.02, 8, 16]} />
+                    <meshStandardMaterial color="#1e293b" metalness={0.9} />
+                  </mesh>
+                  <mesh ref={coreMeshRef}>
+                    <cylinderGeometry args={[0.10, 0.10, 0.04, 16]} />
+                    <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8, true)} color="#22d3ee" emissive="#22d3ee" emissiveIntensity={1.8} />
+                  </mesh>
+                </group>
+                {/* Dual Rear Mag-Lev Thrusters */}
+                <group position={[0, 0.02, -0.16]}>
+                  <mesh position={[-0.14, 0, 0]} rotation={[0.2, 0, 0]}>
+                    <cylinderGeometry args={[0.05, 0.07, 0.18, 8]} />
+                    <meshStandardMaterial color="#0f172a" metalness={0.9} />
+                  </mesh>
+                  <mesh position={[0.14, 0, 0]} rotation={[0.2, 0, 0]}>
+                    <cylinderGeometry args={[0.05, 0.07, 0.18, 8]} />
+                    <meshStandardMaterial color="#0f172a" metalness={0.9} />
+                  </mesh>
+                  <mesh position={[-0.14, -0.09, -0.02]} rotation={[Math.PI, 0, 0]}>
+                    <coneGeometry args={[0.04, 0.10, 8]} />
+                    <meshBasicMaterial color="#38bdf8" />
+                  </mesh>
+                  <mesh position={[0.14, -0.09, -0.02]} rotation={[Math.PI, 0, 0]}>
+                    <coneGeometry args={[0.04, 0.10, 8]} />
+                    <meshBasicMaterial color="#38bdf8" />
+                  </mesh>
+                </group>
+              </group>
+
+              {/* --- SHOULDERS & FLANK WINGLETS --- */}
+              {/* Left Shoulder Node & Winglet */}
+              <group position={[-0.46, 0.36, 0]} rotation={[0, 0, 0.25]}>
+                <mesh>
+                  <octahedronGeometry args={[0.11]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22d3ee", 0.8)} color="#0f172a" emissive="#22d3ee" emissiveIntensity={0.8} metalness={0.85} />
+                </mesh>
+                <mesh position={[-0.04, -0.08, -0.06]} rotation={[0.2, 0.3, 0.2]}>
+                  <boxGeometry args={[0.05, 0.24, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#a855f7", 0.4)} color="#a855f7" metalness={0.8} />
                 </mesh>
               </group>
 
-              {/* Floating Nested-Gimbal Energy Orb Satellite */}
+              {/* Right Shoulder Node & Winglet */}
+              <group position={[0.46, 0.36, 0]} rotation={[0, 0, -0.25]}>
+                <mesh>
+                  <octahedronGeometry args={[0.11]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22d3ee", 0.8)} color="#0f172a" emissive="#22d3ee" emissiveIntensity={0.8} metalness={0.85} />
+                </mesh>
+                <mesh position={[0.04, -0.08, -0.06]} rotation={[0.2, -0.3, -0.2]}>
+                  <boxGeometry args={[0.05, 0.24, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#a855f7", 0.4)} color="#a855f7" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- ARMS & GAUNTLETS --- */}
+              {/* Left Arm */}
+              <group position={[-0.36, 0.16, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.10, 0.18, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} />
+                </mesh>
+                <mesh castShadow position={[0, -0.14, 0.03]}>
+                  <boxGeometry args={[0.11, 0.18, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#171d2b" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* Right Arm */}
+              <group position={[0.36, 0.16, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.10, 0.18, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} />
+                </mesh>
+                <mesh castShadow position={[0, -0.14, 0.03]}>
+                  <boxGeometry args={[0.11, 0.18, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#171d2b" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* --- HEAD & CYBER-COWL (Compact Sleek Proportions) --- */}
+              <group position={[0, 0.54, 0]}>
+                {/* Neck */}
+                <mesh position={[0, -0.10, 0]}>
+                  <cylinderGeometry args={[0.09, 0.11, 0.06, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} />
+                </mesh>
+                {/* Helmet Cowl */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.24, 0.22, 0.26]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.2} />
+                </mesh>
+                {/* Iconic Forehead Chevron Crest (from byte.svg) */}
+                <mesh position={[0, 0.12, 0.14]} rotation={[0, 0, Math.PI]}>
+                  <coneGeometry args={[0.06, 0.14, 3]} />
+                  <meshStandardMaterial color="#f1f5f9" metalness={0.5} roughness={0.15} />
+                </mesh>
+                {/* Wide Neon Cyan Cyber Visor */}
+                <mesh position={[0, 0.01, 0.14]}>
+                  <boxGeometry args={[0.28, 0.07, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22d3ee", 1.8, true)} color="#22d3ee" emissive="#22d3ee" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Twin Cyber Optic Dots */}
+                <mesh position={[-0.07, 0.01, 0.18]} rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[0.02, 0.02, 0.02, 8]} />
+                  <meshBasicMaterial color="#080b12" />
+                </mesh>
+                <mesh position={[0.07, 0.01, 0.18]} rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[0.02, 0.02, 0.02, 8]} />
+                  <meshBasicMaterial color="#080b12" />
+                </mesh>
+                {/* Swept Dorsal Fin */}
+                <mesh position={[0, 0.14, -0.10]} rotation={[-0.45, 0, 0]}>
+                  <boxGeometry args={[0.04, 0.18, 0.24]} />
+                  <meshStandardMaterial color="#a855f7" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- SIGNATURE WEAPON: FLOATING ENERGY ORB --- */}
               <group ref={weaponGroupRef} position={[0.55, 0.25, 0.15]}>
                 {/* Glowing Plasma Sphere Core */}
                 <mesh>
                   <sphereGeometry args={[0.16, 16, 16]} />
-                  <meshStandardMaterial
-                    color="#22d3ee"
-                    emissive="#22d3ee"
-                    emissiveIntensity={2.0}
-                    roughness={0.1}
-                  />
+                  <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={2.0} roughness={0.1} />
                 </mesh>
                 {/* Rotating Outer Violet Gimbal Ring */}
                 <mesh rotation={[Math.PI / 3, 0, 0]}>
                   <torusGeometry args={[0.28, 0.025, 8, 24]} />
-                  <meshStandardMaterial
-                    color="#a855f7"
-                    emissive="#a855f7"
-                    emissiveIntensity={0.9}
-                    metalness={0.9}
-                  />
+                  <meshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={0.9} metalness={0.9} />
                 </mesh>
                 {/* Rotating Inner Cyan Gimbal Ring */}
                 <mesh rotation={[-Math.PI / 4, 0, Math.PI / 2]}>
                   <torusGeometry args={[0.22, 0.02, 8, 20]} />
-                  <meshStandardMaterial
-                    color="#22d3ee"
-                    emissive="#22d3ee"
-                    emissiveIntensity={1.2}
-                    metalness={0.9}
-                  />
+                  <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={1.2} metalness={0.9} />
                 </mesh>
                 {/* Orbiting micro satellite nodes */}
                 <mesh position={[0.28, 0, 0]}>
@@ -1469,1058 +1501,1445 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
               </group>
             </group>
           )}
-
           {/* ================================================================= */}
           {/* CHARACTER 3: TANK — Heavy Armored Bastion, Dark Metal/Red Plates  */}
           {/* ================================================================= */}
           {selectedCharacterId === "tank" && (
             <group>
-              {/* Massive Armored Obsidian Body Chassis */}
-              <mesh castShadow position={[0, 0, 0]}>
-                <capsuleGeometry args={[0.58, 0.44, 8, 16]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#1e293b"
-                  metalness={0.75}
-                  roughness={0.35}
-                />
-              </mesh>
-
-              {/* Colossal Double-Tiered Bastion Shoulder Shields */}
-              {/* Left Bastion Shoulder */}
-              <group position={[-0.84, 0.25, 0]} rotation={[0, 0, 0.35]}>
-                {/* Base heavy dark mount */}
-                <mesh castShadow position={[0.06, -0.04, 0]}>
-                  <boxGeometry args={[0.36, 0.44, 0.58]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#0f172a"
-                    metalness={0.85}
-                  />
+              {/* --- LOWER BODY: BOOTS & LEGS (Massive Fortress Silhouette) --- */}
+              {/* Left Blast Stomper */}
+              <group position={[-0.27, -0.66, 0.04]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.24, 0.18, 0.38]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} roughness={0.3} />
                 </mesh>
-                {/* Massive outer crimson bastion shield plate */}
-                <mesh castShadow position={[-0.04, 0.06, 0]}>
-                  <boxGeometry args={[0.44, 0.6, 0.72]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#dc2626", 0.5)}
-                    color="#dc2626"
-                    roughness={0.28}
-                    metalness={0.65}
-                  />
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.26, 0.05, 0.40]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.9} />
                 </mesh>
-                {/* Shield silver rim armor band */}
-                <mesh position={[-0.24, 0.06, 0]}>
-                  <boxGeometry args={[0.06, 0.62, 0.74]} />
-                  <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.2} />
-                </mesh>
-                {/* Industrial bolt studs */}
-                <mesh position={[-0.25, 0.28, 0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
-                </mesh>
-                <mesh position={[-0.25, -0.18, 0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
-                </mesh>
-                <mesh position={[-0.25, 0.28, -0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
-                </mesh>
-                <mesh position={[-0.25, -0.18, -0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
+                <mesh position={[0, 0.02, 0.18]}>
+                  <boxGeometry args={[0.22, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.7} />
                 </mesh>
               </group>
 
-              {/* Right Bastion Shoulder */}
-              <group position={[0.84, 0.25, 0]} rotation={[0, 0, -0.35]}>
-                {/* Base heavy dark mount */}
-                <mesh castShadow position={[-0.06, -0.04, 0]}>
-                  <boxGeometry args={[0.36, 0.44, 0.58]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#0f172a"
-                    metalness={0.85}
-                  />
+              {/* Right Blast Stomper */}
+              <group position={[0.27, -0.66, 0.04]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.24, 0.18, 0.38]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} roughness={0.3} />
                 </mesh>
-                {/* Massive outer crimson bastion shield plate */}
-                <mesh castShadow position={[0.04, 0.06, 0]}>
-                  <boxGeometry args={[0.44, 0.6, 0.72]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#dc2626", 0.5)}
-                    color="#dc2626"
-                    roughness={0.28}
-                    metalness={0.65}
-                  />
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.26, 0.05, 0.40]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.9} />
                 </mesh>
-                {/* Shield silver rim armor band */}
-                <mesh position={[0.24, 0.06, 0]}>
-                  <boxGeometry args={[0.06, 0.62, 0.74]} />
-                  <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.2} />
-                </mesh>
-                {/* Industrial bolt studs */}
-                <mesh position={[0.25, 0.28, 0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
-                </mesh>
-                <mesh position={[0.25, -0.18, 0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
-                </mesh>
-                <mesh position={[0.25, 0.28, -0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
-                </mesh>
-                <mesh position={[0.25, -0.18, -0.26]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.035, 0.035, 0.06, 6]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.95} />
+                <mesh position={[0, 0.02, 0.18]}>
+                  <boxGeometry args={[0.22, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.7} />
                 </mesh>
               </group>
 
-              {/* Heavy Reinforced Frontal Prow / Chest Chevron */}
-              <mesh position={[0, 0.08, 0.56]} rotation={[0.25, 0, 0]}>
-                <boxGeometry args={[0.56, 0.4, 0.18]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#dc2626", 0.5)}
-                  color="#dc2626"
-                  metalness={0.75}
-                  roughness={0.25}
-                />
-              </mesh>
-
-              {/* Iconic Fortress Chin / Lower Chest Plate (direct from tank.svg) */}
-              <group position={[0, -0.14, 0.62]} rotation={[0.15, 0, 0]}>
-                <mesh>
-                  <boxGeometry args={[0.38, 0.18, 0.12]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#f4f7fb"
-                    metalness={0.5}
-                    roughness={0.2}
-                  />
+              {/* Left Pillar Greave */}
+              <group position={[-0.27, -0.42, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.22, 0.30, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.8} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, 0, 0.12]}>
+                  <boxGeometry args={[0.20, 0.28, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.75} roughness={0.25} />
+                </mesh>
+                <mesh position={[0, 0.16, 0.13]}>
+                  <boxGeometry args={[0.24, 0.12, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
                 </mesh>
               </group>
 
-              {/* Heavy Segmented Skirt / Thigh Tassets */}
-              <group position={[0, -0.25, 0]}>
-                <mesh position={[-0.45, -0.08, 0.1]} rotation={[0, 0, 0.15]}>
-                  <boxGeometry args={[0.18, 0.3, 0.44]} />
-                  <meshStandardMaterial color="#1e293b" metalness={0.8} />
+              {/* Right Pillar Greave */}
+              <group position={[0.27, -0.42, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.22, 0.30, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.8} roughness={0.3} />
                 </mesh>
-                <mesh position={[0.45, -0.08, 0.1]} rotation={[0, 0, -0.15]}>
-                  <boxGeometry args={[0.18, 0.3, 0.44]} />
-                  <meshStandardMaterial color="#1e293b" metalness={0.8} />
+                <mesh position={[0, 0, 0.12]}>
+                  <boxGeometry args={[0.20, 0.28, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.75} roughness={0.25} />
+                </mesh>
+                <mesh position={[0, 0.16, 0.13]}>
+                  <boxGeometry args={[0.24, 0.12, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
                 </mesh>
               </group>
 
-              {/* Heavy Fortress Knight Greathelm with Aggressive Swept-Forward Horns */}
-              <group position={[0, 0.55, 0.05]}>
-                {/* Helm block */}
-                <mesh castShadow>
-                  <boxGeometry args={[0.54, 0.44, 0.54]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#0f172a"
-                    metalness={0.85}
-                    roughness={0.25}
-                  />
+              {/* Left Upper Leg / Thigh */}
+              <group position={[-0.24, -0.14, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.20, 0.24, 0.22]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.75} />
                 </mesh>
+                <mesh position={[-0.10, 0, 0]}>
+                  <boxGeometry args={[0.08, 0.20, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.7} />
+                </mesh>
+              </group>
 
-                {/* Aggressive Swept-Forward Horns (Menacing Silhouette) */}
-                <group position={[-0.34, 0.24, 0.14]} rotation={[0.55, 0, 0.4]}>
-                  <mesh>
-                    <coneGeometry args={[0.11, 0.44, 6]} />
-                    <meshStandardMaterial color="#991b1b" metalness={0.8} roughness={0.3} />
+              {/* Right Upper Leg / Thigh */}
+              <group position={[0.24, -0.14, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.20, 0.24, 0.22]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.75} />
+                </mesh>
+                <mesh position={[0.10, 0, 0]}>
+                  <boxGeometry args={[0.08, 0.20, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.7} />
+                </mesh>
+              </group>
+
+              {/* --- WAIST / FORTRESS BELT & SKIRTS --- */}
+              <group position={[0, 0.02, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.54, 0.14, 0.34]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} roughness={0.3} />
+                </mesh>
+                {/* Front Ballistic Flap */}
+                <mesh position={[0, -0.06, 0.18]}>
+                  <boxGeometry args={[0.24, 0.22, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.8} />
+                </mesh>
+                {/* Left & Right Hip Skirts */}
+                <mesh position={[-0.32, -0.06, 0]} rotation={[0, 0, 0.15]}>
+                  <boxGeometry args={[0.10, 0.26, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.8} />
+                </mesh>
+                <mesh position={[0.32, -0.06, 0]} rotation={[0, 0, -0.15]}>
+                  <boxGeometry args={[0.10, 0.26, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- TORSO & SLAB CHESTPLATE (Colossal Juggernaut Cuirass) --- */}
+              <group position={[0, 0.28, 0]}>
+                {/* Lower Abdomen */}
+                <mesh castShadow position={[0, -0.13, 0]}>
+                  <boxGeometry args={[0.48, 0.18, 0.32]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} />
+                </mesh>
+                {/* Colossal Slab Chestplate */}
+                <mesh castShadow position={[0, 0.06, 0.04]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.74, 0.30, 0.44]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} roughness={0.25} />
+                </mesh>
+                {/* Layered Crimson Blast Plates */}
+                <mesh castShadow position={[0, 0.08, 0.22]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.66, 0.24, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#ef4444", 0.3)} color="#ef4444" metalness={0.75} roughness={0.2} />
+                </mesh>
+                {/* Chest Slit Hazard Core */}
+                <mesh ref={coreMeshRef} position={[0, 0.10, 0.30]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.32, 0.10, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#ef4444", 1.5, true)} color="#ef4444" emissive="#ef4444" emissiveIntensity={1.5} />
+                </mesh>
+                {/* Colossal Dorsal Power Unit with Twin Smoke Stacks */}
+                <group position={[0, 0.06, -0.22]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.56, 0.32, 0.20]} />
+                    <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
                   </mesh>
-                  <mesh position={[0, 0.22, 0]}>
-                    <coneGeometry args={[0.06, 0.18, 6]} />
-                    <meshStandardMaterial color="#ef4444" metalness={0.85} />
+                  <mesh position={[-0.20, 0.18, 0]}>
+                    <cylinderGeometry args={[0.06, 0.08, 0.24, 8]} />
+                    <meshStandardMaterial color="#334155" metalness={0.95} />
+                  </mesh>
+                  <mesh position={[0.20, 0.18, 0]}>
+                    <cylinderGeometry args={[0.06, 0.08, 0.24, 8]} />
+                    <meshStandardMaterial color="#334155" metalness={0.95} />
                   </mesh>
                 </group>
-                <group position={[0.34, 0.24, 0.14]} rotation={[0.55, 0, -0.4]}>
-                  <mesh>
-                    <coneGeometry args={[0.11, 0.44, 6]} />
-                    <meshStandardMaterial color="#991b1b" metalness={0.8} roughness={0.3} />
-                  </mesh>
-                  <mesh position={[0, 0.22, 0]}>
-                    <coneGeometry args={[0.06, 0.18, 6]} />
-                    <meshStandardMaterial color="#ef4444" metalness={0.85} />
-                  </mesh>
-                </group>
+              </group>
 
-                {/* Glowing Crimson Armor Slit Visor (Facing & Intimidation) */}
-                <mesh ref={coreMeshRef} position={[0, 0.02, 0.29]}>
-                  <boxGeometry args={[0.46, 0.09, 0.08]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#ef4444", 1.8, true)}
-                    color="#ef4444"
-                    emissive="#ef4444"
-                    emissiveIntensity={1.8}
-                  />
+              {/* --- SHOULDERS & BLAST-SHIELD PAULDRONS (Dominant Widest Width) --- */}
+              {/* Left Blast Shield */}
+              <group position={[-0.64, 0.42, 0]} rotation={[0, 0, 0.25]}>
+                <mesh castShadow position={[0, -0.04, 0]}>
+                  <boxGeometry args={[0.38, 0.24, 0.54]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} />
                 </mesh>
-                {/* White hot horizontal center visor slit (from tank.svg) */}
-                <mesh position={[0, 0.02, 0.33]}>
-                  <boxGeometry args={[0.24, 0.04, 0.04]} />
-                  <meshStandardMaterial color="#f4f7fb" roughness={0.1} />
+                <mesh castShadow position={[-0.04, 0.08, 0]}>
+                  <boxGeometry args={[0.42, 0.16, 0.56]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.75} roughness={0.25} />
                 </mesh>
+              </group>
 
-                {/* Top Helm Ridge Plating */}
-                <mesh position={[0, 0.25, 0]}>
-                  <boxGeometry args={[0.18, 0.16, 0.6]} />
+              {/* Right Blast Shield */}
+              <group position={[0.64, 0.42, 0]} rotation={[0, 0, -0.25]}>
+                <mesh castShadow position={[0, -0.04, 0]}>
+                  <boxGeometry args={[0.38, 0.24, 0.54]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} />
+                </mesh>
+                <mesh castShadow position={[0.04, 0.08, 0]}>
+                  <boxGeometry args={[0.42, 0.16, 0.56]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#dc2626" metalness={0.75} roughness={0.25} />
+                </mesh>
+              </group>
+
+              {/* --- ARMS & HYDRAULIC GAUNTLETS --- */}
+              {/* Left Arm */}
+              <group position={[-0.54, 0.22, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.18, 0.22, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.8} />
+                </mesh>
+                <mesh castShadow position={[-0.02, -0.18, 0.05]}>
+                  <boxGeometry args={[0.20, 0.24, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
+                </mesh>
+                <mesh position={[-0.02, -0.18, 0.16]}>
+                  <boxGeometry args={[0.18, 0.16, 0.06]} />
+                  <meshStandardMaterial color="#dc2626" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* Right Arm */}
+              <group position={[0.54, 0.22, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.18, 0.22, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#334155" metalness={0.8} />
+                </mesh>
+                <mesh castShadow position={[0.02, -0.18, 0.05]}>
+                  <boxGeometry args={[0.20, 0.24, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.02, -0.18, 0.16]}>
+                  <boxGeometry args={[0.18, 0.16, 0.06]} />
+                  <meshStandardMaterial color="#dc2626" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- HEAD & FORTRESS HELMET --- */}
+              <group position={[0, 0.60, 0.02]}>
+                {/* Heavy Neck Collar */}
+                <mesh position={[0, -0.13, 0]}>
+                  <cylinderGeometry args={[0.16, 0.18, 0.10, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
+                </mesh>
+                {/* Fortress Helm Box */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.32, 0.26, 0.34]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} roughness={0.25} />
+                </mesh>
+                {/* Deep Recessed Glowing Ruby Visor Slit */}
+                <mesh position={[0, 0.02, 0.17]}>
+                  <boxGeometry args={[0.34, 0.07, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#ef4444", 1.6)} color="#ef4444" emissive="#ef4444" emissiveIntensity={1.6} />
+                </mesh>
+                {/* Juggernaut Horn Blast Deflectors */}
+                <mesh position={[-0.20, 0.14, -0.04]} rotation={[0, 0, 0.50]}>
+                  <coneGeometry args={[0.08, 0.30, 5]} />
+                  <meshStandardMaterial color="#dc2626" metalness={0.85} />
+                </mesh>
+                <mesh position={[0.20, 0.14, -0.04]} rotation={[0, 0, -0.50]}>
+                  <coneGeometry args={[0.08, 0.30, 5]} />
                   <meshStandardMaterial color="#dc2626" metalness={0.85} />
                 </mesh>
               </group>
 
-              {/* Dual Heavy Back Exhaust Stacks with Heat Glow */}
-              <group position={[0, 0.4, -0.42]}>
-                <mesh position={[-0.32, 0.12, 0]}>
-                  <cylinderGeometry args={[0.11, 0.11, 0.54, 8]} />
-                  <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
+              {/* --- SIGNATURE WEAPON: COLOSSAL BATTLE AXE --- */}
+              <group ref={weaponGroupRef} position={[0.74, 0.12, -0.08]} rotation={[-0.1, 0.1, 0.18]}>
+                {/* Reinforced Titanium Shaft */}
+                <mesh position={[0, 0.20, 0]}>
+                  <cylinderGeometry args={[0.05, 0.05, 1.35, 8]} />
+                  <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.3} />
                 </mesh>
-                <mesh position={[0.32, 0.12, 0]}>
-                  <cylinderGeometry args={[0.11, 0.11, 0.54, 8]} />
-                  <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
+                {/* Counterweight Spiked Pommel */}
+                <mesh position={[0, -0.50, 0]}>
+                  <octahedronGeometry args={[0.10]} />
+                  <meshStandardMaterial color="#dc2626" metalness={0.8} />
                 </mesh>
-                {/* Internal heat glow */}
-                <mesh position={[-0.32, 0.38, 0]}>
-                  <sphereGeometry args={[0.08, 8, 8]} />
-                  <meshBasicMaterial color="#f59e0b" />
+                {/* Colossal Double-Bitted Axe Head */}
+                <mesh castShadow position={[0, 0.72, 0]}>
+                  <boxGeometry args={[0.62, 0.44, 0.12]} />
+                  <meshStandardMaterial color="#18181b" metalness={0.9} roughness={0.2} />
                 </mesh>
-                <mesh position={[0.32, 0.38, 0]}>
-                  <sphereGeometry args={[0.08, 8, 8]} />
-                  <meshBasicMaterial color="#f59e0b" />
+                {/* Left & Right Glowing Thermal Cleaver Edges */}
+                <mesh position={[-0.34, 0.72, 0]} rotation={[0, 0, 0.1]}>
+                  <boxGeometry args={[0.12, 0.50, 0.08]} />
+                  <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={1.2} />
                 </mesh>
-              </group>
-
-              {/* Aggressive Cleaving Battleaxe Attachment */}
-              <group ref={weaponGroupRef} position={[0.72, 0.1, -0.1]} rotation={[0.2, 0.1, 0.15]}>
-                {/* Reinforced Shaft */}
-                <mesh position={[0, 0.15, 0]}>
-                  <cylinderGeometry args={[0.045, 0.045, 1.25, 8]} />
-                  <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.3} />
-                </mesh>
-                {/* Heavy Crescent Axe Blade */}
-                <mesh castShadow position={[0, 0.65, 0.22]}>
-                  <boxGeometry args={[0.09, 0.62, 0.42]} />
-                  <meshStandardMaterial
-                    color="#dc2626"
-                    roughness={0.25}
-                    metalness={0.7}
-                  />
-                </mesh>
-                {/* Honed Razor Chrome Cutting Edge */}
-                <mesh position={[0, 0.65, 0.44]}>
-                  <boxGeometry args={[0.03, 0.66, 0.14]} />
-                  <meshStandardMaterial color="#f1f5f9" metalness={0.95} roughness={0.1} />
-                </mesh>
-                {/* Rear Armor-Piercing Back Spike */}
-                <mesh position={[0, 0.65, -0.22]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <coneGeometry args={[0.09, 0.3, 4]} />
-                  <meshStandardMaterial color="#475569" metalness={0.9} roughness={0.2} />
-                </mesh>
-                {/* Central Ruby Energy Socket */}
-                <mesh position={[0, 0.65, 0.02]}>
-                  <sphereGeometry args={[0.07, 8, 8]} />
-                  <meshStandardMaterial
-                    color="#ef4444"
-                    emissive="#ef4444"
-                    emissiveIntensity={1.8}
-                  />
+                <mesh position={[0.34, 0.72, 0]} rotation={[0, 0, -0.1]}>
+                  <boxGeometry args={[0.12, 0.50, 0.08]} />
+                  <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={1.2} />
                 </mesh>
               </group>
             </group>
           )}
-
           {/* ================================================================= */}
-          {/* CHARACTER 4: NOVA — Arcane Burst Specialist, Violet/Magenta/Gold  */}
+          {/* CHARACTER 4: NOVA — Athletic Energy Combat Suit, Astral Pink/Gold */}
           {/* ================================================================= */}
           {selectedCharacterId === "nova" && (
             <group>
-              {/* Star-Faceted Arcane Robe Chassis */}
-              <mesh castShadow position={[0, 0, 0]}>
-                <cylinderGeometry args={[0.36, 0.46, 0.86, 6]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#3b0764"
-                  roughness={0.35}
-                  metalness={0.45}
-                />
-              </mesh>
-
-              {/* Layered Radiant Magenta Chevron Chest Plates */}
-              <mesh position={[0, 0.08, 0.1]}>
-                <cylinderGeometry args={[0.38, 0.44, 0.48, 3]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#d946ef", 0.6)}
-                  color="#c084fc"
-                  metalness={0.65}
-                  roughness={0.25}
-                />
-              </mesh>
-
-              {/* Gold Astral Corset & Floating Arcane Ribbons */}
-              <group position={[0, -0.16, 0]}>
-                <mesh>
-                  <cylinderGeometry args={[0.39, 0.43, 0.16, 12]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.4)}
-                    color="#fbbf24"
-                    metalness={0.9}
-                    roughness={0.2}
-                  />
+              {/* --- LOWER BODY: BOOTS & LEGS (Athletic Aerodynamic Humanoid) --- */}
+              {/* Left Streamlined Boot */}
+              <group position={[-0.19, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.7} roughness={0.3} />
                 </mesh>
-                {/* Left Arcane Ribbon */}
-                <mesh position={[-0.38, -0.2, 0.05]} rotation={[0.1, 0, 0.2]}>
-                  <boxGeometry args={[0.08, 0.4, 0.18]} />
-                  <meshStandardMaterial color="#d946ef" metalness={0.7} />
-                </mesh>
-                {/* Right Arcane Ribbon */}
-                <mesh position={[0.38, -0.2, 0.05]} rotation={[0.1, 0, -0.2]}>
-                  <boxGeometry args={[0.08, 0.4, 0.18]} />
-                  <meshStandardMaterial color="#d946ef" metalness={0.7} />
+                <mesh position={[0, 0, -0.12]}>
+                  <boxGeometry args={[0.12, 0.06, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.5)} color="#fbbf24" metalness={0.9} />
                 </mesh>
               </group>
 
-              {/* Floating 8-Point Arcane Star Crest (Back Silhouette from nova.svg) */}
-              <group position={[0, 0.28, -0.42]}>
-                {/* Central Star Hub */}
-                <mesh>
-                  <cylinderGeometry args={[0.16, 0.16, 0.05, 8]} />
-                  <meshStandardMaterial color="#171d2b" metalness={0.8} />
+              {/* Right Streamlined Boot */}
+              <group position={[0.19, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.7} roughness={0.3} />
                 </mesh>
-                {/* Cardinal Primary Gold Star Spires */}
-                <mesh position={[0, 0.28, 0]}>
-                  <coneGeometry args={[0.08, 0.46, 4]} />
-                  <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                </mesh>
-                <mesh position={[0, -0.28, 0]} rotation={[0, 0, Math.PI]}>
-                  <coneGeometry args={[0.08, 0.46, 4]} />
-                  <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                </mesh>
-                <mesh position={[0.28, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-                  <coneGeometry args={[0.08, 0.46, 4]} />
-                  <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                </mesh>
-                <mesh position={[-0.28, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                  <coneGeometry args={[0.08, 0.46, 4]} />
-                  <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                </mesh>
-                {/* Diagonal Secondary Magenta Star Spires */}
-                <mesh position={[0.2, 0.2, 0]} rotation={[0, 0, -Math.PI / 4]}>
-                  <coneGeometry args={[0.06, 0.36, 4]} />
-                  <meshStandardMaterial
-                    color="#d946ef"
-                    emissive="#c084fc"
-                    emissiveIntensity={0.8}
-                    metalness={0.8}
-                  />
-                </mesh>
-                <mesh position={[-0.2, 0.2, 0]} rotation={[0, 0, Math.PI / 4]}>
-                  <coneGeometry args={[0.06, 0.36, 4]} />
-                  <meshStandardMaterial
-                    color="#d946ef"
-                    emissive="#c084fc"
-                    emissiveIntensity={0.8}
-                    metalness={0.8}
-                  />
-                </mesh>
-                <mesh position={[0.2, -0.2, 0]} rotation={[0, 0, -3 * Math.PI / 4]}>
-                  <coneGeometry args={[0.06, 0.36, 4]} />
-                  <meshStandardMaterial
-                    color="#d946ef"
-                    emissive="#c084fc"
-                    emissiveIntensity={0.8}
-                    metalness={0.8}
-                  />
-                </mesh>
-                <mesh position={[-0.2, -0.2, 0]} rotation={[0, 0, 3 * Math.PI / 4]}>
-                  <coneGeometry args={[0.06, 0.36, 4]} />
-                  <meshStandardMaterial
-                    color="#d946ef"
-                    emissive="#c084fc"
-                    emissiveIntensity={0.8}
-                    metalness={0.8}
-                  />
+                <mesh position={[0, 0, -0.12]}>
+                  <boxGeometry args={[0.12, 0.06, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.5)} color="#fbbf24" metalness={0.9} />
                 </mesh>
               </group>
 
-              {/* Radiant Star Octahedron Pauldrons */}
-              <group position={[-0.56, 0.24, 0]} rotation={[0, 0, 0.35]}>
-                <mesh castShadow>
-                  <octahedronGeometry args={[0.26]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#d946ef", 0.6)}
-                    color="#d946ef"
-                    metalness={0.7}
-                    roughness={0.2}
-                  />
+              {/* Left Aerodynamic Greave */}
+              <group position={[-0.19, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#d946ef" metalness={0.75} roughness={0.25} />
                 </mesh>
-                <mesh position={[-0.14, 0.08, 0]}>
-                  <coneGeometry args={[0.06, 0.2, 4]} />
-                  <meshStandardMaterial color="#fbbf24" metalness={0.95} />
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.15, 0.08, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.4)} color="#fbbf24" metalness={0.9} />
                 </mesh>
               </group>
-              <group position={[0.56, 0.24, 0]} rotation={[0, 0, -0.35]}>
-                <mesh castShadow>
-                  <octahedronGeometry args={[0.26]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#d946ef", 0.6)}
-                    color="#d946ef"
-                    metalness={0.7}
-                    roughness={0.2}
-                  />
+
+              {/* Right Aerodynamic Greave */}
+              <group position={[0.19, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#d946ef" metalness={0.75} roughness={0.25} />
                 </mesh>
-                <mesh position={[0.14, 0.08, 0]}>
-                  <coneGeometry args={[0.06, 0.2, 4]} />
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.15, 0.08, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fbbf24", 0.4)} color="#fbbf24" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* Left Athletic Thigh */}
+              <group position={[-0.17, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.22, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.6} roughness={0.35} />
+                </mesh>
+              </group>
+
+              {/* Right Athletic Thigh */}
+              <group position={[0.17, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.22, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.6} roughness={0.35} />
+                </mesh>
+              </group>
+
+              {/* --- WAIST / CONTOURED ENERGY BELT --- */}
+              <group position={[0, 0.00, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.36, 0.10, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.7} />
+                </mesh>
+                <mesh position={[0, 0, 0.13]}>
+                  <boxGeometry args={[0.14, 0.10, 0.04]} />
                   <meshStandardMaterial color="#fbbf24" metalness={0.95} />
                 </mesh>
               </group>
 
-              {/* Astral Crown & Head with 5 Golden Spires & Flowing Locks */}
-              <group position={[0, 0.55, 0]}>
-                <mesh castShadow>
-                  <sphereGeometry args={[0.29, 16, 14]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#2e1065"
-                    metalness={0.5}
-                    roughness={0.3}
-                  />
+              {/* --- TORSO & SCULPTED ENERGY CUIRASS --- */}
+              <group position={[0, 0.24, 0]}>
+                {/* Lower Abdomen */}
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <boxGeometry args={[0.34, 0.14, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.7} />
                 </mesh>
-
-                {/* Flowing Astral Magenta Locks */}
-                <group position={[0, -0.05, -0.15]}>
-                  <mesh position={[-0.16, -0.1, 0]} rotation={[0.2, 0, -0.1]}>
-                    <coneGeometry args={[0.07, 0.32, 4]} />
-                    <meshStandardMaterial color="#d946ef" metalness={0.6} />
-                  </mesh>
-                  <mesh position={[0.16, -0.1, 0]} rotation={[0.2, 0, 0.1]}>
-                    <coneGeometry args={[0.07, 0.32, 4]} />
-                    <meshStandardMaterial color="#d946ef" metalness={0.6} />
-                  </mesh>
-                  <mesh position={[0, -0.14, -0.05]} rotation={[0.3, 0, 0]}>
-                    <coneGeometry args={[0.08, 0.36, 4]} />
-                    <meshStandardMaterial color="#c084fc" metalness={0.6} />
-                  </mesh>
-                </group>
-
-                {/* Glowing Magenta Visor */}
-                <mesh position={[0, 0.02, 0.26]}>
-                  <boxGeometry args={[0.4, 0.12, 0.12]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#f472b6", 1.6)}
-                    color="#f472b6"
-                    emissive="#f472b6"
-                    emissiveIntensity={1.6}
-                  />
+                {/* Upper Sculpted Chestplate */}
+                <mesh castShadow position={[0, 0.04, 0.03]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.50, 0.24, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#d946ef" metalness={0.8} roughness={0.2} />
                 </mesh>
-
-                {/* 5-Spire Gold Astral Crown (direct from nova.svg) */}
-                <group position={[0, 0.26, 0.04]}>
-                  {/* Center Tall Spire */}
-                  <mesh position={[0, 0.12, 0]}>
-                    <coneGeometry args={[0.08, 0.36, 5]} />
-                    <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                  </mesh>
-                  {/* Flanking Mid Spires */}
-                  <mesh position={[-0.14, 0.06, 0]} rotation={[0, 0, 0.2]}>
-                    <coneGeometry args={[0.06, 0.28, 4]} />
-                    <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                  </mesh>
-                  <mesh position={[0.14, 0.06, 0]} rotation={[0, 0, -0.2]}>
-                    <coneGeometry args={[0.06, 0.28, 4]} />
-                    <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                  </mesh>
-                  {/* Outer Short Spires */}
-                  <mesh position={[-0.24, 0, -0.04]} rotation={[0, 0, 0.35]}>
-                    <coneGeometry args={[0.05, 0.22, 4]} />
-                    <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                  </mesh>
-                  <mesh position={[0.24, 0, -0.04]} rotation={[0, 0, -0.35]}>
-                    <coneGeometry args={[0.05, 0.22, 4]} />
-                    <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.15} />
-                  </mesh>
-                </group>
-              </group>
-
-              {/* Magical Centerpiece: Star Frame + Glowing White-Hot Heart Gem (direct from nova.svg) */}
-              <group position={[0, 0.06, 0.36]}>
-                {/* Gold Star Frame Setting */}
-                <mesh rotation={[0, 0, Math.PI / 4]}>
-                  <boxGeometry args={[0.26, 0.26, 0.06]} />
-                  <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.2} />
+                {/* Gold Collar Trim */}
+                <mesh position={[0, 0.12, 0.15]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.38, 0.06, 0.04]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} />
                 </mesh>
-                {/* Glowing White-Hot Heart Gem */}
-                <mesh ref={coreMeshRef}>
-                  <octahedronGeometry args={[0.16]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#f472b6", 1.8, true)}
-                    color="#ffffff"
-                    emissive="#f472b6"
-                    emissiveIntensity={1.8}
-                    roughness={0.1}
-                  />
+                {/* Pulsating Astral Reactor Core */}
+                <mesh ref={coreMeshRef} position={[0, 0.03, 0.17]}>
+                  <sphereGeometry args={[0.13, 16, 16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f472b6", 1.8, true)} color="#f472b6" emissive="#f472b6" emissiveIntensity={1.8} roughness={0.1} />
+                </mesh>
+                {/* Rear Capacitor Pack */}
+                <mesh castShadow position={[0, 0.04, -0.16]}>
+                  <boxGeometry args={[0.36, 0.24, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.85} />
                 </mesh>
               </group>
 
-              {/* Floating Concentric Astral Focus Ring Weapon with Star Crystals */}
-              <group ref={weaponGroupRef} position={[0, 0.3, 0]}>
-                {/* Outer Gold Ring */}
-                <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[0.76, 0.024, 8, 32]} />
-                  <meshStandardMaterial
-                    color="#fbbf24"
-                    emissive="#fbbf24"
-                    emissiveIntensity={0.7}
-                    metalness={0.95}
-                  />
+              {/* --- SHOULDERS & ASTRAL WINGLET PAULDRONS --- */}
+              {/* Left Winglet Pauldron */}
+              <group position={[-0.48, 0.38, 0]} rotation={[0, 0.12, 0.20]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.26, 0.16, 0.40]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#d946ef" metalness={0.8} roughness={0.2} />
                 </mesh>
-                {/* Inner Magenta Ring */}
-                <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[0.54, 0.02, 8, 32]} />
-                  <meshStandardMaterial
-                    color="#d946ef"
-                    emissive="#d946ef"
-                    emissiveIntensity={0.9}
-                    metalness={0.9}
-                  />
+                <mesh position={[-0.04, 0.06, 0]}>
+                  <boxGeometry args={[0.22, 0.06, 0.42]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} />
                 </mesh>
-                {/* 4 Orbiting Star Crystal Fragments */}
-                <mesh position={[0.76, 0, 0]}>
-                  <octahedronGeometry args={[0.1]} />
-                  <meshStandardMaterial
-                    color="#d946ef"
-                    emissive="#d946ef"
-                    emissiveIntensity={1.2}
-                  />
+              </group>
+
+              {/* Right Winglet Pauldron */}
+              <group position={[0.48, 0.38, 0]} rotation={[0, -0.12, -0.20]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.26, 0.16, 0.40]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#d946ef" metalness={0.8} roughness={0.2} />
                 </mesh>
-                <mesh position={[-0.76, 0, 0]}>
-                  <octahedronGeometry args={[0.1]} />
-                  <meshStandardMaterial
-                    color="#d946ef"
-                    emissive="#d946ef"
-                    emissiveIntensity={1.2}
-                  />
+                <mesh position={[0.04, 0.06, 0]}>
+                  <boxGeometry args={[0.22, 0.06, 0.42]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.9} />
                 </mesh>
-                <mesh position={[0, 0, 0.76]}>
-                  <octahedronGeometry args={[0.1]} />
-                  <meshStandardMaterial
-                    color="#fbbf24"
-                    emissive="#fbbf24"
-                    emissiveIntensity={1.2}
-                  />
+              </group>
+
+              {/* --- ARMS & WRIST BRACERS --- */}
+              {/* Left Arm */}
+              <group position={[-0.38, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.11, 0.18, 0.13]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.6} />
                 </mesh>
-                <mesh position={[0, 0, -0.76]}>
-                  <octahedronGeometry args={[0.1]} />
-                  <meshStandardMaterial
-                    color="#fbbf24"
-                    emissive="#fbbf24"
-                    emissiveIntensity={1.2}
-                  />
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.12, 0.20, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#d946ef" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* Right Arm */}
+              <group position={[0.38, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.11, 0.18, 0.13]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.6} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.12, 0.20, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#d946ef" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- HEAD & ASTRAL HELM (Compact Humanoid Proportion) --- */}
+              <group position={[0, 0.55, 0.02]}>
+                {/* Neck */}
+                <mesh position={[0, -0.11, 0]}>
+                  <cylinderGeometry args={[0.10, 0.12, 0.07, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} />
+                </mesh>
+                {/* Helm Dome */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.25, 0.23, 0.27]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.2} />
+                </mesh>
+                {/* Astral Visor Shield */}
+                <mesh position={[0, 0.02, 0.14]}>
+                  <boxGeometry args={[0.27, 0.09, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f472b6", 1.7)} color="#f472b6" emissive="#f472b6" emissiveIntensity={1.7} />
+                </mesh>
+                {/* Gold Brow Crest */}
+                <mesh position={[0, 0.10, 0.13]}>
+                  <boxGeometry args={[0.22, 0.04, 0.04]} />
+                  <meshStandardMaterial color="#fbbf24" metalness={0.95} />
+                </mesh>
+                {/* Swept Astral Antennas */}
+                <mesh position={[-0.14, 0.12, -0.06]} rotation={[-0.3, 0, -0.2]}>
+                  <boxGeometry args={[0.03, 0.22, 0.16]} />
+                  <meshStandardMaterial color="#d946ef" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.14, 0.12, -0.06]} rotation={[-0.3, 0, 0.2]}>
+                  <boxGeometry args={[0.03, 0.22, 0.16]} />
+                  <meshStandardMaterial color="#d946ef" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- SIGNATURE WEAPON: CONCENTRIC ASTRAL RINGS --- */}
+              <group ref={weaponGroupRef} position={[0.55, 0.25, 0.15]}>
+                {/* Outer Astral Ring */}
+                <mesh rotation={[Math.PI / 4, 0, 0]}>
+                  <torusGeometry args={[0.32, 0.024, 8, 28]} />
+                  <meshStandardMaterial color="#d946ef" emissive="#d946ef" emissiveIntensity={1.2} metalness={0.9} />
+                </mesh>
+                {/* Inner Counter-Rotating Ring */}
+                <mesh rotation={[-Math.PI / 3, 0, Math.PI / 3]}>
+                  <torusGeometry args={[0.22, 0.02, 8, 24]} />
+                  <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1.0} metalness={0.9} />
+                </mesh>
+                {/* Core Power Node */}
+                <mesh>
+                  <sphereGeometry args={[0.09, 12, 12]} />
+                  <meshStandardMaterial color="#f472b6" emissive="#f472b6" emissiveIntensity={2.0} />
+                </mesh>
+                {/* Satellite Emitter Nodes */}
+                <mesh position={[0.32, 0, 0]}>
+                  <octahedronGeometry args={[0.04]} />
+                  <meshBasicMaterial color="#fbbf24" />
+                </mesh>
+                <mesh position={[-0.32, 0, 0]}>
+                  <octahedronGeometry args={[0.04]} />
+                  <meshBasicMaterial color="#fbbf24" />
                 </mesh>
               </group>
             </group>
           )}
-
           {/* ================================================================= */}
-          {/* CHARACTER 5: HEX — Void Chain Controller, Black/Neon Green/Violet */}
+          {/* CHARACTER 5: HEX — Sharp Occult-Tech, Void Purple/Neon Green     */}
           {/* ================================================================= */}
           {selectedCharacterId === "hex" && (
             <group>
-              {/* Dark Void Robe Mantle Chassis */}
-              <mesh castShadow position={[0, -0.05, 0]}>
-                <cylinderGeometry args={[0.34, 0.48, 0.88, 7]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#09090b"
-                  roughness={0.85}
-                  metalness={0.35}
-                />
-              </mesh>
-
-              {/* Deep Void Purple Mantle Collar with Emerald Trim */}
-              <mesh position={[0, 0.12, 0.02]}>
-                <cylinderGeometry args={[0.4, 0.36, 0.28, 6]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#22c55e", 0.5)}
-                  color="#2e1065"
-                  metalness={0.65}
-                  roughness={0.3}
-                />
-              </mesh>
-
-              {/* Tattered Lower Void Ribbons */}
-              <group position={[0, -0.38, 0]}>
-                <mesh position={[-0.24, -0.1, 0.1]} rotation={[0.15, 0, 0.1]}>
-                  <boxGeometry args={[0.08, 0.35, 0.2]} />
-                  <meshStandardMaterial color="#1e1035" roughness={0.8} />
+              {/* --- LOWER BODY: BOOTS & LEGS (Sharp Bladed Humanoid) --- */}
+              {/* Left Bladed Boot */}
+              <group position={[-0.19, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.3} />
                 </mesh>
-                <mesh position={[0.24, -0.1, 0.1]} rotation={[0.15, 0, -0.1]}>
-                  <boxGeometry args={[0.08, 0.35, 0.2]} />
-                  <meshStandardMaterial color="#1e1035" roughness={0.8} />
-                </mesh>
-                <mesh position={[0, -0.12, -0.2]} rotation={[-0.2, 0, 0]}>
-                  <boxGeometry args={[0.16, 0.38, 0.08]} />
-                  <meshStandardMaterial color="#1e1035" roughness={0.8} />
+                <mesh position={[0, -0.02, 0.15]}>
+                  <boxGeometry args={[0.06, 0.06, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#9333ea" metalness={0.7} />
                 </mesh>
               </group>
 
-              {/* Chest Void Talisman Sigil */}
-              <mesh position={[0, 0.06, 0.36]} rotation={[0, 0, Math.PI / 4]}>
-                <boxGeometry args={[0.14, 0.14, 0.06]} />
-                <meshStandardMaterial
-                  color="#22c55e"
-                  emissive="#22c55e"
-                  emissiveIntensity={1.8}
-                />
-              </mesh>
-
-              {/* Tiered Void Mantle Pauldrons with Emerald Runic Thorns */}
-              <group position={[-0.52, 0.18, 0]} rotation={[0.1, 0, 0.3]}>
-                <mesh castShadow>
-                  <boxGeometry args={[0.28, 0.38, 0.42]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22c55e", 0.4)}
-                    color="#15803d"
-                    metalness={0.7}
-                    roughness={0.3}
-                  />
+              {/* Right Bladed Boot */}
+              <group position={[0.19, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} roughness={0.3} />
                 </mesh>
-                {/* Runic thorn spike */}
-                <mesh position={[-0.14, 0.16, 0]} rotation={[0, 0, 0.4]}>
-                  <coneGeometry args={[0.06, 0.24, 4]} />
-                  <meshStandardMaterial
-                    color="#22c55e"
-                    emissive="#22c55e"
-                    emissiveIntensity={1.2}
-                  />
-                </mesh>
-              </group>
-              <group position={[0.52, 0.18, 0]} rotation={[0.1, 0, -0.3]}>
-                <mesh castShadow>
-                  <boxGeometry args={[0.28, 0.38, 0.42]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#22c55e", 0.4)}
-                    color="#15803d"
-                    metalness={0.7}
-                    roughness={0.3}
-                  />
-                </mesh>
-                {/* Runic thorn spike */}
-                <mesh position={[0.14, 0.16, 0]} rotation={[0, 0, -0.4]}>
-                  <coneGeometry args={[0.06, 0.24, 4]} />
-                  <meshStandardMaterial
-                    color="#22c55e"
-                    emissive="#22c55e"
-                    emissiveIntensity={1.2}
-                  />
+                <mesh position={[0, -0.02, 0.15]}>
+                  <boxGeometry args={[0.06, 0.06, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#9333ea" metalness={0.7} />
                 </mesh>
               </group>
 
-              {/* Masked Peaked Dark Cowl with Curved Emerald Horn Antennas & Hex Eyes */}
-              <group position={[0, 0.52, 0.02]}>
-                {/* Cowl Base */}
-                <mesh castShadow>
-                  <boxGeometry args={[0.44, 0.46, 0.46]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#09090b"
-                    metalness={0.75}
-                    roughness={0.4}
-                  />
+              {/* Left Jagged Greave */}
+              <group position={[-0.19, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.25} />
                 </mesh>
-
-                {/* Peaked Hood Crown Crest */}
-                <mesh position={[0, 0.26, -0.06]} rotation={[-0.2, 0, 0]}>
-                  <coneGeometry args={[0.24, 0.34, 4]} />
-                  <meshStandardMaterial
-                    color="#2e1065"
-                    metalness={0.65}
-                    roughness={0.35}
-                  />
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.14, 0.10, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22c55e", 0.9)} color="#22c55e" emissive="#22c55e" emissiveIntensity={0.9} />
                 </mesh>
+              </group>
 
-                {/* Prominent Curved Emerald Void Horn Antennas (exact from hex.svg) */}
-                <group position={[-0.25, 0.32, 0.06]} rotation={[0.25, 0, 0.45]}>
-                  <mesh>
-                    <coneGeometry args={[0.1, 0.48, 4]} />
-                    <meshStandardMaterial
-                      color="#22c55e"
-                      emissive="#22c55e"
-                      emissiveIntensity={1.4}
-                      metalness={0.8}
-                      roughness={0.2}
-                    />
-                  </mesh>
-                  {/* Horn tip */}
-                  <mesh position={[0, 0.24, 0]}>
-                    <coneGeometry args={[0.05, 0.2, 4]} />
-                    <meshStandardMaterial color="#4ade80" emissive="#4ade80" emissiveIntensity={1.5} />
-                  </mesh>
-                </group>
-                <group position={[0.25, 0.32, 0.06]} rotation={[0.25, 0, -0.45]}>
-                  <mesh>
-                    <coneGeometry args={[0.1, 0.48, 4]} />
-                    <meshStandardMaterial
-                      color="#22c55e"
-                      emissive="#22c55e"
-                      emissiveIntensity={1.4}
-                      metalness={0.8}
-                      roughness={0.2}
-                    />
-                  </mesh>
-                  {/* Horn tip */}
-                  <mesh position={[0, 0.24, 0]}>
-                    <coneGeometry args={[0.05, 0.2, 4]} />
-                    <meshStandardMaterial color="#4ade80" emissive="#4ade80" emissiveIntensity={1.5} />
-                  </mesh>
-                </group>
-
-                {/* Void Mask Faceplate with Violet Rim (direct from hex.svg) */}
-                <mesh position={[0, -0.02, 0.24]}>
-                  <boxGeometry args={[0.36, 0.3, 0.08]} />
-                  <meshStandardMaterial
-                    color="#050508"
-                    metalness={0.9}
-                    roughness={0.2}
-                  />
+              {/* Right Jagged Greave */}
+              <group position={[0.19, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.25} />
                 </mesh>
-                {/* Violet Mask Border Frame */}
-                <mesh position={[0, -0.02, 0.26]}>
-                  <torusGeometry args={[0.17, 0.018, 6, 16]} />
-                  <meshStandardMaterial
-                    color="#8b5cf6"
-                    emissive="#8b5cf6"
-                    emissiveIntensity={0.9}
-                  />
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.14, 0.10, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22c55e", 0.9)} color="#22c55e" emissive="#22c55e" emissiveIntensity={0.9} />
                 </mesh>
+              </group>
 
-                {/* Glowing Twin Diamond Hex Eyes (direct from hex.svg) */}
-                <group position={[0, 0.02, 0.28]}>
-                  {/* Left Diamond Hex Eye */}
-                  <mesh ref={coreMeshRef} position={[-0.085, 0, 0]}>
-                    <octahedronGeometry args={[0.06]} />
-                    <meshStandardMaterial
-                      ref={(m) => registerFlashMaterial(m, "#22c55e", 2.0, true)}
-                      color="#22c55e"
-                      emissive="#22c55e"
-                      emissiveIntensity={2.0}
-                    />
+              {/* Left Thigh */}
+              <group position={[-0.17, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.22, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.7} />
+                </mesh>
+              </group>
+
+              {/* Right Thigh */}
+              <group position={[0.17, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.22, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.7} />
+                </mesh>
+              </group>
+
+              {/* --- WAIST / ASYMMETRIC OCCULT SASH & CHAINS --- */}
+              <group position={[0, 0.00, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.38, 0.11, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} />
+                </mesh>
+                {/* Purple Draped Sash */}
+                <mesh position={[-0.10, -0.06, 0.13]} rotation={[0, 0, -0.2]}>
+                  <boxGeometry args={[0.16, 0.18, 0.04]} />
+                  <meshStandardMaterial color="#7e22ce" metalness={0.6} />
+                </mesh>
+                {/* Glowing Green Runic Seal */}
+                <mesh position={[0.08, 0, 0.13]}>
+                  <octahedronGeometry args={[0.05]} />
+                  <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={1.2} />
+                </mesh>
+              </group>
+
+              {/* --- TORSO & CHITINOUS CUIRASS --- */}
+              <group position={[0, 0.24, 0]}>
+                {/* Lower Abdomen */}
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <boxGeometry args={[0.34, 0.14, 0.23]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.8} />
+                </mesh>
+                {/* Upper Angular Chestplate */}
+                <mesh castShadow position={[0, 0.04, 0.02]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.50, 0.24, 0.29]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.25} />
+                </mesh>
+                {/* Purple Mantle Layer */}
+                <mesh castShadow position={[0, 0.05, 0.14]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.44, 0.18, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#9333ea" metalness={0.7} roughness={0.25} />
+                </mesh>
+                {/* Occult Core Siphon */}
+                <mesh ref={coreMeshRef} position={[0, 0.04, 0.18]}>
+                  <octahedronGeometry args={[0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22c55e", 1.8, true)} color="#22c55e" emissive="#22c55e" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Dorsal Spire Pack */}
+                <group position={[0, 0.05, -0.16]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.36, 0.26, 0.14]} />
+                    <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.9} />
                   </mesh>
-                  {/* Right Diamond Hex Eye */}
-                  <mesh position={[0.085, 0, 0]}>
-                    <octahedronGeometry args={[0.06]} />
-                    <meshStandardMaterial
-                      ref={(m) => registerFlashMaterial(m, "#22c55e", 2.0, true)}
-                      color="#22c55e"
-                      emissive="#22c55e"
-                      emissiveIntensity={2.0}
-                    />
+                  <mesh position={[-0.10, 0.16, 0]}>
+                    <coneGeometry args={[0.035, 0.22, 4]} />
+                    <meshStandardMaterial color="#9333ea" metalness={0.8} />
+                  </mesh>
+                  <mesh position={[0.10, 0.16, 0]}>
+                    <coneGeometry args={[0.035, 0.22, 4]} />
+                    <meshStandardMaterial color="#9333ea" metalness={0.8} />
                   </mesh>
                 </group>
               </group>
 
-              {/* Floating Orbiting Void Runic Shards Weapon with Emerald Glyphs */}
-              <group ref={weaponGroupRef} position={[0, 0.25, 0]}>
-                {/* Triad of Orbiting Runic Glyph Tablets */}
-                {Array.from({ length: 3 }).map((_, idx) => {
-                  const angle = (idx * Math.PI * 2) / 3;
-                  const r = 0.68;
-                  return (
-                    <group
-                      key={idx}
-                      position={[Math.cos(angle) * r, 0, Math.sin(angle) * r]}
-                      rotation={[0, -angle, 0.3]}
-                    >
-                      {/* Dark Runic Tablet */}
-                      <mesh>
-                        <boxGeometry args={[0.14, 0.32, 0.045]} />
-                        <meshStandardMaterial
-                          color="#09090b"
-                          roughness={0.4}
-                          metalness={0.8}
-                        />
-                      </mesh>
-                      {/* Violet Tablet Border Rim */}
-                      <mesh position={[0, 0, 0]}>
-                        <boxGeometry args={[0.15, 0.33, 0.03]} />
-                        <meshStandardMaterial color="#6b21a8" metalness={0.7} />
-                      </mesh>
-                      {/* Glowing Emerald Glyph Core */}
-                      <mesh position={[0, 0, 0.028]}>
-                        <boxGeometry args={[0.07, 0.2, 0.015]} />
-                        <meshStandardMaterial
-                          color="#22c55e"
-                          emissive="#22c55e"
-                          emissiveIntensity={1.6}
-                        />
-                      </mesh>
-                      {/* Floating Void Link Particle */}
-                      <mesh position={[0, 0.2, 0]}>
-                        <octahedronGeometry args={[0.035]} />
-                        <meshBasicMaterial color="#22c55e" />
-                      </mesh>
-                    </group>
-                  );
-                })}
+              {/* --- ASYMMETRIC OCCULT PAULDRONS --- */}
+              {/* Left Heavy Spire Pauldron */}
+              <group position={[-0.50, 0.38, 0]} rotation={[0, 0, 0.22]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.28, 0.18, 0.40]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} />
+                </mesh>
+                <mesh position={[-0.04, 0.06, 0]}>
+                  <boxGeometry args={[0.26, 0.08, 0.42]} />
+                  <meshStandardMaterial color="#9333ea" metalness={0.8} />
+                </mesh>
+                <mesh position={[-0.10, 0.18, 0.08]}>
+                  <coneGeometry args={[0.04, 0.24, 4]} />
+                  <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.8} />
+                </mesh>
+                <mesh position={[-0.10, 0.18, -0.08]}>
+                  <coneGeometry args={[0.04, 0.24, 4]} />
+                  <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.8} />
+                </mesh>
+              </group>
+
+              {/* Right Chain Bracket Pauldron */}
+              <group position={[0.46, 0.36, 0]} rotation={[0, 0, -0.20]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.24, 0.16, 0.36]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} />
+                </mesh>
+                <mesh position={[0.04, -0.06, 0]}>
+                  <torusGeometry args={[0.12, 0.02, 6, 12]} />
+                  <meshStandardMaterial color="#9333ea" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- ARMS & CLAWED GAUNTLETS --- */}
+              {/* Left Arm */}
+              <group position={[-0.38, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.11, 0.18, 0.13]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.7} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.13, 0.22, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} />
+                </mesh>
+                <mesh position={[0, -0.16, 0.11]}>
+                  <boxGeometry args={[0.11, 0.06, 0.04]} />
+                  <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.8} />
+                </mesh>
+              </group>
+
+              {/* Right Arm */}
+              <group position={[0.38, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.11, 0.18, 0.13]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.7} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.13, 0.22, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} />
+                </mesh>
+                <mesh position={[0, -0.16, 0.11]}>
+                  <boxGeometry args={[0.11, 0.06, 0.04]} />
+                  <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- HEAD & OCCULT COWL HELM --- */}
+              <group position={[0, 0.55, 0.02]}>
+                {/* Neck */}
+                <mesh position={[0, -0.11, 0]}>
+                  <cylinderGeometry args={[0.10, 0.12, 0.07, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} />
+                </mesh>
+                {/* Pointed Cowl Dome */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.25, 0.24, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#0f172a" metalness={0.85} roughness={0.25} />
+                </mesh>
+                {/* Glowing Toxic Green Visor Slit */}
+                <mesh position={[0, 0.02, 0.14]}>
+                  <boxGeometry args={[0.28, 0.07, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#22c55e", 1.8)} color="#22c55e" emissive="#22c55e" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Sharp Cowl Horn Crests */}
+                <mesh position={[-0.10, 0.16, 0]} rotation={[0, 0, 0.2]}>
+                  <coneGeometry args={[0.04, 0.22, 4]} />
+                  <meshStandardMaterial color="#9333ea" metalness={0.8} />
+                </mesh>
+                <mesh position={[0.10, 0.16, 0]} rotation={[0, 0, -0.2]}>
+                  <coneGeometry args={[0.04, 0.22, 4]} />
+                  <meshStandardMaterial color="#9333ea" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- SIGNATURE WEAPON: RUNIC CATALYST SHARDS & CHAIN --- */}
+              <group ref={weaponGroupRef} position={[0.55, 0.22, 0.15]}>
+                {/* Central Hovering Catalyst Core */}
+                <mesh>
+                  <octahedronGeometry args={[0.14]} />
+                  <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Orbiting Runic Shards */}
+                <mesh position={[0.24, 0.10, 0]} rotation={[0.4, 0.2, 0]}>
+                  <coneGeometry args={[0.05, 0.20, 3]} />
+                  <meshStandardMaterial color="#9333ea" metalness={0.9} />
+                </mesh>
+                <mesh position={[-0.24, -0.10, 0]} rotation={[-0.4, -0.2, 0]}>
+                  <coneGeometry args={[0.05, 0.20, 3]} />
+                  <meshStandardMaterial color="#9333ea" metalness={0.9} />
+                </mesh>
+                {/* Ethereal Chain Links */}
+                <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
+                  <torusGeometry args={[0.22, 0.015, 6, 16]} />
+                  <meshBasicMaterial color="#22c55e" />
+                </mesh>
               </group>
             </group>
           )}
-
+          {/* ================================================================= */}
+          {/* CHARACTER 6: RIFT — Slender Dimensional Warrior, Phase Violet     */}
+          {/* ================================================================= */}
           {selectedCharacterId === "rift" && (
             <group>
-              <mesh castShadow position={[0, 0, 0]}>
-                <capsuleGeometry args={[0.32, 0.52, 8, 14]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#171d2b"
-                  metalness={0.85}
-                  roughness={0.22}
-                />
-              </mesh>
-
-              <group position={[0, 0.02, 0.42]}>
-                <mesh ref={coreMeshRef}>
-                  <octahedronGeometry args={[0.16]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m, "#8b5cf6", 1.8, true)}
-                    color="#c4b5fd"
-                    emissive="#8b5cf6"
-                    emissiveIntensity={1.8}
-                    metalness={0.55}
-                  />
+              {/* --- LOWER BODY: BOOTS & LEGS (Slender Phase Humanoid) --- */}
+              {/* Left Phase Boot */}
+              <group position={[-0.18, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.8} roughness={0.3} />
                 </mesh>
-                <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[0.24, 0.018, 6, 18]} />
-                  <meshBasicMaterial color="#22d3ee" />
+                <mesh position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[0.08, 0.015, 6, 16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#8b5cf6", 0.6)} color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={0.6} />
                 </mesh>
               </group>
 
-              {[-1, 1].map((side) => (
-                <group key={side} position={[side * 0.48, 0.12, 0]} rotation={[0, 0, -side * 0.3]}>
-                  <mesh castShadow>
-                    <boxGeometry args={[0.14, 0.5, 0.38]} />
-                    <meshStandardMaterial color="#312e81" metalness={0.8} roughness={0.24} />
-                  </mesh>
-                  <mesh position={[side * 0.08, 0.24, 0]}>
-                    <boxGeometry args={[0.08, 0.22, 0.44]} />
-                    <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={0.8} />
-                  </mesh>
-                </group>
-              ))}
+              {/* Right Phase Boot */}
+              <group position={[0.18, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.14, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.8} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[0.08, 0.015, 6, 16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#8b5cf6", 0.6)} color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={0.6} />
+                </mesh>
+              </group>
 
+              {/* Left Split-Plate Greave */}
+              <group position={[-0.18, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
+                </mesh>
+                <mesh position={[0, 0, 0.08]}>
+                  <boxGeometry args={[0.11, 0.24, 0.04]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.8} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.13, 0.08, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#38bdf8", 0.5)} color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.5} />
+                </mesh>
+              </group>
+
+              {/* Right Split-Plate Greave */}
+              <group position={[0.18, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
+                </mesh>
+                <mesh position={[0, 0, 0.08]}>
+                  <boxGeometry args={[0.11, 0.24, 0.04]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.8} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.13, 0.08, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#38bdf8", 0.5)} color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.5} />
+                </mesh>
+              </group>
+
+              {/* Left Thigh */}
+              <group position={[-0.16, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.22, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
+                </mesh>
+              </group>
+
+              {/* Right Thigh */}
+              <group position={[0.16, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.22, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
+                </mesh>
+              </group>
+
+              {/* --- WAIST / PHASE HARNESS BELT --- */}
+              <group position={[0, 0.00, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.36, 0.10, 0.23]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} />
+                </mesh>
+                <mesh position={[-0.19, 0, 0]}>
+                  <boxGeometry args={[0.05, 0.14, 0.14]} />
+                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.19, 0, 0]}>
+                  <boxGeometry args={[0.05, 0.14, 0.14]} />
+                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- TORSO & SPLIT DIAGONAL CUIRASS --- */}
+              <group position={[0, 0.24, 0]}>
+                {/* Lower Abdomen */}
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <boxGeometry args={[0.33, 0.14, 0.23]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.8} />
+                </mesh>
+                {/* Left Split Chestplate Panel */}
+                <mesh castShadow position={[-0.12, 0.04, 0.02]} rotation={[0.08, 0, 0.08]}>
+                  <boxGeometry args={[0.24, 0.25, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
+                </mesh>
+                {/* Right Split Chestplate Panel */}
+                <mesh castShadow position={[0.12, 0.04, 0.02]} rotation={[0.08, 0, -0.08]}>
+                  <boxGeometry args={[0.24, 0.25, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.8} roughness={0.25} />
+                </mesh>
+                {/* Central Dimensional Rift Fissure */}
+                <mesh ref={coreMeshRef} position={[0, 0.04, 0.15]}>
+                  <boxGeometry args={[0.08, 0.26, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#c084fc", 1.8, true)} color="#c084fc" emissive="#c084fc" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Dorsal Phase Vanes */}
+                <mesh castShadow position={[0, 0.04, -0.16]}>
+                  <boxGeometry args={[0.34, 0.26, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- SHOULDERS & PHASE-BLADE PAULDRONS --- */}
+              {/* Left Phase Blade */}
+              <group position={[-0.48, 0.38, 0]} rotation={[0, 0.15, 0.22]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.26, 0.14, 0.38]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.85} roughness={0.2} />
+                </mesh>
+                <mesh position={[-0.04, 0, -0.18]}>
+                  <boxGeometry args={[0.24, 0.06, 0.04]} />
+                  <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.8} />
+                </mesh>
+              </group>
+
+              {/* Right Phase Blade */}
+              <group position={[0.48, 0.38, 0]} rotation={[0, -0.15, -0.22]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.26, 0.14, 0.38]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#8b5cf6" metalness={0.85} roughness={0.2} />
+                </mesh>
+                <mesh position={[0.04, 0, -0.18]}>
+                  <boxGeometry args={[0.24, 0.06, 0.04]} />
+                  <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- ARMS & PRECISION GAUNTLETS --- */}
+              {/* Left Arm */}
+              <group position={[-0.37, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.10, 0.18, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.12, 0.20, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* Right Arm (Disc Cradle) */}
+              <group position={[0.37, 0.18, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.10, 0.18, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.7} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.12, 0.20, 0.14]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1e1b4b" metalness={0.85} />
+                </mesh>
+                <mesh position={[0.04, -0.16, 0.08]}>
+                  <boxGeometry args={[0.06, 0.14, 0.06]} />
+                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- HEAD & PHASE HELMET --- */}
               <group position={[0, 0.55, 0.02]}>
-                <mesh castShadow>
-                  <sphereGeometry args={[0.26, 14, 12]} />
-                  <meshStandardMaterial
-                    ref={(m) => registerFlashMaterial(m)}
-                    color="#0f1024"
-                    metalness={0.9}
-                    roughness={0.18}
-                  />
+                {/* Neck */}
+                <mesh position={[0, -0.11, 0]}>
+                  <cylinderGeometry args={[0.10, 0.12, 0.07, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} />
                 </mesh>
-                <mesh position={[0, 0.02, 0.25]}>
-                  <boxGeometry args={[0.38, 0.08, 0.08]} />
-                  <meshStandardMaterial color="#a78bfa" emissive="#8b5cf6" emissiveIntensity={2.0} />
+                {/* Helmet Facets */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.24, 0.23, 0.27]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#18181b" metalness={0.85} roughness={0.2} />
                 </mesh>
-                <mesh position={[0, 0.24, -0.02]} rotation={[-0.45, 0, 0]}>
-                  <coneGeometry args={[0.12, 0.34, 4]} />
-                  <meshStandardMaterial color="#22d3ee" emissive="#0891b2" emissiveIntensity={0.9} />
+                {/* Vertical Tachyon Rift Visor Slit */}
+                <mesh position={[0, 0.02, 0.14]}>
+                  <boxGeometry args={[0.06, 0.18, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#c084fc", 1.8)} color="#c084fc" emissive="#c084fc" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Swept Dimensional Crest Fins */}
+                <mesh position={[-0.10, 0.14, -0.06]} rotation={[-0.3, 0, -0.1]}>
+                  <boxGeometry args={[0.03, 0.20, 0.18]} />
+                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.10, 0.14, -0.06]} rotation={[-0.3, 0, 0.1]}>
+                  <boxGeometry args={[0.03, 0.20, 0.18]} />
+                  <meshStandardMaterial color="#8b5cf6" metalness={0.9} />
                 </mesh>
               </group>
 
-              <group position={[0, 0.18, -0.48]}>
-                {[0, 1, 2].map((idx) => (
-                  <mesh key={idx} position={[0, 0.28 - idx * 0.28, -idx * 0.05]}>
-                    <boxGeometry args={[0.44 - idx * 0.08, 0.05, 0.16]} />
-                    <meshStandardMaterial color="#22d3ee" emissive="#0e7490" emissiveIntensity={0.65} />
-                  </mesh>
-                ))}
-              </group>
-
-              <group ref={weaponGroupRef} position={[0, 0.24, 0]}>
+              {/* --- SIGNATURE WEAPON: FLOATING RIFT DISC --- */}
+              <group ref={weaponGroupRef} position={[0.55, 0.22, 0.15]}>
+                {/* Rotating Dimensional Circular Disc */}
                 <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[0.72, 0.035, 8, 32]} />
-                  <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={1.3} metalness={0.9} />
+                  <cylinderGeometry args={[0.26, 0.26, 0.03, 16]} />
+                  <meshStandardMaterial color="#8b5cf6" emissive="#8b5cf6" emissiveIntensity={1.2} metalness={0.9} />
                 </mesh>
-                <mesh rotation={[Math.PI / 2, 0, Math.PI / 4]}>
-                  <torusGeometry args={[0.46, 0.022, 6, 24]} />
-                  <meshStandardMaterial color="#22d3ee" emissive="#06b6d4" emissiveIntensity={1.0} metalness={0.85} />
+                {/* Outer Arc Cutting Blades */}
+                <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
+                  <torusGeometry args={[0.26, 0.02, 6, 20]} />
+                  <meshStandardMaterial color="#c084fc" metalness={0.95} />
                 </mesh>
-                {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle) => (
-                  <mesh key={angle} position={[Math.cos(angle) * 0.72, 0, Math.sin(angle) * 0.72]}>
-                    <octahedronGeometry args={[0.08]} />
-                    <meshStandardMaterial color="#ddd6fe" emissive="#8b5cf6" emissiveIntensity={1.6} />
-                  </mesh>
-                ))}
+                {/* Glowing Tachyon Core */}
+                <mesh>
+                  <sphereGeometry args={[0.08, 12, 12]} />
+                  <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={2.0} />
+                </mesh>
               </group>
             </group>
           )}
-
+          {/* ================================================================= */}
+          {/* CHARACTER 7: FUSE — Demolition Specialist, Hazard Orange/Charcoal  */}
+          {/* ================================================================= */}
           {selectedCharacterId === "fuse" && (
             <group>
-              <mesh castShadow position={[0, -0.02, 0]}>
-                <boxGeometry args={[0.66, 0.82, 0.52]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#20232b"
-                  metalness={0.75}
-                  roughness={0.35}
-                />
-              </mesh>
-              <mesh position={[0, 0.06, 0.32]}>
-                <boxGeometry args={[0.5, 0.28, 0.12]} />
-                <meshStandardMaterial color="#f97316" emissive="#ea580c" emissiveIntensity={0.75} metalness={0.8} />
-              </mesh>
-              <mesh ref={coreMeshRef} position={[0, -0.12, 0.39]}>
-                <cylinderGeometry args={[0.14, 0.14, 0.08, 12]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#f59e0b", 1.4, true)}
-                  color="#fbbf24"
-                  emissive="#f59e0b"
-                  emissiveIntensity={1.4}
-                />
-              </mesh>
-
-              {[-1, 1].map((side) => (
-                <group key={side} position={[side * 0.58, 0.16, 0]} rotation={[0, 0, -side * 0.2]}>
-                  <mesh castShadow>
-                    <boxGeometry args={[0.28, 0.42, 0.42]} />
-                    <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.3} />
-                  </mesh>
-                  <mesh position={[side * 0.04, 0.24, 0]}>
-                    <cylinderGeometry args={[0.06, 0.06, 0.36, 8]} />
-                    <meshStandardMaterial color="#f59e0b" emissive="#f97316" emissiveIntensity={0.7} />
-                  </mesh>
-                </group>
-              ))}
-
-              <group position={[0, 0.52, 0.02]}>
-                <mesh castShadow>
-                  <boxGeometry args={[0.42, 0.36, 0.42]} />
-                  <meshStandardMaterial color="#111827" metalness={0.9} roughness={0.2} />
+              {/* --- LOWER BODY: BOOTS & LEGS (Rugged Industrial Humanoid) --- */}
+              {/* Left Blast Boot */}
+              <group position={[-0.24, -0.66, 0.04]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.20, 0.16, 0.34]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.7} roughness={0.4} />
                 </mesh>
-                <mesh position={[0, 0, 0.24]}>
-                  <boxGeometry args={[0.32, 0.09, 0.08]} />
-                  <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={1.7} />
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.22, 0.04, 0.36]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.8} />
                 </mesh>
-                <mesh position={[-0.18, 0.22, -0.05]} rotation={[0.3, 0, 0.45]}>
-                  <cylinderGeometry args={[0.055, 0.075, 0.38, 8]} />
-                  <meshStandardMaterial color="#334155" metalness={0.9} />
-                </mesh>
-                <mesh position={[0.18, 0.22, -0.05]} rotation={[0.3, 0, -0.45]}>
-                  <cylinderGeometry args={[0.055, 0.075, 0.38, 8]} />
-                  <meshStandardMaterial color="#334155" metalness={0.9} />
+                <mesh position={[0, 0.02, 0.16]}>
+                  <boxGeometry args={[0.18, 0.08, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f97316" metalness={0.65} />
                 </mesh>
               </group>
 
-              <group position={[0, 0.0, -0.42]}>
-                {[-0.22, 0.22].map((x) => (
-                  <mesh key={x} position={[x, 0.18, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                    <cylinderGeometry args={[0.1, 0.12, 0.42, 8]} />
-                    <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.25} />
-                  </mesh>
-                ))}
+              {/* Right Blast Boot */}
+              <group position={[0.24, -0.66, 0.04]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.20, 0.16, 0.34]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.7} roughness={0.4} />
+                </mesh>
+                <mesh position={[0, -0.07, 0]}>
+                  <boxGeometry args={[0.22, 0.04, 0.36]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.8} />
+                </mesh>
+                <mesh position={[0, 0.02, 0.16]}>
+                  <boxGeometry args={[0.18, 0.08, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f97316" metalness={0.65} />
+                </mesh>
               </group>
 
+              {/* Left Armored Shin & Greave */}
+              <group position={[-0.24, -0.44, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.18, 0.28, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.75} roughness={0.35} />
+                </mesh>
+                <mesh position={[0, 0, 0.09]}>
+                  <boxGeometry args={[0.16, 0.26, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f97316" metalness={0.65} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.09]}>
+                  <boxGeometry args={[0.20, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* Right Armored Shin & Greave */}
+              <group position={[0.24, -0.44, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.18, 0.28, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.75} roughness={0.35} />
+                </mesh>
+                <mesh position={[0, 0, 0.09]}>
+                  <boxGeometry args={[0.16, 0.26, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f97316" metalness={0.65} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.09]}>
+                  <boxGeometry args={[0.20, 0.10, 0.10]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* Left Thigh & Pouch */}
+              <group position={[-0.21, -0.16, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.17, 0.22, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.7} />
+                </mesh>
+                <mesh position={[-0.09, 0, 0]}>
+                  <boxGeometry args={[0.06, 0.16, 0.14]} />
+                  <meshStandardMaterial color="#1c1917" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* Right Thigh & Pouch */}
+              <group position={[0.21, -0.16, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.17, 0.22, 0.18]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.7} />
+                </mesh>
+                <mesh position={[0.09, 0, 0]}>
+                  <boxGeometry args={[0.06, 0.16, 0.14]} />
+                  <meshStandardMaterial color="#1c1917" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- WAIST / UTILITY DUTY BELT --- */}
+              <group position={[0, 0.00, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.48, 0.12, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.85} />
+                </mesh>
+                <mesh position={[0, 0, 0.15]}>
+                  <boxGeometry args={[0.18, 0.14, 0.06]} />
+                  <meshStandardMaterial color="#f97316" metalness={0.7} />
+                </mesh>
+                {/* Left Hip Canister Cartridges */}
+                <mesh position={[-0.26, 0, 0.04]} rotation={[0, 0, 0]}>
+                  <cylinderGeometry args={[0.035, 0.035, 0.14, 8]} />
+                  <meshStandardMaterial color="#eab308" metalness={0.8} />
+                </mesh>
+                <mesh position={[-0.26, 0, -0.04]} rotation={[0, 0, 0]}>
+                  <cylinderGeometry args={[0.035, 0.035, 0.14, 8]} />
+                  <meshStandardMaterial color="#eab308" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- TORSO & FLAK CUIRASS --- */}
+              <group position={[0, 0.25, 0]}>
+                {/* Lower Abdomen */}
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <boxGeometry args={[0.42, 0.16, 0.26]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.7} />
+                </mesh>
+                {/* Heavy Ballistic Chestplate */}
+                <mesh castShadow position={[0, 0.04, 0.03]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.64, 0.26, 0.36]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f97316" metalness={0.65} roughness={0.3} />
+                </mesh>
+                {/* Diagonal Canister Bandolier Strap */}
+                <mesh position={[0, 0.05, 0.17]} rotation={[0.08, 0, -0.3]}>
+                  <boxGeometry args={[0.55, 0.08, 0.08]} />
+                  <meshStandardMaterial color="#1c1917" metalness={0.8} />
+                </mesh>
+                {/* Hazard Core / Detonation Sensor */}
+                <mesh ref={coreMeshRef} position={[0, 0.04, 0.21]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.22, 0.12, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f97316", 1.4, true)} color="#f97316" emissive="#f97316" emissiveIntensity={1.4} />
+                </mesh>
+                {/* Rear Heavy Blast Pack */}
+                <mesh castShadow position={[0, 0.04, -0.19]}>
+                  <boxGeometry args={[0.48, 0.28, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- ASYMMETRIC INDUSTRIAL PAULDRONS --- */}
+              {/* Right Demolition Blast Shield */}
+              <group position={[0.52, 0.38, 0]} rotation={[0, 0, -0.22]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.32, 0.20, 0.44]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f97316" metalness={0.7} roughness={0.3} />
+                </mesh>
+                <mesh position={[0.04, 0.06, 0]}>
+                  <boxGeometry args={[0.26, 0.08, 0.46]} />
+                  <meshStandardMaterial color="#eab308" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* Left Canister Dispenser Mount */}
+              <group position={[-0.48, 0.38, 0]} rotation={[0, 0, 0.20]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.26, 0.18, 0.40]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.85} />
+                </mesh>
+                <mesh position={[-0.04, 0.12, 0.08]}>
+                  <cylinderGeometry args={[0.04, 0.04, 0.12, 8]} />
+                  <meshStandardMaterial color="#f97316" metalness={0.7} />
+                </mesh>
+              </group>
+
+              {/* --- ARMS & HEAVY INDUSTRIAL GAUNTLETS --- */}
+              {/* Left Arm */}
+              <group position={[-0.44, 0.20, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.15, 0.20, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.65} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.17, 0.22, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* Right Arm */}
+              <group position={[0.44, 0.20, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.15, 0.20, 0.16]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.65} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.17, 0.22, 0.20]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* --- HEAD & BLAST HELMET --- */}
+              <group position={[0, 0.56, 0.02]}>
+                {/* Neck */}
+                <mesh position={[0, -0.11, 0]}>
+                  <cylinderGeometry args={[0.12, 0.14, 0.08, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#1c1917" metalness={0.85} />
+                </mesh>
+                {/* Heavy Blast Helmet */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.28, 0.24, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#292524" metalness={0.75} roughness={0.3} />
+                </mesh>
+                {/* Reinforced Protective Visor */}
+                <mesh position={[0, 0.02, 0.15]}>
+                  <boxGeometry args={[0.30, 0.08, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#f97316", 1.4)} color="#f97316" emissive="#f97316" emissiveIntensity={1.4} />
+                </mesh>
+                {/* Heavy Brow Blast Plate */}
+                <mesh position={[0, 0.10, 0.14]}>
+                  <boxGeometry args={[0.26, 0.06, 0.06]} />
+                  <meshStandardMaterial color="#f97316" metalness={0.8} />
+                </mesh>
+                {/* Communications Antenna Rod */}
+                <mesh position={[-0.14, 0.16, -0.06]}>
+                  <cylinderGeometry args={[0.015, 0.015, 0.22, 6]} />
+                  <meshStandardMaterial color="#eab308" metalness={0.9} />
+                </mesh>
+              </group>
+
+              {/* --- SIGNATURE WEAPON: PULSE MINE GAUNTLET LAUNCHER --- */}
               <group ref={weaponGroupRef} position={[0.58, 0.06, 0.18]} rotation={[0, 0.15, -0.25]}>
-                <mesh>
-                  <boxGeometry args={[0.26, 0.18, 0.48]} />
-                  <meshStandardMaterial color="#f97316" metalness={0.8} roughness={0.25} />
+                {/* Launcher Arm Chassis */}
+                <mesh position={[0, 0, 0]}>
+                  <boxGeometry args={[0.24, 0.14, 0.32]} />
+                  <meshStandardMaterial color="#1c1917" metalness={0.85} roughness={0.3} />
                 </mesh>
-                <mesh position={[0, 0, 0.28]}>
-                  <cylinderGeometry args={[0.11, 0.08, 0.32, 10]} />
-                  <meshStandardMaterial color="#0f172a" metalness={0.9} />
+                {/* Chambered Cylindrical Pulse Mine Warhead */}
+                <mesh position={[0, 0.04, 0.14]} rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[0.11, 0.11, 0.26, 12]} />
+                  <meshStandardMaterial color="#292524" metalness={0.8} roughness={0.25} />
                 </mesh>
-                <mesh position={[0, 0, 0.48]}>
-                  <torusGeometry args={[0.16, 0.025, 8, 18]} />
-                  <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={1.1} />
+                {/* Glowing Amber Priming Core */}
+                <mesh position={[0, 0.04, 0.26]}>
+                  <sphereGeometry args={[0.07, 12, 12]} />
+                  <meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={1.8} />
                 </mesh>
-                <mesh position={[-0.22, -0.16, -0.05]}>
-                  <boxGeometry args={[0.1, 0.32, 0.14]} />
-                  <meshStandardMaterial color="#64748b" metalness={0.8} />
+                {/* Hazard Warning Ring */}
+                <mesh position={[0, 0.04, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[0.12, 0.018, 6, 16]} />
+                  <meshBasicMaterial color="#eab308" />
                 </mesh>
               </group>
             </group>
           )}
-
+          {/* ================================================================= */}
+          {/* CHARACTER 8: LUX — Precision Energy Knight, White/Gold Armor     */}
+          {/* ================================================================= */}
           {selectedCharacterId === "lux" && (
             <group>
-              <mesh castShadow position={[0, 0.02, 0]}>
-                <capsuleGeometry args={[0.3, 0.58, 8, 16]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m)}
-                  color="#111827"
-                  metalness={0.85}
-                  roughness={0.18}
-                />
-              </mesh>
-              <mesh position={[0, 0.04, 0.36]}>
-                <boxGeometry args={[0.32, 0.5, 0.1]} />
-                <meshStandardMaterial color="#f8fafc" metalness={0.65} roughness={0.16} />
-              </mesh>
-              <mesh ref={coreMeshRef} position={[0, 0.14, 0.43]}>
-                <octahedronGeometry args={[0.15]} />
-                <meshStandardMaterial
-                  ref={(m) => registerFlashMaterial(m, "#facc15", 2.0, true)}
-                  color="#fff7ed"
-                  emissive="#facc15"
-                  emissiveIntensity={2.0}
-                />
-              </mesh>
-
-              {[-1, 1].map((side) => (
-                <group key={side} position={[side * 0.46, 0.18, 0]} rotation={[0, 0, -side * 0.28]}>
-                  <mesh castShadow>
-                    <boxGeometry args={[0.14, 0.48, 0.28]} />
-                    <meshStandardMaterial color="#eab308" metalness={0.9} roughness={0.16} />
-                  </mesh>
-                  <mesh position={[side * 0.12, 0.04, 0]}>
-                    <boxGeometry args={[0.08, 0.3, 0.36]} />
-                    <meshStandardMaterial color="#38bdf8" emissive="#06b6d4" emissiveIntensity={0.8} />
-                  </mesh>
-                </group>
-              ))}
-
-              <group position={[0, 0.58, 0.02]}>
-                <mesh castShadow>
-                  <sphereGeometry args={[0.25, 14, 12]} />
-                  <meshStandardMaterial color="#f8fafc" metalness={0.72} roughness={0.14} />
+              {/* --- LOWER BODY: BOOTS & LEGS (Tall Knightly Humanoid) --- */}
+              {/* Left Knight Sabaton */}
+              <group position={[-0.19, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.14, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
                 </mesh>
-                <mesh position={[0, 0.03, 0.24]}>
-                  <boxGeometry args={[0.36, 0.075, 0.07]} />
-                  <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={2.2} />
+                <mesh position={[0, -0.06, 0]}>
+                  <boxGeometry args={[0.14, 0.03, 0.32]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#facc15" metalness={0.95} />
                 </mesh>
-                <mesh position={[0, 0.25, -0.02]} rotation={[-0.25, 0, 0]}>
-                  <coneGeometry args={[0.13, 0.32, 5]} />
-                  <meshStandardMaterial color="#facc15" metalness={0.95} roughness={0.12} />
+                <mesh position={[0, 0, 0.15]}>
+                  <boxGeometry args={[0.12, 0.08, 0.08]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
                 </mesh>
               </group>
 
-              <group position={[0, 0.18, -0.4]}>
-                <mesh>
-                  <boxGeometry args={[0.58, 0.08, 0.18]} />
-                  <meshStandardMaterial color="#facc15" emissive="#eab308" emissiveIntensity={0.8} metalness={0.9} />
+              {/* Right Knight Sabaton */}
+              <group position={[0.19, -0.68, 0.02]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.14, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
                 </mesh>
-                <mesh position={[0, -0.18, -0.06]}>
-                  <boxGeometry args={[0.44, 0.08, 0.14]} />
-                  <meshStandardMaterial color="#38bdf8" emissive="#06b6d4" emissiveIntensity={0.8} />
+                <mesh position={[0, -0.06, 0]}>
+                  <boxGeometry args={[0.14, 0.03, 0.32]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#facc15" metalness={0.95} />
+                </mesh>
+                <mesh position={[0, 0, 0.15]}>
+                  <boxGeometry args={[0.12, 0.08, 0.08]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
                 </mesh>
               </group>
 
-              <group ref={weaponGroupRef} position={[0, 0.18, 0.5]}>
-                <mesh rotation={[Math.PI / 2, 0, 0]}>
+              {/* Left Tall Slender Greave */}
+              <group position={[-0.19, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
+                </mesh>
+                <mesh position={[0, 0, 0.08]}>
+                  <boxGeometry args={[0.04, 0.26, 0.04]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.15, 0.08, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#facc15", 0.5)} color="#facc15" metalness={0.95} />
+                </mesh>
+              </group>
+
+              {/* Right Tall Slender Greave */}
+              <group position={[0.19, -0.46, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.13, 0.28, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
+                </mesh>
+                <mesh position={[0, 0, 0.08]}>
+                  <boxGeometry args={[0.04, 0.26, 0.04]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+                <mesh position={[0, 0.14, 0.08]}>
+                  <boxGeometry args={[0.15, 0.08, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#facc15", 0.5)} color="#facc15" metalness={0.95} />
+                </mesh>
+              </group>
+
+              {/* Left Cuisse / Thigh */}
+              <group position={[-0.17, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.22, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.2} />
+                </mesh>
+              </group>
+
+              {/* Right Cuisse / Thigh */}
+              <group position={[0.17, -0.17, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.14, 0.22, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.2} />
+                </mesh>
+              </group>
+
+              {/* --- WAIST / GILDED KNIGHT FAULD & TASSETS --- */}
+              <group position={[0, 0.00, 0]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.38, 0.11, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#facc15" metalness={0.95} roughness={0.15} />
+                </mesh>
+                {/* Chevron Front Tasset */}
+                <mesh position={[0, -0.06, 0.13]}>
+                  <boxGeometry args={[0.18, 0.16, 0.04]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} />
+                </mesh>
+              </group>
+
+              {/* --- TORSO & ELEGANT KNIGHT CUIRASS --- */}
+              <group position={[0, 0.25, 0]}>
+                {/* Lower Abdomen */}
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <boxGeometry args={[0.34, 0.14, 0.24]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} />
+                </mesh>
+                {/* V-Shaped Knight Breastplate */}
+                <mesh castShadow position={[0, 0.04, 0.03]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.52, 0.25, 0.30]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
+                </mesh>
+                {/* Gold Chevron Breastplate Rim */}
+                <mesh position={[0, 0.05, 0.16]} rotation={[0.08, 0, 0]}>
+                  <boxGeometry args={[0.44, 0.18, 0.04]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+                {/* Radiant Solar Heart Core (Diamond Orientation) */}
+                <mesh ref={coreMeshRef} position={[0, 0.04, 0.18]} rotation={[0, 0, Math.PI / 4]}>
+                  <boxGeometry args={[0.14, 0.14, 0.06]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#fef08a", 1.8, true)} color="#fef08a" emissive="#fef08a" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Dorsal Capacitor Pack */}
+                <mesh castShadow position={[0, 0.04, -0.16]}>
+                  <boxGeometry args={[0.38, 0.26, 0.12]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.85} />
+                </mesh>
+              </group>
+
+              {/* --- SHOULDERS & WINGED KNIGHT PAULDRONS --- */}
+              {/* Left Winged Pauldron */}
+              <group position={[-0.50, 0.39, 0]} rotation={[0, 0.12, 0.22]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.28, 0.18, 0.42]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
+                </mesh>
+                <mesh position={[-0.04, 0.08, 0]}>
+                  <boxGeometry args={[0.26, 0.10, 0.44]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+              </group>
+
+              {/* Right Winged Pauldron */}
+              <group position={[0.50, 0.39, 0]} rotation={[0, -0.12, -0.22]}>
+                <mesh castShadow position={[0, 0, 0]}>
+                  <boxGeometry args={[0.28, 0.18, 0.42]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
+                </mesh>
+                <mesh position={[0.04, 0.08, 0]}>
+                  <boxGeometry args={[0.26, 0.10, 0.44]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+              </group>
+
+              {/* --- ARMS & KNIGHT VAMBRACES --- */}
+              {/* Left Arm */}
+              <group position={[-0.39, 0.19, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.11, 0.18, 0.13]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.12, 0.20, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} />
+                </mesh>
+                <mesh position={[0, -0.06, 0.08]}>
+                  <boxGeometry args={[0.06, 0.06, 0.04]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+              </group>
+
+              {/* Right Arm */}
+              <group position={[0.39, 0.19, 0]}>
+                <mesh castShadow position={[0, 0.04, 0]}>
+                  <boxGeometry args={[0.11, 0.18, 0.13]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} />
+                </mesh>
+                <mesh castShadow position={[0, -0.16, 0.03]}>
+                  <boxGeometry args={[0.12, 0.20, 0.15]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} />
+                </mesh>
+                <mesh position={[0, -0.06, 0.08]}>
+                  <boxGeometry args={[0.06, 0.06, 0.04]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+              </group>
+
+              {/* --- HEAD & SOLAR KNIGHT HELMET --- */}
+              <group position={[0, 0.56, 0.02]}>
+                {/* Neck */}
+                <mesh position={[0, -0.11, 0]}>
+                  <cylinderGeometry args={[0.10, 0.12, 0.07, 8]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#facc15" metalness={0.9} />
+                </mesh>
+                {/* Helm Box */}
+                <mesh castShadow position={[0, 0.02, 0]}>
+                  <boxGeometry args={[0.25, 0.24, 0.28]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m)} color="#f8fafc" metalness={0.8} roughness={0.15} />
+                </mesh>
+                {/* Horizontal Solar Visor Slit */}
+                <mesh position={[0, 0.02, 0.14]}>
+                  <boxGeometry args={[0.29, 0.07, 0.08]} />
+                  <meshStandardMaterial ref={(m) => registerFlashMaterial(m, "#38bdf8", 1.8)} color="#38bdf8" emissive="#38bdf8" emissiveIntensity={1.8} />
+                </mesh>
+                {/* Regal Sun-Crest Fin */}
+                <mesh position={[0, 0.16, -0.02]} rotation={[-0.2, 0, 0]}>
+                  <boxGeometry args={[0.04, 0.22, 0.26]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} />
+                </mesh>
+              </group>
+
+              {/* --- SIGNATURE WEAPON: HIGH-PRECISION LIGHT LANCE --- */}
+              <group ref={weaponGroupRef} position={[0.60, 0.18, 0.20]} rotation={[0, 0.1, 0.05]}>
+                {/* Polished White Lance Haft */}
+                <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
                   <cylinderGeometry args={[0.035, 0.035, 1.6, 8]} />
                   <meshStandardMaterial color="#f8fafc" emissive="#facc15" emissiveIntensity={1.2} metalness={0.85} />
                 </mesh>
+                {/* Radiant Focused Beam Emitter Cone */}
                 <mesh position={[0, 0, 0.82]} rotation={[Math.PI / 2, 0, 0]}>
                   <coneGeometry args={[0.11, 0.34, 6]} />
                   <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={1.8} />
                 </mesh>
+                {/* Focusing Capacitor Ring */}
                 <mesh position={[0, 0, -0.42]} rotation={[Math.PI / 2, 0, 0]}>
                   <torusGeometry args={[0.18, 0.018, 8, 20]} />
                   <meshBasicMaterial color="#38bdf8" />
                 </mesh>
+                {/* Gold Chevron Crossguard */}
                 <mesh position={[0, 0, 0.2]}>
                   <boxGeometry args={[0.5, 0.035, 0.035]} />
                   <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={1.3} />
@@ -2528,9 +2947,8 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
               </group>
             </group>
           )}
-
           {/* Forward-facing Tactical Ground Indicator Chevron (Shared Readability) */}
-          <mesh position={[0, -0.5, 0.7]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh position={[0, -0.72, 0.7]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.18, 0.28, 3, 1, 0, Math.PI]} />
             <meshBasicMaterial
               color={
@@ -2651,6 +3069,51 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
               side={THREE.DoubleSide}
               transparent
               opacity={0.75}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* RIFT: Violet Release Arc */}
+        <group ref={riftArcGroupRef} visible={false} position={[0, 0.3, 0.3]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.6, 1.3, 32, 1, -Math.PI / 3, (2 * Math.PI) / 3]} />
+            <meshBasicMaterial
+              color="#8b5cf6"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.85}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* FUSE: Amber Blast Deploy */}
+        <group ref={fuseDeployGroupRef} visible={false} position={[0, 0.3, 0.3]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.4, 0.8, 32]} />
+            <meshBasicMaterial
+              color="#f97316"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.9}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* LUX: Golden Solar Flash */}
+        <group ref={luxFlashGroupRef} visible={false} position={[0, 0.3, 0.5]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.3, 0.7, 32]} />
+            <meshBasicMaterial
+              color="#facc15"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.95}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
