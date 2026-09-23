@@ -1,35 +1,44 @@
 # Current Task
 
 ## Objective
-Synchronize user-facing documentation and the Instructions page with the current integrated BONKAGEDDON game state.
+Establish the official playable character creation guidelines and production standard for BONKAGEDDON survivors.
 
 ## Status
-Documentation sync completed on branch `docs/current-state-sync`.
+Completed on branch `integration/visual-overhaul-v1`.
 
-## Scope
-- Update `README.md`, `PROJECT_STATUS.md`, `CURRENT_TASK.md`, `docs/ASSET_INTEGRATION.md`, and `src/pages/Instructions.tsx`.
-- Correct stale claims about:
-  - playable survivor count;
-  - signature weapon count;
-  - upgrade/relic/passive counts;
-  - rotating boss roster;
-  - current spaceship combat-deck arena;
-  - `ARENA_RADIUS = 44`;
-  - `ARENA_BOUNDARY_LIMIT = 42.4`;
-  - current route list;
-  - current test suite;
-  - visual-overhaul status;
-  - temporary 15 MB custom asset budget.
-- Keep documentation factual and grounded in current code/config.
+## Deliverables
+- Created `docs/CHARACTER_CREATION_GUIDELINES.md` as the authoritative engineering and art-production reference for all future 3D GLB survivors.
+- Standardized:
+  - design philosophy (stylized hard-surface, silhouette readability from isometric camera);
+  - grounding invariant (`feetMinY ≈ 0.000m`);
+  - character scale and archetype mass conventions (Heavy, Standard, Agile, Hover);
+  - triangle budget (8k–15k preferred, up to 20k max);
+  - material rules (1–3 materials, low draw calls, hit flash / status tint preservation);
+  - asset weight budget (< 200 KB target, < 1.2 MB max with compressed atlas);
+  - GLB naming and coordinate conventions;
+  - standardized rigging hierarchy;
+  - 5 canonical animation clips (`Idle`, `Run`, `Attack`, `Hit`, `Death`);
+  - dynamic velocity time-scale to eliminate foot sliding;
+  - contact shadow alignment;
+  - isometric camera readability zones;
+  - color language and 4-tier palette hierarchy;
+  - signature visual traits per survivor;
+  - strict isolation of visual assets from gameplay math/balance;
+  - separation of Rapier physics root (`CapsuleCollider args={[0.5, 0.38]}`) from visual offset (`-0.88m`);
+  - Character Lab QA workflow (`/dev/character-lab`);
+  - full 10-step production pipeline and quality gate checklist;
+  - character-specific hover exceptions (Byte, Rift);
+  - verified TANK V2 reference implementation specifications.
+- Added cross-references in `AGENTS.md`, `PROJECT_STATUS.md`, `docs/DECISIONS.md`, and `docs/PLAYABLE_CHARACTER_CONTRACT.md`.
 
 ## Verification Plan
+- `npm run test`
 - `npm run lint`
 - `npm run build`
-- `npm test`
 - `git diff --check`
 - Inspect final diff and working tree.
 
 ## Out of Scope
-- Gameplay changes.
-- Arena, combat, player, enemy, boss, runtime, or balance code changes.
-- n8n live execution or screenshot creation.
+- Gameplay, balance, weapons, or enemy logic modifications.
+- Redesigning existing survivor models.
+- Altering the approved `tank-v2.glb` asset.

@@ -32,6 +32,7 @@ Integrated Gameplay, Arena V2, Visual Overhaul & Documentation Sync
 - Arena V2 spaceship combat-deck presentation.
 - Entity visual overhaul for all survivors, normal enemies, and bosses.
 - Automated regression tests for core progression systems.
+- Playable character creation guidelines and production standard in `docs/CHARACTER_CREATION_GUIDELINES.md`.
 
 ## Verification Baseline
 - Existing verification workflow: `npm run lint`, `npm run build`, `npm test`, `git diff --check`.

@@ -177,3 +177,14 @@
   5. Provide a visual-only containment forcefield at `ARENA_BOUNDARY_LIMIT = 42.4` explaining boundary deflection in-world without duplicate physics colliders.
   6. Retire obsolete 2D prop WebPs while preserving official floor decals (`warningRingDecal` and `laneConnectorDecal`).
 - **Consequences**: Cohesive futuristic orbital battle-station aesthetic, rich 3D depth, crystal-clear silhouette readability across 48-enemy hordes, and bounded draw calls (~140-152) at high framerates.
+
+## ADR-029: Playable Character Creation Guidelines & Production Standard
+- **Context**: As additional 3D playable survivors are developed following TANK's working GLB pipeline, inconsistent modeling conventions, broken grounding (`feetMinY ≠ 0`), over-scaled meshes, excessive materials, and uncalibrated animation speeds risk degrading performance and visual quality.
+- **Decision**:
+  1. Establish `docs/CHARACTER_CREATION_GUIDELINES.md` as the authoritative engineering and art-production contract for all future 3D GLB survivors.
+  2. Require all future character assets to enforce the grounding invariant: soles at `Y = 0.000` with root origin centered at ground level between the feet (`feetMinY ≈ 0`).
+  3. Enforce the standardized visual vs. gameplay transform separation: Rapier `CapsuleCollider args={[0.5, 0.38]}` rests at `Y = +0.88m`, and the visual container offsets by `-0.88m` without mutating physics dimensions.
+  4. Standardize 5 canonical animation clips: `Idle`, `Run`, `Attack`, `Hit`, and `Death` (in-place animation with dynamic velocity time-scale to eliminate foot sliding).
+  5. Enforce target polycount of 8k–15k triangles (up to 20k max), 1–3 materials per character, and `< 200 KB` file weight target (< 1.2 MB max with compressed atlas).
+  6. Mandate visual QA in the Character Lab across 4 camera presets before full gameplay integration.
+- **Consequences**: Deterministic, high-quality, 60 FPS survivor additions with 0% regression risk to gameplay balance, colliders, or stats.

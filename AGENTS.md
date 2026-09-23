@@ -325,6 +325,10 @@ Prefer SVG and procedural content.
 
 Do not download large replacement asset packs.
 
+Playable character production standard
+
+For playable character modeling, rigging, animation, GLB integration, grounding, and visual QA, follow `docs/CHARACTER_CREATION_GUIDELINES.md`.
+
 9. Audio Policy
 
 Prefer lightweight procedural audio using the Web Audio API.

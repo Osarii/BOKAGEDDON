@@ -86,6 +86,8 @@ Requirements:
 
 Before final 2D/3D assets are produced, all characters must possess a complete, distinct procedural 3D model in `src/scene/PlayerPlaceholder.tsx`:
 
+For production 3D GLB character modeling, rigging, canonical animation clips, grounding standards (`feetMinY ≈ 0`), and QA pipelines, follow `docs/CHARACTER_CREATION_GUIDELINES.md`.
+
 ### Distinct Procedural Silhouettes
 - Geometric composition (torso, head/core, appendages, floating emitters, weapon geometry).
 - Signature materials, colors, and emissive highlights matching `character.color`.
