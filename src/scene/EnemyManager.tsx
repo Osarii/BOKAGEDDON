@@ -169,34 +169,44 @@ export const EnemyManager: React.FC<EnemyManagerProps> = ({ runtimeRef }) => {
 
   // Shared reusable 3D geometries with distinct silhouettes
   const geometries = useMemo(() => {
-    // 1. Slime: Bouncy dome body with dual crown nubs
-    const sBody = new THREE.SphereGeometry(0.55, 16, 12).scale(1.0, 0.85, 1.0).translate(0, 0.45, 0);
-    const sNubL = new THREE.SphereGeometry(0.14, 8, 6).translate(-0.28, 0.88, 0);
-    const sNubR = new THREE.SphereGeometry(0.14, 8, 6).translate(0.28, 0.88, 0);
-    const slimeGeo = safeMerge([sBody, sNubL, sNubR]);
+    // 1. Slime: corrupted nanite mass with exposed machine nodes
+    const sBody = new THREE.SphereGeometry(0.56, 16, 12).scale(1.08, 0.78, 1.0).translate(0, 0.42, 0);
+    const sCore = new THREE.OctahedronGeometry(0.22).translate(0, 0.64, 0.42);
+    const sNubL = new THREE.SphereGeometry(0.16, 8, 6).translate(-0.34, 0.78, 0.05);
+    const sNubR = new THREE.SphereGeometry(0.13, 8, 6).translate(0.3, 0.86, -0.08);
+    const sTendrilL = new THREE.ConeGeometry(0.06, 0.48, 5).rotateZ(0.7).translate(-0.52, 0.24, 0.18);
+    const sTendrilR = new THREE.ConeGeometry(0.06, 0.42, 5).rotateZ(-0.65).translate(0.5, 0.24, -0.12);
+    const slimeGeo = safeMerge([sBody, sCore, sNubL, sNubR, sTendrilL, sTendrilR]);
 
-    // 2. Runner: Supersonic stealth dart with swept wings and top fin
-    const rNose = new THREE.ConeGeometry(0.35, 1.25, 4).rotateX(Math.PI / 2).translate(0, 0.45, 0.1);
-    const rWingL = new THREE.BoxGeometry(0.75, 0.07, 0.45).rotateY(-0.35).translate(-0.48, 0.42, -0.2);
-    const rWingR = new THREE.BoxGeometry(0.75, 0.07, 0.45).rotateY(0.35).translate(0.48, 0.42, -0.2);
-    const rFin = new THREE.BoxGeometry(0.06, 0.35, 0.35).translate(0, 0.65, -0.25);
-    const runnerGeo = safeMerge([rNose, rWingL, rWingR, rFin]);
+    // 2. Runner: fast interceptor drone, thin nose + fins
+    const rNose = new THREE.ConeGeometry(0.3, 1.45, 4).rotateX(Math.PI / 2).translate(0, 0.44, 0.2);
+    const rBody = new THREE.BoxGeometry(0.36, 0.22, 0.68).translate(0, 0.42, -0.18);
+    const rWingL = new THREE.BoxGeometry(0.92, 0.06, 0.34).rotateY(-0.45).translate(-0.52, 0.42, -0.18);
+    const rWingR = new THREE.BoxGeometry(0.92, 0.06, 0.34).rotateY(0.45).translate(0.52, 0.42, -0.18);
+    const rFin = new THREE.BoxGeometry(0.06, 0.45, 0.34).translate(0, 0.68, -0.28);
+    const rThruster = new THREE.CylinderGeometry(0.14, 0.1, 0.2, 8).rotateX(Math.PI / 2).translate(0, 0.38, -0.62);
+    const runnerGeo = safeMerge([rNose, rBody, rWingL, rWingR, rFin, rThruster]);
 
-    // 3. Brute: Heavy armored tank chassis with dual shoulder horns and visor brow
-    const bTorso = new THREE.BoxGeometry(1.45, 1.35, 1.15).translate(0, 0.75, 0);
-    const bHornL = new THREE.ConeGeometry(0.24, 0.75, 5).rotateZ(-0.4).translate(-0.7, 1.65, 0);
-    const bHornR = new THREE.ConeGeometry(0.24, 0.75, 5).rotateZ(0.4).translate(0.7, 1.65, 0);
-    const bBrow = new THREE.BoxGeometry(1.15, 0.3, 0.25).translate(0, 1.05, 0.6);
-    const bruteGeo = safeMerge([bTorso, bHornL, bHornR, bBrow]);
+    // 3. Brute: heavy assault chassis with shielded prow
+    const bTorso = new THREE.BoxGeometry(1.5, 1.3, 1.08).translate(0, 0.75, 0);
+    const bShoulderL = new THREE.BoxGeometry(0.44, 0.52, 0.88).rotateZ(-0.18).translate(-0.88, 1.18, 0);
+    const bShoulderR = new THREE.BoxGeometry(0.44, 0.52, 0.88).rotateZ(0.18).translate(0.88, 1.18, 0);
+    const bHornL = new THREE.ConeGeometry(0.22, 0.68, 5).rotateZ(-0.45).translate(-0.72, 1.72, 0.1);
+    const bHornR = new THREE.ConeGeometry(0.22, 0.68, 5).rotateZ(0.45).translate(0.72, 1.72, 0.1);
+    const bBrow = new THREE.BoxGeometry(1.16, 0.24, 0.28).translate(0, 1.08, 0.6);
+    const bPlow = new THREE.BoxGeometry(0.9, 0.32, 0.26).translate(0, 0.38, 0.66);
+    const bruteGeo = safeMerge([bTorso, bShoulderL, bShoulderR, bHornL, bHornR, bBrow, bPlow]);
 
-    // 4. Shooter: Floating arcane diamond core with barrel and 4 stabilizer spires
-    const shCore = new THREE.OctahedronGeometry(0.55);
-    const shBarrel = new THREE.CylinderGeometry(0.12, 0.16, 0.45, 8).rotateX(Math.PI / 2).translate(0, 0, 0.4);
-    const shSpireTop = new THREE.ConeGeometry(0.15, 0.5, 4).translate(0, 0.65, 0);
+    // 4. Shooter: ranged sentry drone with obvious barrel cluster
+    const shCore = new THREE.OctahedronGeometry(0.56);
+    const shBarrel = new THREE.CylinderGeometry(0.13, 0.17, 0.62, 8).rotateX(Math.PI / 2).translate(0, 0, 0.5);
+    const shBarrelL = new THREE.CylinderGeometry(0.055, 0.065, 0.42, 6).rotateX(Math.PI / 2).translate(-0.2, 0.08, 0.46);
+    const shBarrelR = new THREE.CylinderGeometry(0.055, 0.065, 0.42, 6).rotateX(Math.PI / 2).translate(0.2, 0.08, 0.46);
+    const shSpireTop = new THREE.ConeGeometry(0.15, 0.55, 4).translate(0, 0.7, 0);
     const shSpireBot = new THREE.ConeGeometry(0.15, 0.5, 4).rotateX(Math.PI).translate(0, -0.65, 0);
-    const shSpireL = new THREE.ConeGeometry(0.14, 0.45, 4).rotateZ(Math.PI / 2).translate(-0.65, 0, 0);
-    const shSpireR = new THREE.ConeGeometry(0.14, 0.45, 4).rotateZ(-Math.PI / 2).translate(0.65, 0, 0);
-    const shooterGeo = safeMerge([shCore, shBarrel, shSpireTop, shSpireBot, shSpireL, shSpireR]);
+    const shSpireL = new THREE.ConeGeometry(0.14, 0.48, 4).rotateZ(Math.PI / 2).translate(-0.68, 0, 0);
+    const shSpireR = new THREE.ConeGeometry(0.14, 0.48, 4).rotateZ(-Math.PI / 2).translate(0.68, 0, 0);
+    const shooterGeo = safeMerge([shCore, shBarrel, shBarrelL, shBarrelR, shSpireTop, shSpireBot, shSpireL, shSpireR]);
 
     // Decal quads for official SVG facial identities
     const decals = {

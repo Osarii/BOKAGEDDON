@@ -758,6 +758,22 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
                 </mesh>
               </group>
 
+              {/* Executioner war-machine legs and reactor spine */}
+              <group position={[0, 0.75, -0.05]}>
+                <mesh castShadow position={[-0.55, 0, 0]}>
+                  <boxGeometry args={[0.42, 1.1, 0.5]} />
+                  <meshStandardMaterial color="#18181b" roughness={0.35} metalness={0.85} />
+                </mesh>
+                <mesh castShadow position={[0.55, 0, 0]}>
+                  <boxGeometry args={[0.42, 1.1, 0.5]} />
+                  <meshStandardMaterial color="#18181b" roughness={0.35} metalness={0.85} />
+                </mesh>
+                <mesh position={[0, 0.65, -0.72]}>
+                  <boxGeometry args={[0.42, 1.4, 0.18]} />
+                  <meshStandardMaterial color="#e11d48" emissive="#7f1d1d" emissiveIntensity={0.8} />
+                </mesh>
+              </group>
+
               {/* 5-Spire Royal Golden Crown */}
               <group ref={bonkCrownRef} position={[0, 3.6, 0]}>
                 <mesh position={[0, 0.4, 0]}>
@@ -802,6 +818,10 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
                     emissiveIntensity={0.5}
                   />
                 </mesh>
+                <mesh position={[0, 2.08, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                  <coneGeometry args={[0.42, 0.8, 4]} />
+                  <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={0.8} metalness={0.9} />
+                </mesh>
               </group>
             </group>
           )}
@@ -840,6 +860,24 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
                   <meshStandardMaterial color="#f97316" emissive="#ea580c" emissiveIntensity={1.2} />
                 </mesh>
               </group>
+
+              {/* Siege reactor jaws and side heat vents */}
+              <group position={[0, 1.35, 0.95]}>
+                <mesh castShadow position={[0, 0.18, 0]}>
+                  <boxGeometry args={[1.1, 0.22, 0.38]} />
+                  <meshStandardMaterial color="#7c2d12" emissive="#ea580c" emissiveIntensity={0.7} metalness={0.7} />
+                </mesh>
+                <mesh castShadow position={[0, -0.18, 0]}>
+                  <boxGeometry args={[0.9, 0.18, 0.34]} />
+                  <meshStandardMaterial color="#431407" metalness={0.7} />
+                </mesh>
+              </group>
+              {[-1, 1].map((side) => (
+                <mesh key={side} position={[side * 1.45, 1.45, 0]} rotation={[0, 0, side * 0.45]}>
+                  <cylinderGeometry args={[0.14, 0.18, 1.0, 8]} />
+                  <meshStandardMaterial color="#f97316" emissive="#ea580c" emissiveIntensity={1.3} metalness={0.65} />
+                </mesh>
+              ))}
 
               {/* Burning Spines along Back */}
               <group ref={cinderSpinesRef} position={[0, 0, 0]}>
@@ -903,6 +941,20 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
                 </mesh>
               </group>
 
+              {/* Levitating electromagnetic capacitor towers */}
+              {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle) => (
+                <group key={angle} position={[Math.cos(angle) * 1.95, 2.0, Math.sin(angle) * 1.95]}>
+                  <mesh>
+                    <boxGeometry args={[0.22, 0.9, 0.22]} />
+                    <meshStandardMaterial color="#0f172a" emissive="#0284c7" emissiveIntensity={0.55} metalness={0.92} />
+                  </mesh>
+                  <mesh position={[0, 0.55, 0]}>
+                    <sphereGeometry args={[0.13, 8, 8]} />
+                    <meshBasicMaterial color="#67e8f9" />
+                  </mesh>
+                </group>
+              ))}
+
               {/* Decal */}
               <mesh position={[0, 2.0, 1.1]}>
                 <planeGeometry args={[1.3, 1.3]} />
@@ -953,6 +1005,20 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
                 <meshStandardMaterial color="#84cc16" emissive="#65a30d" emissiveIntensity={1.2} />
               </mesh>
 
+              {/* Biomechanical injector legs and rib cage */}
+              {[-1, 1].map((side) =>
+                [0.75, 1.35].map((z, idx) => (
+                  <mesh key={`${side}-${z}`} position={[side * (0.75 + idx * 0.18), 0.85, z - 1.25]} rotation={[0.2, 0, side * 0.75]}>
+                    <cylinderGeometry args={[0.07, 0.1, 1.15, 6]} />
+                    <meshStandardMaterial color="#052e16" emissive="#16a34a" emissiveIntensity={0.45} metalness={0.7} />
+                  </mesh>
+                ))
+              )}
+              <mesh position={[0, 1.72, 0.78]}>
+                <torusGeometry args={[0.82, 0.045, 8, 20]} />
+                <meshStandardMaterial color="#84cc16" emissive="#22c55e" emissiveIntensity={0.9} />
+              </mesh>
+
               {/* Decal */}
               <mesh position={[0, 1.8, 1.1]}>
                 <planeGeometry args={[1.4, 1.4]} />
@@ -992,6 +1058,18 @@ export const BossRenderer: React.FC<BossRendererProps> = ({ runtimeRef }) => {
                 <octahedronGeometry args={[0.3, 0]} />
                 <meshStandardMaterial color="#bae6fd" emissive="#38bdf8" emissiveIntensity={1.2} />
               </mesh>
+
+              {/* Glacial war-construct armor halo and ground talons */}
+              <mesh position={[0, -0.65, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[1.05, 0.08, 8, 24]} />
+                <meshStandardMaterial color="#bae6fd" emissive="#38bdf8" emissiveIntensity={0.7} metalness={0.7} />
+              </mesh>
+              {[-0.8, 0, 0.8].map((x) => (
+                <mesh key={x} position={[x, -1.0, 0.55]} rotation={[0.9, 0, 0]}>
+                  <coneGeometry args={[0.16, 0.7, 5]} />
+                  <meshStandardMaterial color="#e0f2fe" emissive="#7dd3fc" emissiveIntensity={0.8} />
+                </mesh>
+              ))}
 
               {/* Decal */}
               <mesh position={[0, 0.2, 0.95]}>
