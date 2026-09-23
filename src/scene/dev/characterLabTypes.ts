@@ -1,6 +1,6 @@
 import type * as THREE from "three";
 
-export const DEFAULT_ASSET_PATH = "/assets/characters/tank-v2.glb";
+export const DEFAULT_ASSET_PATH = "/assets/characters/tank-v3.glb";
 export const STANDARD_CLIPS = ["Idle", "Run", "Attack", "Hit", "Death"];
 export const DUMMY_CLIPS = ["Idle", "Run", "Attack", "Hit", "Death"];
 

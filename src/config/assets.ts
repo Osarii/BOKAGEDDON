@@ -10,7 +10,7 @@ export const ASSETS = {
     lux: "/assets/v3/characters/lux.svg",
   },
   models: {
-    tank: "/assets/characters/tank-v2.glb",
+    tank: "/assets/characters/tank-v3.glb",
   },
   portraits: {
     bonk: "/assets/characters/bonk.svg",

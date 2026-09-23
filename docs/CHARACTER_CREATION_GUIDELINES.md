@@ -261,20 +261,20 @@ Not all survivors are grounded heavy mechs. Exceptions must be explicitly design
 
 ---
 
-## 13. TANK V2 Reference Implementation
+## 13. TANK Production Reference Implementation
 
-`TANK` is the authoritative gold standard in the codebase. When building any new survivor, compare against the verified properties of TANK:
+`TANK V3` is the active production survivor in the codebase, with `TANK V2` retained as the technical baseline. When building any new survivor, compare against the verified properties of TANK V3:
 
 ```
-Asset Path:             public/assets/characters/tank-v2.glb
-File Size:              87 KB (87,228 bytes)
-Triangle Count:         3,248
-Vertex Count:           9,480
-Mesh Count:             98
+Asset Path:             public/assets/characters/tank-v3.glb (Active) / tank-v2.glb (Baseline)
+File Size:              127 KB (130,492 bytes)
+Triangle Count:         5,596
+Vertex Count:           14,863
+Mesh Count:             160
 Material Count:         7 PBR Materials (Zero external texture dependencies)
 Animation Clips:        Idle (2.0s), Run (0.8s), Attack (0.62s), Hit (0.38s), Death (1.35s)
-Authored Grounding:     Raw Box3 min.y = -5.77e-9 ≈ 0.000m (Soles perfectly on ground)
-Visual Scale:           0.75 (Scaled height: 2.14m, width: 1.91m)
+Authored Grounding:     Raw Box3 min.y = 0.000m (Soles perfectly on ground)
+Visual Scale:           0.75 (Scaled height: 2.14m, width: 2.15m)
 React Component:        src/scene/TankModel.tsx
 Integration Host:       src/scene/PlayerPlaceholder.tsx (<TankModel motionRef={tankMotionRef} />)
 Ground Offset:          TANK_GROUND_OFFSET = -0.88m (Compensates Rapier capsule halfHeight 0.5 + radius 0.38)

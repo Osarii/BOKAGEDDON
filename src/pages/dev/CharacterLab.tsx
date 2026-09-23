@@ -422,7 +422,7 @@ export const CharacterLab: React.FC = () => {
                 className="asset-input-field"
                 value={assetPath}
                 onChange={(e) => setAssetPath(e.target.value)}
-                placeholder="/assets/characters/tank-v2.glb"
+                placeholder="/assets/characters/tank-v3.glb"
               />
               <button
                 className="asset-btn"

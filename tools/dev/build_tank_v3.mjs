@@ -475,7 +475,6 @@ assert.ok(output.byteLength < 250000, `File size exceeds budget: ${output.byteLe
 
 // Write production GLB
 await fs.mkdir("public/assets/characters", { recursive: true });
-await fs.writeFile("public/assets/characters/tank-v2.glb", Buffer.from(output));
 await fs.writeFile("public/assets/characters/tank-v3.glb", Buffer.from(output));
 
 console.log(`Successfully built TANK V3:`);
