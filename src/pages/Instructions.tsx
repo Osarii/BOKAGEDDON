@@ -50,14 +50,18 @@ const bosses = [
 ];
 
 const lootItems = [
-  { name: "Medkit Emergency", chance: "15%", rarity: "Recovery", image: ASSETS.items.medkitEmergency },
-  { name: "Medkit Case", chance: "15%", rarity: "Recovery", image: ASSETS.items.medkitCase },
-  { name: "Shield Potion", chance: "15%", rarity: "Recovery", image: ASSETS.items.shieldPotion },
-  { name: "Shield Battery", chance: "15%", rarity: "Recovery", image: ASSETS.items.shieldBattery },
-  { name: "Overclock Core", chance: "10%", rarity: "Rare", image: ASSETS.items.overclockCore },
-  { name: "Tesla Cell", chance: "10%", rarity: "Rare", image: ASSETS.items.teslaCell },
-  { name: "Toxic Relic", chance: "10%", rarity: "Rare", image: ASSETS.items.toxicRelic },
-  { name: "Phoenix Fragment", chance: "10%", rarity: "Rare", image: ASSETS.items.phoenixFragment },
+  { name: "Medkit Emergency", chance: "5%", rarity: "Recovery", image: ASSETS.items.medkitEmergency },
+  { name: "Medkit Case", chance: "5%", rarity: "Recovery", image: ASSETS.items.medkitCase },
+  { name: "Shield Potion", chance: "5%", rarity: "Recovery", image: ASSETS.items.shieldPotion },
+  { name: "Shield Battery", chance: "5%", rarity: "Recovery", image: ASSETS.items.shieldBattery },
+  { name: "Overclock Core", chance: "10%", rarity: "Relic", image: ASSETS.items.overclockCore },
+  { name: "Tesla Cell", chance: "10%", rarity: "Relic", image: ASSETS.items.teslaCell },
+  { name: "Toxic Relic", chance: "10%", rarity: "Relic", image: ASSETS.items.toxicRelic },
+  { name: "Phoenix Fragment", chance: "10%", rarity: "Relic", image: ASSETS.items.phoenixFragment },
+  { name: "Aegis Capacitor", chance: "10%", rarity: "Relic", image: ASSETS.items.aegisCapacitor },
+  { name: "Apex Lens", chance: "10%", rarity: "Relic", image: ASSETS.items.apexLens },
+  { name: "Echo Prism", chance: "10%", rarity: "Relic", image: ASSETS.items.echoPrism },
+  { name: "Gravity Seed", chance: "10%", rarity: "Relic", image: ASSETS.items.gravitySeed },
 ];
 
 const elementalBuilds = [
@@ -94,8 +98,9 @@ export const Instructions: React.FC = () => {
       >
         <AlertCircle size={24} color="var(--accent-energy)" style={{ flexShrink: 0 }} />
         <p style={{ fontSize: "0.9rem", margin: 0, color: "var(--text-primary)" }}>
-          <strong>Current Build:</strong> Five playable survivors fight in a larger radius-{GAME_CONFIG.arenaRadius}
-          arena with slower escalating hordes capped at {GAME_CONFIG.hardEnemyCap} active enemies.
+          <strong>Current Build:</strong> Eight playable survivors fight on the spaceship combat deck
+          (radius {GAME_CONFIG.arenaRadius}, boundary {GAME_CONFIG.arenaBoundaryLimit}) against escalating hordes
+          capped at {GAME_CONFIG.hardEnemyCap} active enemies.
         </p>
       </div>
 
@@ -149,13 +154,13 @@ export const Instructions: React.FC = () => {
         <section className="glass-panel" style={{ padding: "1.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <Flame size={24} color="var(--accent-orange)" />
-            <h2 style={{ fontSize: "1.3rem" }}>3. Five Survivors</h2>
+            <h2 style={{ fontSize: "1.3rem" }}>3. Eight Survivors</h2>
           </div>
           <p style={{ marginBottom: "1rem" }}>
-            BONK, BYTE, TANK, NOVA, and HEX each start with a different weapon pattern and synergy path.
+            Each survivor starts with a signature weapon and one synergy path.
           </p>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            {["BONK", "BYTE", "TANK", "NOVA", "HEX"].map((name) => (
+            {["BONK", "BYTE", "TANK", "NOVA", "HEX", "RIFT", "FUSE", "LUX"].map((name) => (
               <span key={name} className="hud-pill" style={{ padding: "0.3rem 0.75rem" }}>
                 {name}
               </span>
@@ -198,7 +203,18 @@ export const Instructions: React.FC = () => {
             <img src={ASSETS.upgrades.magnet} alt="Magnet" title="Magnet" style={{ width: 32, height: 32 }} />
             <img src={ASSETS.upgrades.critical} alt="Critical" title="Critical" style={{ width: 32, height: 32 }} />
             <img src={ASSETS.upgrades.multishot} alt="Multishot" title="Multishot" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.regeneration} alt="Regeneration" title="Regeneration" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.barrier} alt="Barrier Matrix" title="Barrier Matrix" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.area} alt="Area Amplifier" title="Area Amplifier" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.recovery} alt="Field Medic" title="Field Medic" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.boss_hunter} alt="Boss Hunter" title="Boss Hunter" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.executioner} alt="Execution Protocol" title="Execution Protocol" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.precision} alt="Critical Power" title="Critical Power" style={{ width: 32, height: 32 }} />
+            <img src={ASSETS.upgrades.fortune} alt="Fortune" title="Fortune" style={{ width: 32, height: 32 }} />
           </div>
+          <p style={{ marginTop: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            There are 20 normal upgrade paths total: base, elemental, defensive, boss-focused, and utility paths.
+          </p>
         </section>
 
         {/* Synergies */}
@@ -250,16 +266,16 @@ export const Instructions: React.FC = () => {
       <section className="instructions-wide glass-panel">
         <h2>Items / Loot</h2>
         <p>
-          Boss loot uses a planned 100% roll: 60% recovery items and 40% rare boss-exclusive drops. Normal gameplay
-          logic stays in the arena; this page is only the guide.
+          Boss loot uses one weighted roll: 20% recovery items and 80% special relics. Boss defeats also create a
+          Legendary Relic Vault chest for a separate relic-choice reward.
         </p>
         <div className="loot-summary">
-          <span>60% Recovery</span>
-          <span>40% Rare boss-exclusive</span>
+          <span>20% Recovery</span>
+          <span>80% Special Relics</span>
         </div>
         <div className="loot-grid">
           {lootItems.map((item) => (
-            <article key={item.name} className={`loot-card ${item.rarity === "Rare" ? "rare" : ""}`}>
+            <article key={item.name} className={`loot-card ${item.rarity === "Relic" ? "rare" : ""}`}>
               <img src={item.image} alt={item.name} />
               <h3>{item.name}</h3>
               <p>{item.rarity}</p>

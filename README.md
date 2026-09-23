@@ -2,7 +2,7 @@
 
 An original 3D survivor-like arcade videogame built with React 19, Three.js, React Three Fiber, Rapier, and Zustand for an academic React Quiz.
 
-Players choose a hero, navigate a hazardous circular arena, auto-cast weapon attacks against swarms of robotic enemies, collect emerald XP gems, stack synergistic upgrades, and survive against the rotating 5-boss roster (**BONKLORD**, **CINDERMAW**, **STORMCOIL**, **VENOMATRIX**, and **CRYOVEX**).
+Players choose a hero, navigate a spaceship combat-deck arena, auto-cast weapon attacks against swarms of robotic enemies, collect emerald XP gems, stack synergistic upgrades, and survive against the rotating 5-boss roster (**BONKLORD**, **CINDERMAW**, **STORMCOIL**, **VENOMATRIX**, and **CRYOVEX**).
 
 ---
 
@@ -34,9 +34,10 @@ Players choose a hero, navigate a hazardous circular arena, auto-cast weapon att
   - **8 Stackable Special Relics**: Permanent run modifiers stacking up to 5 times (Overclock Core, Tesla Cell, Toxic Relic, Phoenix Fragment, Aegis Capacitor, Apex Lens, Echo Prism, Gravity Seed).
   - **4 Secret Passive Fusions**: Event-driven recipe unlocks: Storm Engine (Overclock Core >= 2 + Tesla Cell >= 2), Venom Singularity (Toxic Relic >= 2 + Gravity Seed >= 2), Radiant Bastion (Phoenix Fragment >= 1 + Aegis Capacitor >= 2), and Apex Echo (Apex Lens >= 2 + Echo Prism >= 2).
   - **Chest Reward System & Legendary Relic Vault**: Common and Rare chests offer valid normal upgrade choices (Rare adds +25 Shield). Legendary Chest is a dedicated Relic Vault offering a choice of up to 3 non-maxed relics (+50 Shield, +35 HP, +500 Score) with automatic heal/shield/score fallback when all relics are maxed.
+  - **Spaceship Combat Deck Arena**: Current Arena V2 uses `ARENA_RADIUS = 44`, `ARENA_BOUNDARY_LIMIT = 42.4`, procedural 3D ship-deck presentation, preserved floor decals, and validated obstacle/spawn data.
   - **Frenzy Mode**: High-intensity horde mode with increased enemy pressure and a dedicated HUD timer.
   - **Exact XP Overflow & Continuous Leveling**: Surplus XP bridges level thresholds cleanly. Uncapped numerical player leveling continues even after maxing all 20 normal upgrades without empty level-up modal locks.
-  - *Note: Procedural 3D, CSS, and Lucide React fallbacks are used for newly introduced survivors and items; final external art asset pass is deferred.*
+  - **Current Visual Overhaul**: All 8 survivors, 4 normal enemies, and 5 bosses have in-world procedural 3D identities; external decals and UI assets remain secondary support.
 - **Procedural Web Audio API Sound Effects**:
   - 100% lightweight procedural synthesizers (hammer slams, energy orbs, axe swings, enemy hits, enemy deaths, boss spawn/death, player damage, level-up fanfares).
   - Built-in volume slider and instant mute toggle persisted to `localStorage`. Zero external audio assets.
@@ -56,9 +57,10 @@ This project visibly satisfies the key requirements of the academic React Quiz:
   - `useState`: Real local state management for asynchronous loading, error states, and UI modal states.
   - `useEffect`: Lifecycle data fetching from JSON Server with `AbortController` cancellation and cleanup.
   - `useRef`: High-frequency mutable references for Rapier bodies, Three.js meshes, and the 60 FPS `GameRuntime` simulation.
-- **React Router Navigation**: 5 distinct routes plus dynamic parameter routing and 404 fallback.
+- **React Router Navigation**: 6 distinct routes plus dynamic parameter routing and 404 fallback.
 - **Data Consumption**: Real HTTP operations against a local JSON Server backend (GET `/characters`, GET `/scores`, and POST `/scores`).
 - **State Coordination**: Clean separation between React local state, a lightweight Zustand store for visible session UI, and a mutable `GameRuntime` ref for 60 FPS entity transforms.
+- **Automated Tests**: `npm test` runs the Vitest regression suite for arena layout, progression, secret passives, and store progression behavior.
 - **Strict Exclusions**: No Supabase, Firebase, TailwindCSS, Next.js, Redux, multiplayer, WebSockets, or paid external APIs.
 
 ---
@@ -106,7 +108,20 @@ npm run dev
 | `/game/:characterId` | Dynamic 3D gameplay arena with R3F canvas, Rapier physics, and HUD |
 | `/leaderboard` | Hall of records fetching persisted run scores via `GET /scores` |
 | `/instructions` | Controls guide, combat mechanics, enemy guide, and upgrade encyclopedia |
+| `/profesor-ia` | Project-aware professor assistant with local codebase context |
 | `*` | 404 error page with safe return navigation |
+
+---
+
+## Verification
+
+```bash
+npm run lint
+npm run build
+npm test
+```
+
+The repository also includes development smoke tooling under `tools/dev/` for F8 QA and runtime checks.
 
 ---
 
@@ -136,4 +151,4 @@ BONKAGEDDON includes an importable, production-ready n8n workflow for completed 
 
 ## Asset Policy
 
-All visual assets used in BONKAGEDDON are 100% original, self-contained, and stored under `public/assets/` (`characters/`, `enemies/`, `weapons/`, `upgrades/`, `pickups/`, `ui/`). The custom asset bundle is approximately 3.16 MB, well below the 5 MB project limit. Asset paths are centralized in `src/config/assets.ts`.
+All visual assets used in BONKAGEDDON are 100% original, self-contained, and stored under `public/assets/`. Asset paths are centralized in `src/config/assets.ts`. For the current visual-overhaul phase, the temporary custom asset budget is 15 MB; the checked public asset set remains below that budget.
