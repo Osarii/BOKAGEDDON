@@ -68,8 +68,8 @@ export const GameScene: React.FC<GameSceneProps> = ({ runtimeRef }) => {
           powerPreference: "high-performance",
         }}
       >
-        <color attach="background" args={["#080b12"]} />
-        <fog attach="fog" args={["#080b12", 48, 108]} />
+        <color attach="background" args={["#040711"]} />
+        <fog attach="fog" args={["#040711", 52, 120]} />
 
         <Lighting />
 
