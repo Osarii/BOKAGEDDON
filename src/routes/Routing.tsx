@@ -14,6 +14,12 @@ const ProfessorAI = lazy(() =>
   import("../pages/ProfessorAI").then((m) => ({ default: m.ProfessorAI }))
 );
 
+// Lazy-loaded: CharacterLab is a DEV-only 3D visual inspection environment.
+// Kept in an isolated chunk to avoid affecting the standard game bundle.
+const CharacterLab = lazy(() =>
+  import("../pages/dev/CharacterLab").then((m) => ({ default: m.CharacterLab }))
+);
+
 const ProfessorFallback = (
   <div
     style={{
@@ -33,14 +39,36 @@ const ProfessorFallback = (
   </div>
 );
 
+const CharacterLabFallback = (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: "100vh",
+      background: "#030712",
+      flexDirection: "column",
+      gap: "1rem",
+      color: "#00e5ff",
+      fontFamily: "var(--font-mono, monospace)",
+    }}
+  >
+    <div className="spinner" />
+    <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+      Cargando Character Visual QA Lab…
+    </span>
+  </div>
+);
+
 export const Routing: React.FC = () => {
   const location = useLocation();
   const isGameRoute = location.pathname.startsWith("/game/");
+  const isDevRoute = location.pathname.startsWith("/dev/");
 
   return (
     <>
-      {/* Show top navigation bar on all pages except full-screen game viewport */}
-      {!isGameRoute && <NavBar />}
+      {/* Show top navigation bar on standard pages, hide in full-screen game and dev lab */}
+      {!isGameRoute && !isDevRoute && <NavBar />}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -56,9 +84,17 @@ export const Routing: React.FC = () => {
             </Suspense>
           }
         />
+        {/* DEV-only Character Visual QA Lab */}
+        <Route
+          path="/dev/character-lab"
+          element={
+            <Suspense fallback={CharacterLabFallback}>
+              <CharacterLab />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
 };
-
