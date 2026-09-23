@@ -37,6 +37,7 @@ const EMBER_CONFIG = (() => {
 
 export const Arena: React.FC = () => {
   const embersRef = useRef<THREE.Points>(null);
+  const emberMatRef = useRef<THREE.PointsMaterial>(null);
   const anglesRef = useRef<Float32Array>(new Float32Array(EMBER_CONFIG.initialAngles));
 
   // Boss atmosphere tracking
@@ -68,6 +69,12 @@ export const Arena: React.FC = () => {
       positions[i * 3 + 2] = Math.sin(angle) * radius;
     }
     embersRef.current.geometry.attributes.position.needsUpdate = true;
+    if (emberMatRef.current) {
+      const time = performance.now() * 0.001;
+      emberMatRef.current.opacity = bossActive ? 0.9 + Math.sin(time * 6) * 0.08 : 0.65;
+      emberMatRef.current.size = bossActive ? 0.19 : 0.14;
+      emberMatRef.current.color.set(bossActive ? bossAccentColor : "#38bdf8");
+    }
   });
 
   return (
@@ -120,11 +127,21 @@ export const Arena: React.FC = () => {
       {/* ===================================================================== */}
       <PerimeterHull />
 
+      {bossActive && (
+        <pointLight
+          position={[0, 9, 0]}
+          color={bossAccentColor}
+          intensity={1.6}
+          distance={70}
+        />
+      )}
+
       {/* ===================================================================== */}
       {/* 5. FLOATING ATMOSPHERIC SPARKS / PARTICLES                           */}
       {/* ===================================================================== */}
       <points ref={embersRef} geometry={emberGeometry}>
         <pointsMaterial
+          ref={emberMatRef}
           size={0.14}
           color={bossActive ? bossAccentColor : "#38bdf8"}
           transparent

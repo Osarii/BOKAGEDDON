@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { ARENA_RADIUS } from "../../game/config";
 import { ASSETS } from "../../config/assets";
 import { ARENA_V2_DECALS } from "../../game/arenaLayout";
+import { useGameStore } from "../../store/gameStore";
 
 const decalPlaneGeo = new THREE.PlaneGeometry(1, 1);
 
@@ -17,9 +18,16 @@ const laneDecalTex = textureLoader.load(ASSETS.arenaV2.laneConnectorDecal);
 laneDecalTex.colorSpace = THREE.SRGBColorSpace;
 laneDecalTex.anisotropy = 4;
 
+const sectorColors = ["#f59e0b", "#eab308", "#06b6d4", "#ef4444"];
+const conduitColors = ["#f59e0b", "#06b6d4", "#38bdf8", "#ef4444"];
+
 export const CombatDeckPlating: React.FC = () => {
   const holoMapRef = useRef<THREE.Group>(null);
   const holoRingsRef = useRef<THREE.Mesh>(null);
+  const conduitRefs = useRef<Array<THREE.MeshStandardMaterial | null>>([]);
+  const sectorGlowRefs = useRef<Array<THREE.MeshBasicMaterial | null>>([]);
+  const bossActive = useGameStore((s) => s.bossActive);
+  const bossAccentColor = useGameStore((s) => s.bossAccentColor) || "#e11d48";
 
   const decalMaterials = useMemo(() => {
     return {
@@ -40,14 +48,27 @@ export const CombatDeckPlating: React.FC = () => {
     };
   }, []);
 
-  // Subtle rotation for Central Command hologram
-  useFrame((_, delta) => {
+  // Low-cost arena animation: material pulses and a rotating command hologram.
+  useFrame((state, delta) => {
+    const time = state.clock.getElapsedTime();
     if (holoMapRef.current) {
       holoMapRef.current.rotation.y += delta * 0.4;
+      holoMapRef.current.position.y = Math.sin(time * 1.7) * 0.08;
     }
     if (holoRingsRef.current) {
       holoRingsRef.current.rotation.z -= delta * 0.6;
+      holoRingsRef.current.rotation.y += delta * 0.35;
     }
+    conduitRefs.current.forEach((mat, idx) => {
+      if (!mat) return;
+      mat.emissiveIntensity = (bossActive ? 1.5 : 0.75) + Math.sin(time * 3.2 + idx * 1.7) * 0.35;
+      mat.emissive.set(bossActive ? bossAccentColor : conduitColors[idx]);
+    });
+    sectorGlowRefs.current.forEach((mat, idx) => {
+      if (!mat) return;
+      mat.opacity = (bossActive ? 0.1 : 0.05) + Math.sin(time * 1.6 + idx) * 0.018;
+      mat.color.set(bossActive ? bossAccentColor : sectorColors[idx]);
+    });
   });
 
   return (
@@ -58,25 +79,25 @@ export const CombatDeckPlating: React.FC = () => {
       {/* Reactor Bay (East: +X) Warm Amber Floor Zone */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[28, 0.003, 0]}>
         <circleGeometry args={[12, 32]} />
-        <meshBasicMaterial color="#f59e0b" opacity={0.06} transparent depthWrite={false} />
+        <meshBasicMaterial ref={(m) => { sectorGlowRefs.current[0] = m; }} color="#f59e0b" opacity={0.06} transparent depthWrite={false} />
       </mesh>
 
       {/* Cargo Logistics (West: -X) Industrial Slate / Yellow Floor Zone */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-27, 0.003, 0]}>
         <circleGeometry args={[12, 32]} />
-        <meshBasicMaterial color="#eab308" opacity={0.04} transparent depthWrite={false} />
+        <meshBasicMaterial ref={(m) => { sectorGlowRefs.current[1] = m; }} color="#eab308" opacity={0.04} transparent depthWrite={false} />
       </mesh>
 
       {/* Hangar Deck (North: -Z) Flight Teal Floor Zone */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, -30]}>
         <circleGeometry args={[12, 32]} />
-        <meshBasicMaterial color="#06b6d4" opacity={0.06} transparent depthWrite={false} />
+        <meshBasicMaterial ref={(m) => { sectorGlowRefs.current[2] = m; }} color="#06b6d4" opacity={0.06} transparent depthWrite={false} />
       </mesh>
 
       {/* Defense Battery (South: +Z) Tactical Crimson Floor Zone */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 30]}>
         <circleGeometry args={[12, 32]} />
-        <meshBasicMaterial color="#ef4444" opacity={0.05} transparent depthWrite={false} />
+        <meshBasicMaterial ref={(m) => { sectorGlowRefs.current[3] = m; }} color="#ef4444" opacity={0.05} transparent depthWrite={false} />
       </mesh>
 
       {/* =================================================================== */}
@@ -85,25 +106,25 @@ export const CombatDeckPlating: React.FC = () => {
       {/* East Conduit (Core to Reactor) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[14, 0.006, 0]}>
         <planeGeometry args={[18, 0.35]} />
-        <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.8} />
+        <meshStandardMaterial ref={(m) => { conduitRefs.current[0] = m; }} color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.8} />
       </mesh>
 
       {/* West Conduit (Core to Cargo) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-14, 0.006, 0]}>
         <planeGeometry args={[18, 0.35]} />
-        <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={0.6} />
+        <meshStandardMaterial ref={(m) => { conduitRefs.current[1] = m; }} color="#06b6d4" emissive="#06b6d4" emissiveIntensity={0.6} />
       </mesh>
 
       {/* North Conduit (Core to Hangar) */}
       <mesh rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[0, 0.006, -14]}>
         <planeGeometry args={[18, 0.35]} />
-        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.7} />
+        <meshStandardMaterial ref={(m) => { conduitRefs.current[2] = m; }} color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.7} />
       </mesh>
 
       {/* South Conduit (Core to Defense) */}
       <mesh rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[0, 0.006, 14]}>
         <planeGeometry args={[18, 0.35]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.6} />
+        <meshStandardMaterial ref={(m) => { conduitRefs.current[3] = m; }} color="#ef4444" emissive="#ef4444" emissiveIntensity={0.6} />
       </mesh>
 
       {/* =================================================================== */}

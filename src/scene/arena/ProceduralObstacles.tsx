@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useRef } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import type { ArenaObstacle } from "../../game/arenaLayout";
 
 // ============================================================================
@@ -327,6 +328,14 @@ const BarricadeShort: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => 
 const ReactorBlock: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
   const { width, depth, height } = obstacle;
   const radius = Math.min(width, depth) * 0.48;
+  const coreRef = useRef<THREE.Group>(null);
+
+  useFrame((state, delta) => {
+    if (!coreRef.current) return;
+    const pulse = 1 + Math.sin(state.clock.getElapsedTime() * 3.6) * 0.08;
+    coreRef.current.rotation.y += delta * 0.45;
+    coreRef.current.scale.setScalar(pulse);
+  });
 
   return (
     <group>
@@ -351,12 +360,20 @@ const ReactorBlock: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
       />
 
       {/* Internal superheated fusion core (glowing amber plasma) */}
-      <mesh
-        geometry={unitCylGeo}
-        material={matEmissiveAmber}
-        position={[0, height * 0.52, 0]}
-        scale={[radius * 0.72, height * 0.65, radius * 0.72]}
-      />
+      <group ref={coreRef}>
+        <mesh
+          geometry={unitCylGeo}
+          material={matEmissiveAmber}
+          position={[0, height * 0.52, 0]}
+          scale={[radius * 0.72, height * 0.65, radius * 0.72]}
+        />
+        <mesh
+          geometry={unitOctahedronGeo}
+          material={matEmissiveAmber}
+          position={[0, height * 0.52, 0]}
+          scale={[radius * 0.38, radius * 0.55, radius * 0.38]}
+        />
+      </group>
 
       {/* 4 Heavy magnetic confinement coils around perimeter */}
       {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle, idx) => (
@@ -406,6 +423,12 @@ const ReactorBlock: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
 const HangarGantry: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
   const { width, depth, height } = obstacle;
   const isMain = obstacle.id === "crystal-main";
+  const navRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    if (!navRef.current) return;
+    navRef.current.position.x = Math.sin(state.clock.getElapsedTime() * 2.2) * width * 0.22;
+  });
 
   return (
     <group>
@@ -473,6 +496,7 @@ const HangarGantry: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
 
       {/* Runway navigation light strip along edge */}
       <mesh
+        ref={navRef}
         geometry={unitBoxGeo}
         material={matEmissiveCyan}
         position={[0, 0.46, -depth * 0.45]}
@@ -487,6 +511,13 @@ const HangarGantry: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
 // ============================================================================
 const DefensePlatform: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
   const { width, depth, height } = obstacle;
+  const turretRef = useRef<THREE.Group>(null);
+
+  useFrame((state, delta) => {
+    if (!turretRef.current) return;
+    turretRef.current.rotation.y += delta * 0.35;
+    turretRef.current.position.y = Math.sin(state.clock.getElapsedTime() * 2.8) * 0.03;
+  });
 
   return (
     <group>
@@ -510,44 +541,46 @@ const DefensePlatform: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) =>
         scale={[width * 0.88, height * 0.55, depth * 0.85]}
       />
 
-      {/* Central rotating turret mount base */}
-      <mesh
-        castShadow
-        geometry={unitCylGeo}
-        material={matHullTrim}
-        position={[0, height * 0.78, 0]}
-        scale={[width * 0.26, height * 0.22, depth * 0.36]}
-      />
+      <group ref={turretRef}>
+        {/* Central rotating turret mount base */}
+        <mesh
+          castShadow
+          geometry={unitCylGeo}
+          material={matHullTrim}
+          position={[0, height * 0.78, 0]}
+          scale={[width * 0.26, height * 0.22, depth * 0.36]}
+        />
 
-      {/* Dual heavy point-defense kinetic railgun barrels */}
-      <mesh
-        castShadow
-        geometry={unitBoxGeo}
-        material={matHullDark}
-        position={[-width * 0.1, height * 0.92, -depth * 0.15]}
-        scale={[width * 0.08, height * 0.16, depth * 0.7]}
-      />
-      <mesh
-        castShadow
-        geometry={unitBoxGeo}
-        material={matHullDark}
-        position={[width * 0.1, height * 0.92, -depth * 0.15]}
-        scale={[width * 0.08, height * 0.16, depth * 0.7]}
-      />
+        {/* Dual heavy point-defense kinetic railgun barrels */}
+        <mesh
+          castShadow
+          geometry={unitBoxGeo}
+          material={matHullDark}
+          position={[-width * 0.1, height * 0.92, -depth * 0.15]}
+          scale={[width * 0.08, height * 0.16, depth * 0.7]}
+        />
+        <mesh
+          castShadow
+          geometry={unitBoxGeo}
+          material={matHullDark}
+          position={[width * 0.1, height * 0.92, -depth * 0.15]}
+          scale={[width * 0.08, height * 0.16, depth * 0.7]}
+        />
 
-      {/* Railgun muzzle energy coils */}
-      <mesh
-        geometry={unitBoxGeo}
-        material={matEmissiveRed}
-        position={[-width * 0.1, height * 0.92, -depth * 0.48]}
-        scale={[width * 0.09, height * 0.18, 0.1]}
-      />
-      <mesh
-        geometry={unitBoxGeo}
-        material={matEmissiveRed}
-        position={[width * 0.1, height * 0.92, -depth * 0.48]}
-        scale={[width * 0.09, height * 0.18, 0.1]}
-      />
+        {/* Railgun muzzle energy coils */}
+        <mesh
+          geometry={unitBoxGeo}
+          material={matEmissiveRed}
+          position={[-width * 0.1, height * 0.92, -depth * 0.48]}
+          scale={[width * 0.09, height * 0.18, 0.1]}
+        />
+        <mesh
+          geometry={unitBoxGeo}
+          material={matEmissiveRed}
+          position={[width * 0.1, height * 0.92, -depth * 0.48]}
+          scale={[width * 0.09, height * 0.18, 0.1]}
+        />
+      </group>
 
       {/* Flanking ammunition feed hoppers */}
       <mesh
@@ -584,6 +617,13 @@ const EnergyPylon: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
   const isReactor = sector === "reactor";
   const emissiveMat = isReactor ? matEmissiveAmber : matEmissiveCyan;
   const radius = Math.min(width, depth) * 0.48;
+  const crownRef = useRef<THREE.Group>(null);
+
+  useFrame((state, delta) => {
+    if (!crownRef.current) return;
+    crownRef.current.rotation.y -= delta * 0.75;
+    crownRef.current.position.y = Math.sin(state.clock.getElapsedTime() * 2.4) * 0.08;
+  });
 
   return (
     <group>
@@ -637,12 +677,18 @@ const EnergyPylon: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
       />
 
       {/* Transmitting emitter crystal crown */}
-      <mesh
-        geometry={unitOctahedronGeo}
-        material={emissiveMat}
-        position={[0, height * 1.04, 0]}
-        scale={[radius * 0.35, radius * 0.5, radius * 0.35]}
-      />
+      <group ref={crownRef}>
+        <mesh
+          geometry={unitOctahedronGeo}
+          material={emissiveMat}
+          position={[0, height * 1.04, 0]}
+          scale={[radius * 0.35, radius * 0.5, radius * 0.35]}
+        />
+        <mesh position={[0, height * 1.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[radius * 0.5, radius * 0.54, 24]} />
+          <meshBasicMaterial color={isReactor ? "#f59e0b" : "#38bdf8"} transparent opacity={0.45} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
     </group>
   );
 };
@@ -657,6 +703,14 @@ const SectorBeacon: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
   const holoMat = isDefense ? matBeaconHoloRed : matBeaconHolo;
   const emissiveMat = isDefense ? matEmissiveRed : matEmissiveCyan;
   const radius = Math.min(width, depth) * 0.45;
+  const beaconRef = useRef<THREE.Group>(null);
+
+  useFrame((state, delta) => {
+    if (!beaconRef.current) return;
+    const pulse = 1 + Math.sin(state.clock.getElapsedTime() * 4.2) * 0.12;
+    beaconRef.current.rotation.y += delta * 1.2;
+    beaconRef.current.scale.setScalar(pulse);
+  });
 
   return (
     <group>
@@ -691,18 +745,20 @@ const SectorBeacon: React.FC<{ obstacle: ArenaObstacle }> = ({ obstacle }) => {
       />
 
       {/* Pulsing omni-directional holographic telemetry beacon */}
-      <mesh
-        geometry={unitOctahedronGeo}
-        material={holoMat}
-        position={[0, height * 1.02, 0]}
-        scale={[radius * 0.45, radius * 0.65, radius * 0.45]}
-      />
-      <mesh
-        geometry={unitSphereGeo}
-        material={emissiveMat}
-        position={[0, height * 1.02, 0]}
-        scale={[radius * 0.16, radius * 0.16, radius * 0.16]}
-      />
+      <group ref={beaconRef}>
+        <mesh
+          geometry={unitOctahedronGeo}
+          material={holoMat}
+          position={[0, height * 1.02, 0]}
+          scale={[radius * 0.45, radius * 0.65, radius * 0.45]}
+        />
+        <mesh
+          geometry={unitSphereGeo}
+          material={emissiveMat}
+          position={[0, height * 1.02, 0]}
+          scale={[radius * 0.16, radius * 0.16, radius * 0.16]}
+        />
+      </group>
     </group>
   );
 };

@@ -6,6 +6,7 @@ import { useGameStore } from "../../store/gameStore";
 
 // Number of structural bulkhead ribs around the perimeter
 const RIB_COUNT = 24;
+const NAV_LIGHT_COUNT = 16;
 
 // Reusable unit geometry
 const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -25,6 +26,8 @@ const matHullTrim = new THREE.MeshStandardMaterial({
 
 export const PerimeterHull: React.FC = () => {
   const forcefieldMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const curtainMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const navLightsRef = useRef<THREE.Group>(null);
   const bossActive = useGameStore((s) => s.bossActive);
   const bossAccentColor = useGameStore((s) => s.bossAccentColor) || "#e11d48";
 
@@ -59,17 +62,35 @@ export const PerimeterHull: React.FC = () => {
     return list;
   }, []);
 
+  const navLights = useMemo(() => {
+    return Array.from({ length: NAV_LIGHT_COUNT }, (_, i) => {
+      const angle = (i / NAV_LIGHT_COUNT) * Math.PI * 2;
+      return {
+        x: Math.sin(angle) * ARENA_BOUNDARY_LIMIT,
+        z: Math.cos(angle) * ARENA_BOUNDARY_LIMIT,
+        angle,
+      };
+    });
+  }, []);
+
   // Frame animation for subtle forcefield pulse
-  useFrame((state) => {
+  useFrame((state, delta) => {
+    const time = state.clock.getElapsedTime();
     if (forcefieldMatRef.current) {
-      const time = state.clock.getElapsedTime();
-      const pulse = 0.28 + Math.sin(time * 2.5) * 0.08;
-      forcefieldMatRef.current.opacity = bossActive ? 0.45 : pulse;
+      const pulse = 0.34 + Math.sin(time * 2.5) * 0.1;
+      forcefieldMatRef.current.opacity = bossActive ? 0.58 + Math.sin(time * 7) * 0.08 : pulse;
       if (bossActive) {
         forcefieldMatRef.current.color.set(bossAccentColor);
       } else {
         forcefieldMatRef.current.color.set("#06b6d4");
       }
+    }
+    if (curtainMatRef.current) {
+      curtainMatRef.current.opacity = bossActive ? 0.22 + Math.sin(time * 5) * 0.05 : 0.13 + Math.sin(time * 1.8) * 0.035;
+      curtainMatRef.current.color.set(bossActive ? bossAccentColor : "#38bdf8");
+    }
+    if (navLightsRef.current) {
+      navLightsRef.current.rotation.y += delta * 0.08;
     }
   });
 
@@ -111,6 +132,7 @@ export const PerimeterHull: React.FC = () => {
           args={[ARENA_BOUNDARY_LIMIT, ARENA_BOUNDARY_LIMIT, 0.75, 64, 1, true]}
         />
         <meshBasicMaterial
+          ref={curtainMatRef}
           color="#38bdf8"
           transparent
           opacity={0.12}
@@ -118,6 +140,25 @@ export const PerimeterHull: React.FC = () => {
           depthWrite={false}
         />
       </mesh>
+
+      {/* Moving perimeter navigation beacons */}
+      <group ref={navLightsRef}>
+        {navLights.map((light, idx) => (
+          <mesh
+            key={idx}
+            geometry={unitBoxGeo}
+            position={[light.x, 0.18, light.z]}
+            rotation={[0, -light.angle, 0]}
+            scale={[0.22, 0.08, 0.75]}
+          >
+            <meshBasicMaterial
+              color={idx % 4 === 0 ? "#f59e0b" : "#38bdf8"}
+              transparent
+              opacity={0.85}
+            />
+          </mesh>
+        ))}
+      </group>
 
       {/* =================================================================== */}
       {/* 3. STRUCTURAL BULKHEAD RIBS (Curved Starship Hull Frame)            */}
