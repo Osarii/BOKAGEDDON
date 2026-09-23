@@ -636,6 +636,117 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
             }
           }
         }
+      } else if (selectedCharacterId === "rift") {
+        const hover = Math.sin(animTime * 3.8) * 0.045;
+        if (attackPhase === "anticipation") {
+          anchor.position.set(0, 0.14 + 0.06 * phaseProgress, hitKickZ);
+          anchor.rotation.set(0, -0.45 * phaseProgress, 0.12 * phaseProgress);
+        } else if (attackPhase === "release") {
+          const snap = 1 - phaseProgress;
+          anchor.position.set(0, 0.16, hitKickZ - 0.14 * snap);
+          anchor.rotation.set(-0.12 * snap, 0.55 * snap, -0.08 * snap);
+        } else if (attackPhase === "movement") {
+          anchor.position.set(0, 0.14 + hover, hitKickZ);
+          anchor.rotation.set(0.16, 0, -moveX * 0.12);
+        } else {
+          anchor.position.set(0, 0.14 + hover, hitKickZ);
+          anchor.rotation.set(0, Math.sin(animTime * 1.6) * 0.08, Math.sin(animTime * 2.1) * 0.04);
+        }
+
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            w.scale.setScalar(1 - 0.25 * phaseProgress);
+            w.rotation.y = animTime * 8;
+          } else if (attackPhase === "release") {
+            w.scale.setScalar(0.8 + phaseProgress * 0.7);
+            w.rotation.y += animDelta * 12;
+          } else {
+            w.scale.setScalar(1);
+            w.rotation.y = animTime * 3.2;
+            w.rotation.z = Math.sin(animTime * 2.4) * 0.22;
+          }
+        }
+
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
+          const boost = attackPhase === "anticipation" ? 2.4 * phaseProgress : 0;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.emissiveIntensity = 1.6 + Math.sin(animTime * 5.5) * 0.45 + boost;
+        }
+      } else if (selectedCharacterId === "fuse") {
+        if (attackPhase === "anticipation") {
+          anchor.position.set(0, 0.03, hitKickZ);
+          anchor.rotation.set(0.12, -0.28 * phaseProgress, -0.08);
+        } else if (attackPhase === "release") {
+          const recoil = 1 - phaseProgress;
+          anchor.position.set(0, -0.04 * recoil, hitKickZ - 0.18 * recoil);
+          anchor.rotation.set(-0.16 * recoil, 0.12 * recoil, 0.1 * recoil);
+        } else if (attackPhase === "movement") {
+          const stomp = Math.abs(Math.sin(walk * 0.95)) * 0.11;
+          anchor.position.set(0, stomp, hitKickZ);
+          anchor.rotation.set(0.1, 0, -Math.sin(walk * 0.45) * 0.09);
+        } else {
+          anchor.position.set(0, Math.sin(animTime * 2.4) * 0.025, hitKickZ);
+          anchor.rotation.set(0.03, 0, Math.sin(animTime * 1.8) * 0.025);
+        }
+
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            w.position.set(0.58, 0.06, 0.18 - 0.24 * phaseProgress);
+            w.rotation.set(-0.45 * phaseProgress, 0.15, -0.25);
+          } else if (attackPhase === "release") {
+            const punch = 1 - phaseProgress;
+            w.position.set(0.58, 0.06 - 0.08 * punch, 0.18 + 0.32 * punch);
+            w.rotation.set(0.35 * punch, 0.15, -0.25);
+          } else {
+            w.position.set(0.58, 0.06, 0.18);
+            w.rotation.set(Math.sin(animTime * 2.0) * 0.08, 0.15, -0.25);
+          }
+        }
+
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
+          const boost = attackPhase === "anticipation" ? 2.0 * phaseProgress : 0;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.emissiveIntensity = 1.2 + Math.sin(animTime * 4.0) * 0.35 + boost;
+        }
+      } else if (selectedCharacterId === "lux") {
+        const hover = Math.sin(animTime * 4.5) * 0.055;
+        if (attackPhase === "anticipation") {
+          anchor.position.set(0, 0.18 + 0.05 * phaseProgress, hitKickZ);
+          anchor.rotation.set(-0.04, 0, 0.1 * phaseProgress);
+        } else if (attackPhase === "release") {
+          const recoil = 1 - phaseProgress;
+          anchor.position.set(0, 0.18, hitKickZ - 0.2 * recoil);
+          anchor.rotation.set(-0.18 * recoil, 0, 0);
+        } else if (attackPhase === "movement") {
+          anchor.position.set(0, 0.18 + hover, hitKickZ);
+          anchor.rotation.set(0.2, 0, -moveX * 0.1);
+        } else {
+          anchor.position.set(0, 0.18 + hover, hitKickZ);
+          anchor.rotation.set(0, 0, Math.sin(animTime * 1.7) * 0.035);
+        }
+
+        if (weaponGroupRef.current) {
+          const w = weaponGroupRef.current;
+          if (attackPhase === "anticipation") {
+            w.scale.set(1, 1, 1 + 0.35 * phaseProgress);
+            w.rotation.y = Math.sin(animTime * 7) * 0.08;
+          } else if (attackPhase === "release") {
+            w.scale.set(1.0 + phaseProgress * 0.2, 1.0 + phaseProgress * 0.2, 1.4 + phaseProgress * 0.6);
+            w.rotation.y = 0;
+          } else {
+            w.scale.set(1, 1, 1);
+            w.rotation.y = Math.sin(animTime * 2.2) * 0.1;
+            w.rotation.z = Math.sin(animTime * 2.8) * 0.08;
+          }
+        }
+
+        if (coreMeshRef.current && (coreMeshRef.current as THREE.Mesh).material) {
+          const boost = attackPhase === "anticipation" ? 3.0 * phaseProgress : 0;
+          const mat = coreMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.emissiveIntensity = 1.8 + Math.sin(animTime * 6.0) * 0.5 + boost;
+        }
       }
 
       // Apply squash and stretch damage deformation
@@ -2156,6 +2267,268 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
             </group>
           )}
 
+          {selectedCharacterId === "rift" && (
+            <group>
+              <mesh castShadow position={[0, 0, 0]}>
+                <capsuleGeometry args={[0.32, 0.52, 8, 14]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#171d2b"
+                  metalness={0.85}
+                  roughness={0.22}
+                />
+              </mesh>
+
+              <group position={[0, 0.02, 0.42]}>
+                <mesh ref={coreMeshRef}>
+                  <octahedronGeometry args={[0.16]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m, "#8b5cf6", 1.8, true)}
+                    color="#c4b5fd"
+                    emissive="#8b5cf6"
+                    emissiveIntensity={1.8}
+                    metalness={0.55}
+                  />
+                </mesh>
+                <mesh rotation={[Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[0.24, 0.018, 6, 18]} />
+                  <meshBasicMaterial color="#22d3ee" />
+                </mesh>
+              </group>
+
+              {[-1, 1].map((side) => (
+                <group key={side} position={[side * 0.48, 0.12, 0]} rotation={[0, 0, -side * 0.3]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.14, 0.5, 0.38]} />
+                    <meshStandardMaterial color="#312e81" metalness={0.8} roughness={0.24} />
+                  </mesh>
+                  <mesh position={[side * 0.08, 0.24, 0]}>
+                    <boxGeometry args={[0.08, 0.22, 0.44]} />
+                    <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={0.8} />
+                  </mesh>
+                </group>
+              ))}
+
+              <group position={[0, 0.55, 0.02]}>
+                <mesh castShadow>
+                  <sphereGeometry args={[0.26, 14, 12]} />
+                  <meshStandardMaterial
+                    ref={(m) => registerFlashMaterial(m)}
+                    color="#0f1024"
+                    metalness={0.9}
+                    roughness={0.18}
+                  />
+                </mesh>
+                <mesh position={[0, 0.02, 0.25]}>
+                  <boxGeometry args={[0.38, 0.08, 0.08]} />
+                  <meshStandardMaterial color="#a78bfa" emissive="#8b5cf6" emissiveIntensity={2.0} />
+                </mesh>
+                <mesh position={[0, 0.24, -0.02]} rotation={[-0.45, 0, 0]}>
+                  <coneGeometry args={[0.12, 0.34, 4]} />
+                  <meshStandardMaterial color="#22d3ee" emissive="#0891b2" emissiveIntensity={0.9} />
+                </mesh>
+              </group>
+
+              <group position={[0, 0.18, -0.48]}>
+                {[0, 1, 2].map((idx) => (
+                  <mesh key={idx} position={[0, 0.28 - idx * 0.28, -idx * 0.05]}>
+                    <boxGeometry args={[0.44 - idx * 0.08, 0.05, 0.16]} />
+                    <meshStandardMaterial color="#22d3ee" emissive="#0e7490" emissiveIntensity={0.65} />
+                  </mesh>
+                ))}
+              </group>
+
+              <group ref={weaponGroupRef} position={[0, 0.24, 0]}>
+                <mesh rotation={[Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[0.72, 0.035, 8, 32]} />
+                  <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={1.3} metalness={0.9} />
+                </mesh>
+                <mesh rotation={[Math.PI / 2, 0, Math.PI / 4]}>
+                  <torusGeometry args={[0.46, 0.022, 6, 24]} />
+                  <meshStandardMaterial color="#22d3ee" emissive="#06b6d4" emissiveIntensity={1.0} metalness={0.85} />
+                </mesh>
+                {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle) => (
+                  <mesh key={angle} position={[Math.cos(angle) * 0.72, 0, Math.sin(angle) * 0.72]}>
+                    <octahedronGeometry args={[0.08]} />
+                    <meshStandardMaterial color="#ddd6fe" emissive="#8b5cf6" emissiveIntensity={1.6} />
+                  </mesh>
+                ))}
+              </group>
+            </group>
+          )}
+
+          {selectedCharacterId === "fuse" && (
+            <group>
+              <mesh castShadow position={[0, -0.02, 0]}>
+                <boxGeometry args={[0.66, 0.82, 0.52]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#20232b"
+                  metalness={0.75}
+                  roughness={0.35}
+                />
+              </mesh>
+              <mesh position={[0, 0.06, 0.32]}>
+                <boxGeometry args={[0.5, 0.28, 0.12]} />
+                <meshStandardMaterial color="#f97316" emissive="#ea580c" emissiveIntensity={0.75} metalness={0.8} />
+              </mesh>
+              <mesh ref={coreMeshRef} position={[0, -0.12, 0.39]}>
+                <cylinderGeometry args={[0.14, 0.14, 0.08, 12]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#f59e0b", 1.4, true)}
+                  color="#fbbf24"
+                  emissive="#f59e0b"
+                  emissiveIntensity={1.4}
+                />
+              </mesh>
+
+              {[-1, 1].map((side) => (
+                <group key={side} position={[side * 0.58, 0.16, 0]} rotation={[0, 0, -side * 0.2]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.28, 0.42, 0.42]} />
+                    <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.3} />
+                  </mesh>
+                  <mesh position={[side * 0.04, 0.24, 0]}>
+                    <cylinderGeometry args={[0.06, 0.06, 0.36, 8]} />
+                    <meshStandardMaterial color="#f59e0b" emissive="#f97316" emissiveIntensity={0.7} />
+                  </mesh>
+                </group>
+              ))}
+
+              <group position={[0, 0.52, 0.02]}>
+                <mesh castShadow>
+                  <boxGeometry args={[0.42, 0.36, 0.42]} />
+                  <meshStandardMaterial color="#111827" metalness={0.9} roughness={0.2} />
+                </mesh>
+                <mesh position={[0, 0, 0.24]}>
+                  <boxGeometry args={[0.32, 0.09, 0.08]} />
+                  <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={1.7} />
+                </mesh>
+                <mesh position={[-0.18, 0.22, -0.05]} rotation={[0.3, 0, 0.45]}>
+                  <cylinderGeometry args={[0.055, 0.075, 0.38, 8]} />
+                  <meshStandardMaterial color="#334155" metalness={0.9} />
+                </mesh>
+                <mesh position={[0.18, 0.22, -0.05]} rotation={[0.3, 0, -0.45]}>
+                  <cylinderGeometry args={[0.055, 0.075, 0.38, 8]} />
+                  <meshStandardMaterial color="#334155" metalness={0.9} />
+                </mesh>
+              </group>
+
+              <group position={[0, 0.0, -0.42]}>
+                {[-0.22, 0.22].map((x) => (
+                  <mesh key={x} position={[x, 0.18, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.1, 0.12, 0.42, 8]} />
+                    <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.25} />
+                  </mesh>
+                ))}
+              </group>
+
+              <group ref={weaponGroupRef} position={[0.58, 0.06, 0.18]} rotation={[0, 0.15, -0.25]}>
+                <mesh>
+                  <boxGeometry args={[0.26, 0.18, 0.48]} />
+                  <meshStandardMaterial color="#f97316" metalness={0.8} roughness={0.25} />
+                </mesh>
+                <mesh position={[0, 0, 0.28]}>
+                  <cylinderGeometry args={[0.11, 0.08, 0.32, 10]} />
+                  <meshStandardMaterial color="#0f172a" metalness={0.9} />
+                </mesh>
+                <mesh position={[0, 0, 0.48]}>
+                  <torusGeometry args={[0.16, 0.025, 8, 18]} />
+                  <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={1.1} />
+                </mesh>
+                <mesh position={[-0.22, -0.16, -0.05]}>
+                  <boxGeometry args={[0.1, 0.32, 0.14]} />
+                  <meshStandardMaterial color="#64748b" metalness={0.8} />
+                </mesh>
+              </group>
+            </group>
+          )}
+
+          {selectedCharacterId === "lux" && (
+            <group>
+              <mesh castShadow position={[0, 0.02, 0]}>
+                <capsuleGeometry args={[0.3, 0.58, 8, 16]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m)}
+                  color="#111827"
+                  metalness={0.85}
+                  roughness={0.18}
+                />
+              </mesh>
+              <mesh position={[0, 0.04, 0.36]}>
+                <boxGeometry args={[0.32, 0.5, 0.1]} />
+                <meshStandardMaterial color="#f8fafc" metalness={0.65} roughness={0.16} />
+              </mesh>
+              <mesh ref={coreMeshRef} position={[0, 0.14, 0.43]}>
+                <octahedronGeometry args={[0.15]} />
+                <meshStandardMaterial
+                  ref={(m) => registerFlashMaterial(m, "#facc15", 2.0, true)}
+                  color="#fff7ed"
+                  emissive="#facc15"
+                  emissiveIntensity={2.0}
+                />
+              </mesh>
+
+              {[-1, 1].map((side) => (
+                <group key={side} position={[side * 0.46, 0.18, 0]} rotation={[0, 0, -side * 0.28]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.14, 0.48, 0.28]} />
+                    <meshStandardMaterial color="#eab308" metalness={0.9} roughness={0.16} />
+                  </mesh>
+                  <mesh position={[side * 0.12, 0.04, 0]}>
+                    <boxGeometry args={[0.08, 0.3, 0.36]} />
+                    <meshStandardMaterial color="#38bdf8" emissive="#06b6d4" emissiveIntensity={0.8} />
+                  </mesh>
+                </group>
+              ))}
+
+              <group position={[0, 0.58, 0.02]}>
+                <mesh castShadow>
+                  <sphereGeometry args={[0.25, 14, 12]} />
+                  <meshStandardMaterial color="#f8fafc" metalness={0.72} roughness={0.14} />
+                </mesh>
+                <mesh position={[0, 0.03, 0.24]}>
+                  <boxGeometry args={[0.36, 0.075, 0.07]} />
+                  <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={2.2} />
+                </mesh>
+                <mesh position={[0, 0.25, -0.02]} rotation={[-0.25, 0, 0]}>
+                  <coneGeometry args={[0.13, 0.32, 5]} />
+                  <meshStandardMaterial color="#facc15" metalness={0.95} roughness={0.12} />
+                </mesh>
+              </group>
+
+              <group position={[0, 0.18, -0.4]}>
+                <mesh>
+                  <boxGeometry args={[0.58, 0.08, 0.18]} />
+                  <meshStandardMaterial color="#facc15" emissive="#eab308" emissiveIntensity={0.8} metalness={0.9} />
+                </mesh>
+                <mesh position={[0, -0.18, -0.06]}>
+                  <boxGeometry args={[0.44, 0.08, 0.14]} />
+                  <meshStandardMaterial color="#38bdf8" emissive="#06b6d4" emissiveIntensity={0.8} />
+                </mesh>
+              </group>
+
+              <group ref={weaponGroupRef} position={[0, 0.18, 0.5]}>
+                <mesh rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[0.035, 0.035, 1.6, 8]} />
+                  <meshStandardMaterial color="#f8fafc" emissive="#facc15" emissiveIntensity={1.2} metalness={0.85} />
+                </mesh>
+                <mesh position={[0, 0, 0.82]} rotation={[Math.PI / 2, 0, 0]}>
+                  <coneGeometry args={[0.11, 0.34, 6]} />
+                  <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={1.8} />
+                </mesh>
+                <mesh position={[0, 0, -0.42]} rotation={[Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[0.18, 0.018, 8, 20]} />
+                  <meshBasicMaterial color="#38bdf8" />
+                </mesh>
+                <mesh position={[0, 0, 0.2]}>
+                  <boxGeometry args={[0.5, 0.035, 0.035]} />
+                  <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={1.3} />
+                </mesh>
+              </group>
+            </group>
+          )}
+
           {/* Forward-facing Tactical Ground Indicator Chevron (Shared Readability) */}
           <mesh position={[0, -0.5, 0.7]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.18, 0.28, 3, 1, 0, Math.PI]} />
@@ -2169,6 +2542,12 @@ export const PlayerPlaceholder: React.FC<PlayerPlaceholderProps> = ({
                   ? "#d946ef"
                   : selectedCharacterId === "hex"
                   ? "#22c55e"
+                  : selectedCharacterId === "rift"
+                  ? "#8b5cf6"
+                  : selectedCharacterId === "fuse"
+                  ? "#f97316"
+                  : selectedCharacterId === "lux"
+                  ? "#facc15"
                   : "#fbbf24"
               }
               transparent
