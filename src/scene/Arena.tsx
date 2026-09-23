@@ -93,17 +93,26 @@ export const Arena: React.FC = () => {
       <CombatDeckPlating />
 
       {/* ===================================================================== */}
-      {/* 3. PROCEDURAL MODULAR 3D OBSTACLES                                    */}
+      {/* 3. PROCEDURAL MODULAR 3D OBSTACLES & RAPIER COLLIDERS                 */}
       {/* Driven by authoritative ARENA_V2_OBSTACLES layout                     */}
       {/* ===================================================================== */}
       {ARENA_V2_OBSTACLES.map((obstacle) => (
-        <group
-          key={obstacle.id}
-          position={[obstacle.x, 0, obstacle.z]}
-          rotation={[0, obstacle.rotation, 0]}
-        >
-          <ProceduralObstacleMesh obstacle={obstacle} />
-        </group>
+        <React.Fragment key={obstacle.id}>
+          <RigidBody
+            type="fixed"
+            colliders={false}
+            position={[obstacle.x, obstacle.height / 2, obstacle.z]}
+            rotation={[0, obstacle.rotation, 0]}
+          >
+            <CuboidCollider args={[obstacle.width / 2, obstacle.height / 2, obstacle.depth / 2]} />
+          </RigidBody>
+          <group
+            position={[obstacle.x, 0, obstacle.z]}
+            rotation={[0, obstacle.rotation, 0]}
+          >
+            <ProceduralObstacleMesh obstacle={obstacle} />
+          </group>
+        </React.Fragment>
       ))}
 
       {/* ===================================================================== */}
