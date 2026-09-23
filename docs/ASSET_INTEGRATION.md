@@ -114,8 +114,9 @@ The obsolete 2D vertical billboard obstacle WebPs have been superseded by lightw
 
 | Area | Runtime file | Status |
 | --- | --- | --- |
-| 7 procedural survivors | `src/scene/PlayerPlaceholder.tsx` | Integrated: Bonk, Byte, Nova, Hex, Rift, Fuse, Lux retain their in-world procedural silhouettes and weapon hardware |
-| Tank animated GLB | `public/assets/characters/tank-v2.glb`, `src/scene/TankModel.tsx` | Integrated: articulated hard-surface model with Idle, Run, Attack, Hit, Death clips; original `tank_v1.glb` source supplied separately, rebuild via `node tools/dev/build_tank_v2.mjs /path/to/tank_v1.glb` |
+| 6 procedural survivors | `src/scene/PlayerPlaceholder.tsx` | Integrated: Bonk, Byte, Nova, Hex, Fuse, Lux retain their in-world procedural silhouettes and weapon hardware |
+| Tank animated GLB | `public/assets/characters/tank-v3.glb`, `src/scene/TankModel.tsx` | Integrated: TANK V3 production mech with Idle, Run, Attack, Hit, Death clips; baseline `tank-v2.glb` preserved |
+| Rift animated GLB | `public/assets/characters/rift-v1.glb`, `src/scene/RiftModel.tsx` | Integrated: RIFT V1 floating dimensional warrior with Idle, Run (hover locomotion), Attack, Hit, Death clips |
 | 4 normal enemies | `src/scene/EnemyManager.tsx` | Integrated: Slime Bot, Runner Drone, Iron Brute, Beam Sentry use instanced procedural 3D silhouettes with decals |
 | 5 bosses | `src/scene/BossRenderer.tsx` | Integrated: Bonklord, Cindermaw, Stormcoil, Venomatrix, Cryovex have unique procedural 3D silhouettes with telegraphs |
 | Loot chests | `src/scene/PickupManager.tsx` | Integrated: Common, Rare, and Legendary chests use shared procedural 3D instanced crate geometry with rarity-specific sci-fi palettes |
